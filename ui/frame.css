@@ -1,0 +1,125 @@
+/* Shared by the interfaces that draw their own window (no system frame):
+   the title bar, resize edges and the 4% see-through window surface.
+   Each interface sets --wf-surface (its background colour, 96% opaque),
+   --wf-text and --wf-hover. */
+
+html,
+body {
+  background: transparent;
+}
+
+.wf-window {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: var(--wf-surface);
+}
+
+@media (prefers-color-scheme: light) {
+  .wf-window {
+    border-color: rgba(0, 0, 0, 0.12);
+  }
+}
+
+.window-frame {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 8px 0 16px;
+  user-select: none;
+}
+
+.wf-title {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wf-text);
+  opacity: 0.8;
+}
+
+.wf-title img {
+  width: 20px;
+  height: 20px;
+}
+
+.wf-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.wf-button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(127, 127, 127, 0.16);
+  color: var(--wf-text);
+  cursor: default;
+}
+
+.wf-button:hover {
+  background: var(--wf-hover);
+}
+
+.wf-button[data-window="close"]:hover {
+  background: #e01b24;
+  color: #fff;
+}
+
+.wf-button svg {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.wf-edge {
+  position: fixed;
+  z-index: 100;
+}
+
+.wf-North,
+.wf-South {
+  left: 12px;
+  right: 12px;
+  height: 5px;
+}
+
+.wf-East,
+.wf-West {
+  top: 12px;
+  bottom: 12px;
+  width: 5px;
+}
+
+.wf-North { top: 0; cursor: n-resize; }
+.wf-South { bottom: 0; cursor: s-resize; }
+.wf-East { right: 0; cursor: e-resize; }
+.wf-West { left: 0; cursor: w-resize; }
+
+.wf-NorthEast,
+.wf-NorthWest,
+.wf-SouthEast,
+.wf-SouthWest {
+  width: 12px;
+  height: 12px;
+}
+
+.wf-NorthEast { top: 0; right: 0; cursor: ne-resize; }
+.wf-NorthWest { top: 0; left: 0; cursor: nw-resize; }
+.wf-SouthEast { bottom: 0; right: 0; cursor: se-resize; }
+.wf-SouthWest { bottom: 0; left: 0; cursor: sw-resize; }

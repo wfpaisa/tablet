@@ -1,0 +1,33 @@
+name: Release
+
+# Push a tag such as v0.1.0 (matching the version in Cargo.toml) to build
+# the archive and attach it to a draft release.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # The oldest supported runner, so the binaries run on older glibc too.
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag matches Cargo.toml
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
+          test "v$version" = "$GITHUB_REF_NAME"
+      - name: System libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --locked --workspace
+      - id: package
+        run: echo "archive=$(scripts/package.sh | tail -1)" >> "$GITHUB_OUTPUT"
+      - uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: ${{ steps.package.outputs.archive }}

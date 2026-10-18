@@ -1,0 +1,13 @@
+[package]
+name = "tabletd"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tablet-config.workspace = true
+serde_json.workspace = true
+evdev = "0.13"
+signal-hook = "0.3"
+libc = "0.2"
+zbus = { version = "5", default-features = false, features = ["blocking-api", "async-io"] }

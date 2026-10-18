@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Tablet Center
+Exec=tablet-center
+Icon=tablet-center
+Categories=Settings;HardwareSettings;
+Terminal=false
+StartupWMClass=tablet-center

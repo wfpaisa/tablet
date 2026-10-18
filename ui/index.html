@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tablet Center</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="select.css">
+</head>
+<body>
+  <header class="toolbar">
+    <nav class="toolbar-group">
+      <a class="tool" data-route="devices" href="#/devices"><i class="icon" style="--icon: url(assets/icons/nav-devices.svg)"></i><span data-t="Devices"></span></a>
+      <a class="tool" data-route="shortcuts" href="#/shortcuts"><i class="icon" style="--icon: url(assets/icons/nav-shortcuts.svg)"></i><span data-t="On-screen shortcuts"></span></a>
+    </nav>
+    <nav class="toolbar-group">
+      <a class="tool" data-route="settings" href="#/settings"><i class="icon" style="--icon: url(assets/icons/nav-settings.svg)"></i><span data-t="Settings"></span></a>
+    </nav>
+  </header>
+  <main id="view"></main>
+  <div id="toast" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "uuid": "tablet-center@tabletcenter.dev",
+  "name": "Tablet Center",
+  "description": "Pen feedback and on-screen shortcuts for Tablet Center: a hold ring next to the cursor, radial menus and grid panels drawn by the shell.",
+  "url": "https://github.com/wfpaisa/tablet",
+  "shell-version": [
+    "48",
+    "49",
+    "50",
+    "51"
+  ]
+}

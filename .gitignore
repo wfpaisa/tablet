@@ -1,0 +1,16 @@
+# Rust build output
+/target/
+/dist/
+
+# Tauri generated files
+/crates/tablet-center/gen/
+
+# Driver images must never be committed.
+*.dmg
+*.pkg
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store

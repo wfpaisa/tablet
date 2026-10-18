@@ -1,0 +1,536 @@
+//! Settings and IPC protocol shared by `tabletd` and Tablet Center.
+//!
+//! Settings live in `$XDG_CONFIG_HOME/tablet-center/config.json`. The UI writes
+//! the file and then sends [`Request::Reload`] over the daemon socket at
+//! `$XDG_RUNTIME_DIR/tabletd.sock` (one JSON object per line, each answered by
+//! one [`Response`] line).
+
+use serde::{Deserialize, Serialize};
+use std::{env, fs, io, path::PathBuf};
+
+/// What a pen side button does.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ButtonAction {
+    /// Hold the button and drag the tip to scroll in any direction.
+    PanScroll,
+    /// The other pen gestures; see [`Gesture`].
+    PanScrollLegacy,
+    Scroll,
+    Wheel,
+    Zoom,
+    PanZoom,
+    LeftClick,
+    RightClick,
+    MiddleClick,
+    /// A tap is a right click (sent on release); holding the button still,
+    /// or moving the pen while it is held, presses the middle button until
+    /// release, e.g. to drag with it.
+    RightOrHoldMiddle,
+    DoubleClick,
+    Back,
+    Forward,
+    /// Cycle the mapping: all displays, then each monitor in turn.
+    DisplayToggle,
+    /// Open an on-screen shortcut; see [`Shortcut`].
+    ExpressMenu,
+    RadialMenu,
+    AppShortcuts,
+    Keypad,
+    /// Forward the raw stylus button and let the desktop decide.
+    Default,
+    Disabled,
+}
+
+/// How the pen reaches the desktop.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PenMode {
+    /// A tablet with pressure and its own cursor, which apps may not shape.
+    #[default]
+    Pen,
+    /// Moves the mouse pointer: one cursor that changes over text and
+    /// borders, the tip clicks, no pressure.
+    Mouse,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PenSettings {
+    pub mode: PenMode,
+    /// Button nearest the eraser end (BTN_STYLUS2).
+    pub upper_button: ButtonAction,
+    /// Button nearest the tip (BTN_STYLUS).
+    pub lower_button: ButtonAction,
+    /// 1 (soft) ..= 7 (firm); 4 leaves the pressure untouched.
+    pub tip_sensitivity: u8,
+    /// Right-or-middle: how long a held button waits before it becomes a
+    /// middle click, 1 (short) ..= 3 (long); see [`hold_middle_time`].
+    pub hold_time: u8,
+}
+
+/// Wait of [`ButtonAction::RightOrHoldMiddle`] for a [`PenSettings::hold_time`].
+pub fn hold_middle_time(level: u8) -> std::time::Duration {
+    const MS: [u64; 3] = [400, 700, 1100];
+    std::time::Duration::from_millis(MS[usize::from(level.clamp(1, 3)) - 1])
+}
+
+impl Default for PenSettings {
+    fn default() -> Self {
+        Self {
+            mode: PenMode::Pen,
+            upper_button: ButtonAction::PanScroll,
+            lower_button: ButtonAction::RightClick,
+            tip_sensitivity: 4,
+            hold_time: 2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PanScrollSettings {
+    /// 1 (slow) ..= 5 (fast), same scale as the macOS slider.
+    pub speed: u8,
+    /// Content moves with the pen, like grabbing the page.
+    pub content_follows_pen: bool,
+}
+
+impl Default for PanScrollSettings {
+    fn default() -> Self {
+        Self { speed: 3, content_follows_pen: true }
+    }
+}
+
+/// Which part of the desktop the tablet drives.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MappingSettings {
+    /// [`Display::id`] of one monitor, or `None` for all of them.
+    pub display: Option<String>,
+    /// Trim the tablet area so its aspect ratio matches the target, keeping
+    /// circles round. Trims from the bottom or right, like Wacom's driver.
+    pub force_proportions: bool,
+}
+
+/// What an ExpressKey does.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum KeyAction {
+    #[default]
+    Disabled,
+    /// evdev key names pressed in order and released in reverse, e.g.
+    /// `["KEY_LEFTCTRL", "KEY_Z"]`. `label` is what the UI shows.
+    Keystroke { keys: Vec<String>, label: String },
+    LeftClick,
+    RightClick,
+    MiddleClick,
+    DoubleClick,
+    Back,
+    Forward,
+    /// Cycle the mapping: all displays, then each monitor in turn.
+    DisplayToggle,
+    ExpressMenu,
+    RadialMenu,
+    AppShortcuts,
+    Keypad,
+    /// Hold the key and drag the pen tip to scroll.
+    PanScroll,
+    PanScrollLegacy,
+    Scroll,
+    Wheel,
+    Zoom,
+    PanZoom,
+}
+
+/// What dragging the pen tip does while a button assigned to a pen gesture
+/// is held.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gesture {
+    /// Content moves with the pen, in any direction.
+    PanScroll,
+    /// Joystick: the farther the pen from where it touched down, the faster
+    /// it scrolls, along one axis at a time, even while the pen rests.
+    PanScrollLegacy,
+    /// Like Pan/Scroll, vertical only.
+    Scroll,
+    /// Joystick like the legacy mode, in whole wheel notches.
+    Wheel,
+    /// Joystick on the vertical axis sending Ctrl+wheel: up zooms in.
+    Zoom,
+    /// Dragging the tip pans like Pan/Scroll; moving the pen up or down in
+    /// the air zooms (Ctrl+wheel), so one button does both.
+    PanZoom,
+}
+
+impl Gesture {
+    /// Stable small id, for passing the gesture between threads.
+    pub fn id(self) -> u8 {
+        self as u8 + 1
+    }
+
+    pub fn from_id(id: u8) -> Option<Self> {
+        use Gesture::*;
+        [PanScroll, PanScrollLegacy, Scroll, Wheel, Zoom, PanZoom].get(usize::from(id).checked_sub(1)?).copied()
+    }
+}
+
+/// On-screen shortcuts: menus Tablet Center shows where the pen is, which
+/// run the chosen action once the window closes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Shortcut {
+    ExpressMenu,
+    RadialMenu,
+    AppShortcuts,
+    Keypad,
+}
+
+impl Shortcut {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::ExpressMenu => "express_menu",
+            Self::RadialMenu => "radial_menu",
+            Self::AppShortcuts => "app_shortcuts",
+            Self::Keypad => "keypad",
+        }
+    }
+}
+
+impl ButtonAction {
+    pub fn shortcut(self) -> Option<Shortcut> {
+        Some(match self {
+            Self::ExpressMenu => Shortcut::ExpressMenu,
+            Self::RadialMenu => Shortcut::RadialMenu,
+            Self::AppShortcuts => Shortcut::AppShortcuts,
+            Self::Keypad => Shortcut::Keypad,
+            _ => return None,
+        })
+    }
+
+    pub fn gesture(self) -> Option<Gesture> {
+        Some(match self {
+            Self::PanScroll => Gesture::PanScroll,
+            Self::PanScrollLegacy => Gesture::PanScrollLegacy,
+            Self::Scroll => Gesture::Scroll,
+            Self::Wheel => Gesture::Wheel,
+            Self::Zoom => Gesture::Zoom,
+            Self::PanZoom => Gesture::PanZoom,
+            _ => return None,
+        })
+    }
+}
+
+impl KeyAction {
+    pub fn shortcut(&self) -> Option<Shortcut> {
+        Some(match self {
+            Self::ExpressMenu => Shortcut::ExpressMenu,
+            Self::RadialMenu => Shortcut::RadialMenu,
+            Self::AppShortcuts => Shortcut::AppShortcuts,
+            Self::Keypad => Shortcut::Keypad,
+            _ => return None,
+        })
+    }
+
+    fn keys(label: &str, keys: &[&str]) -> Self {
+        Self::Keystroke { keys: keys.iter().map(|k| k.to_string()).collect(), label: label.into() }
+    }
+
+    pub fn gesture(&self) -> Option<Gesture> {
+        Some(match self {
+            Self::PanScroll => Gesture::PanScroll,
+            Self::PanScrollLegacy => Gesture::PanScrollLegacy,
+            Self::Scroll => Gesture::Scroll,
+            Self::Wheel => Gesture::Wheel,
+            Self::Zoom => Gesture::Zoom,
+            Self::PanZoom => Gesture::PanZoom,
+            _ => return None,
+        })
+    }
+}
+
+/// One entry of a radial menu or grid panel.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct MenuItem {
+    /// Shown instead of the action's name when not empty.
+    pub label: String,
+    pub action: KeyAction,
+}
+
+impl MenuItem {
+    fn new(action: KeyAction) -> Self {
+        Self { label: String::new(), action }
+    }
+}
+
+/// A radial menu or grid panel.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct OnScreen {
+    /// Radial menus have 8 slices, clockwise from the top; App shortcuts
+    /// 12 cells. The keypad's keys are fixed.
+    pub items: Vec<MenuItem>,
+    /// 1 (small) ..= 5 (large).
+    pub size: u8,
+    /// 1 (small) ..= 5 (large).
+    pub text_size: u8,
+    /// Open where the pen is instead of centred on its monitor.
+    pub at_cursor: bool,
+}
+
+impl Default for OnScreen {
+    fn default() -> Self {
+        Self::with(Vec::new())
+    }
+}
+
+impl OnScreen {
+    fn with(items: Vec<MenuItem>) -> Self {
+        Self { items, size: 3, text_size: 3, at_cursor: true }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ShortcutSettings {
+    pub express_menu: OnScreen,
+    pub radial_menu: OnScreen,
+    pub app_shortcuts: OnScreen,
+    pub keypad: OnScreen,
+    /// Drawn by the Tablet Center GNOME Shell extension instead of a
+    /// Tablet Center window (which stays the fallback).
+    pub in_shell: bool,
+}
+
+/// Menus resolved for the GNOME Shell extension (labels translated, icon
+/// names picked), written by Tablet Center next to the settings file.
+pub fn shell_menus_path() -> PathBuf {
+    config_path().with_file_name("shell-menus.json")
+}
+
+impl Default for ShortcutSettings {
+    fn default() -> Self {
+        use KeyAction as K;
+        let item = MenuItem::new;
+        let undo = || K::keys("Undo", &["KEY_LEFTCTRL", "KEY_Z"]);
+        let redo = || K::keys("Redo", &["KEY_LEFTCTRL", "KEY_LEFTSHIFT", "KEY_Z"]);
+        let copy = || K::keys("Copy", &["KEY_LEFTCTRL", "KEY_C"]);
+        let paste = || K::keys("Paste", &["KEY_LEFTCTRL", "KEY_V"]);
+        let save = || K::keys("Save", &["KEY_LEFTCTRL", "KEY_S"]);
+        Self {
+            express_menu: OnScreen::with(vec![
+                item(undo()),
+                item(redo()),
+                item(copy()),
+                item(paste()),
+                item(save()),
+                item(K::DisplayToggle),
+                item(K::RightClick),
+                item(K::Disabled),
+            ]),
+            radial_menu: OnScreen::with(vec![
+                item(undo()),
+                item(redo()),
+                item(K::keys("Select all", &["KEY_LEFTCTRL", "KEY_A"])),
+                item(K::keys("Cut", &["KEY_LEFTCTRL", "KEY_X"])),
+                item(copy()),
+                item(paste()),
+                item(K::Keypad),
+                item(K::Disabled),
+            ]),
+            app_shortcuts: OnScreen::with(vec![
+                item(undo()),
+                item(redo()),
+                item(K::keys("Cut", &["KEY_LEFTCTRL", "KEY_X"])),
+                item(copy()),
+                item(paste()),
+                item(K::keys("Select all", &["KEY_LEFTCTRL", "KEY_A"])),
+                item(save()),
+                item(K::keys("Open", &["KEY_LEFTCTRL", "KEY_O"])),
+                item(K::keys("New", &["KEY_LEFTCTRL", "KEY_N"])),
+                item(K::keys("Find", &["KEY_LEFTCTRL", "KEY_F"])),
+                item(K::keys("Zoom in", &["KEY_LEFTCTRL", "KEY_EQUAL"])),
+                item(K::keys("Zoom out", &["KEY_LEFTCTRL", "KEY_MINUS"])),
+            ]),
+            keypad: OnScreen::default(),
+            in_shell: false,
+        }
+    }
+}
+
+/// Speed sliders of the other pen gestures, 1 (slow) ..= 5 (fast).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct GestureSettings {
+    pub legacy_speed: u8,
+    pub scroll_speed: u8,
+    pub wheel_speed: u8,
+    pub zoom_speed: u8,
+    pub pan_zoom_speed: u8,
+}
+
+impl Default for GestureSettings {
+    fn default() -> Self {
+        Self { legacy_speed: 3, scroll_speed: 3, wheel_speed: 3, zoom_speed: 3, pan_zoom_speed: 3 }
+    }
+}
+
+/// Pen travel (mm) per unit of joystick speed, from the macOS slider remap
+/// (`kPenButtonPanScrollSpeedSliderValueRemapping`): slow 5 mm .. fast 1 mm.
+pub fn joystick_mm(speed: u8) -> f64 {
+    const MM: [f64; 5] = [5.0, 4.0, 3.0, 2.0, 1.0];
+    MM[usize::from(speed.clamp(1, 5)) - 1]
+}
+
+/// The Intuos S has four ExpressKeys, left to right (BTN_0 ..= BTN_3).
+pub const EXPRESS_KEYS: usize = 4;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Config {
+    pub pen: PenSettings,
+    pub pan_scroll: PanScrollSettings,
+    pub mapping: MappingSettings,
+    pub express_keys: Vec<KeyAction>,
+    pub gestures: GestureSettings,
+    pub shortcuts: ShortcutSettings,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            pen: PenSettings::default(),
+            pan_scroll: PanScrollSettings::default(),
+            mapping: MappingSettings::default(),
+            express_keys: vec![KeyAction::Disabled; EXPRESS_KEYS],
+            gestures: GestureSettings::default(),
+            shortcuts: ShortcutSettings::default(),
+        }
+    }
+}
+
+impl PanScrollSettings {
+    /// Hi-res wheel units (120 per notch) emitted per millimetre of pen travel.
+    pub fn v120_per_mm(&self) -> f64 {
+        v120_per_mm(self.speed)
+    }
+}
+
+/// Drag gain shared by Pan/Scroll and Scroll.
+pub fn v120_per_mm(speed: u8) -> f64 {
+    const GAIN: [f64; 5] = [40.0, 70.0, 110.0, 170.0, 260.0];
+    GAIN[usize::from(speed.clamp(1, 5)) - 1]
+}
+
+impl PenSettings {
+    /// Exponent applied to normalised pressure; below 1 is softer.
+    pub fn pressure_gamma(&self) -> f64 {
+        const GAMMA: [f64; 7] = [0.4, 0.55, 0.75, 1.0, 1.35, 1.8, 2.4];
+        GAMMA[usize::from(self.tip_sensitivity.clamp(1, 7)) - 1]
+    }
+}
+
+pub fn config_path() -> PathBuf {
+    let base = env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".config"));
+    base.join("tablet-center").join("config.json")
+}
+
+pub fn socket_path() -> PathBuf {
+    env::var_os("XDG_RUNTIME_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(env::temp_dir)
+        .join("tabletd.sock")
+}
+
+fn home() -> PathBuf {
+    env::var_os("HOME").map(PathBuf::from).unwrap_or_default()
+}
+
+/// Missing or unreadable settings fall back to defaults.
+pub fn load() -> Config {
+    fs::read(config_path())
+        .ok()
+        .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+        .unwrap_or_default()
+}
+
+pub fn save(config: &Config) -> io::Result<()> {
+    let path = config_path();
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, serde_json::to_vec_pretty(config)?)?;
+    fs::rename(tmp, path)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "cmd", rename_all = "snake_case")]
+pub enum Request {
+    Reload,
+    Status,
+    /// Run an action picked from an on-screen shortcut (taps it once).
+    Run { action: KeyAction },
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DeviceInfo {
+    pub name: String,
+    pub vendor: u16,
+    pub product: u16,
+    /// Active area of the tablet.
+    pub width_mm: f64,
+    pub height_mm: f64,
+}
+
+/// A monitor in GNOME's layout, in logical pixels.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Display {
+    /// "vendor|product|serial": stable across ports and reboots.
+    pub id: String,
+    pub connector: String,
+    pub name: String,
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    pub primary: bool,
+}
+
+/// Live pen state, for the test area in the UI.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PenState {
+    pub in_proximity: bool,
+    pub tip_down: bool,
+    /// Pressure after the sensitivity curve, 0.0 ..= 1.0.
+    pub pressure: f64,
+    pub panning: bool,
+    /// Side buttons held right now, so the UI can light up the one pressed.
+    #[serde(default)]
+    pub upper_button: bool,
+    #[serde(default)]
+    pub lower_button: bool,
+    /// A side button holds a mouse button on the pointer (a drag).
+    #[serde(default)]
+    pub mouse_held: bool,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Response {
+    pub ok: bool,
+    pub error: Option<String>,
+    pub device: Option<DeviceInfo>,
+    pub pen: Option<PenState>,
+    #[serde(default)]
+    pub displays: Vec<Display>,
+    /// Monitor the pen currently drives after Display toggle (`None` = the
+    /// configured mapping applies).
+    #[serde(default)]
+    pub toggled_display: Option<Option<String>>,
+    /// ExpressKeys held right now, left to right.
+    #[serde(default)]
+    pub express_keys: Vec<bool>,
+}
