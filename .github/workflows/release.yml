@@ -14,7 +14,7 @@ jobs:
     # The oldest supported runner, so the binaries run on older glibc too.
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tag matches Cargo.toml
         run: |
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
@@ -27,7 +27,7 @@ jobs:
       - run: cargo test --locked --workspace
       - id: package
         run: echo "archive=$(scripts/package.sh | tail -1)" >> "$GITHUB_OUTPUT"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           files: ${{ steps.package.outputs.archive }}
