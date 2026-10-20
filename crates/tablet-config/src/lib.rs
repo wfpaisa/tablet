@@ -695,7 +695,9 @@ pub fn v120_per_mm(speed: u8) -> f64 {
 
 impl PenSettings {
     pub fn click_pressure_percent(&self) -> u8 {
-        [0, 1, 3, 5, 8, 11, 15][usize::from(self.click_threshold.clamp(1, 7)) - 1]
+        // libinput decides contact itself once pressure passes about 5%, so
+        // steps below that would change nothing.
+        [0, 8, 13, 19, 26, 34, 42][usize::from(self.click_threshold.clamp(1, 7)) - 1]
     }
 
     /// Exponent applied to normalised pressure; below 1 is softer.
@@ -870,7 +872,7 @@ mod tests {
         assert_eq!(config.apps[0].express_keys, vec![KeyAction::Disabled; 8]);
         config.apps[0].pen.double_click_mm = 6;
         config.apps[0].pen.click_threshold = 7;
-        assert_eq!(config.effective(Some("krita")).pen.click_pressure_percent(), 15);
+        assert_eq!(config.effective(Some("krita")).pen.click_pressure_percent(), 42);
         assert_eq!(config.effective(Some("krita")).pen.double_click_mm, 6);
     }
 

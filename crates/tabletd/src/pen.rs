@@ -959,7 +959,7 @@ mod tests {
 
     #[test]
     fn threshold_reports_hover_below_raw_pressure_and_releases_when_crossed() {
-        for (level, percent) in [(2, 1), (4, 5), (7, 15)] {
+        for (level, percent) in [(2, 8), (4, 19), (7, 42)] {
             let mut p = proc();
             p.geometry.pressure_max = 1000;
             p.config.pen.click_threshold = level;
