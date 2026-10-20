@@ -100,7 +100,9 @@ Install Rust (stable) and the
 [Tauri 2 Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux),
 then run `./install.sh` from a checkout: it builds the binaries first.
 Use `./dev.sh` while developing, and `scripts/package.sh` to build the
-release archive (GitHub Actions does this for tags like `v0.1.0`).
+release archive. To publish a version, run `scripts/release.sh 0.2.0`: it
+sets the version, tags and pushes, and GitHub Actions builds the archive
+and publishes the release.
 
 Changes are applied immediately; there is no Save button.
 

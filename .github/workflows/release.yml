@@ -1,7 +1,7 @@
 name: Release
 
-# Push a tag such as v0.1.0 (matching the version in Cargo.toml) to build
-# the archive and attach it to a draft release.
+# scripts/release.sh pushes a tag such as v0.2.0 (matching the version in
+# Cargo.toml); this builds the archive and publishes the release with it.
 on:
   push:
     tags: ["v*"]
@@ -29,5 +29,6 @@ jobs:
         run: echo "archive=$(scripts/package.sh | tail -1)" >> "$GITHUB_OUTPUT"
       - uses: softprops/action-gh-release@v3
         with:
-          draft: true
+          name: Tablet Center ${{ github.ref_name }}
+          generate_release_notes: true
           files: ${{ steps.package.outputs.archive }}

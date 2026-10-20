@@ -2,7 +2,6 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Tablet Center",
   "identifier": "dev.tabletcenter.linux",
-  "version": "0.1.0",
   "build": {
     "frontendDist": "../../ui",
     "devUrl": "http://127.0.0.1:8765"
