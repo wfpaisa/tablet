@@ -41,12 +41,12 @@ Cintiq Workflows).
 
 ## Low priority
 
-- [ ] **Double-click distance**: how far the pen may move between the two
+- [x] **Double-click distance**: how far the pen may move between the two
   taps of a double click.
-- [ ] **Tip double-click / hover click**: fine control over when a tip or
+- [x] **Tip double-click / hover click**: fine control over when a tip or
   button click counts.
-- [ ] **Battery**: charge level for the Intuos S Bluetooth (CTL-4100WL).
-- [ ] **Device info**: firmware, serial number, live tilt and pressure, for
+- [x] **Battery**: charge level for the Intuos S Bluetooth (CTL-4100WL).
+- [x] **Device info**: firmware, serial number, live tilt and pressure, for
   diagnostics.
-- [ ] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro and
-  One by Wacom (only the Intuos S is drawn today).
+- [x] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro and
+  One by Wacom.

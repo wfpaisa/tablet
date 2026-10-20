@@ -213,5 +213,19 @@
   "All other": "All other",
   "Are you sure you want to remove the settings for %s?": "Are you sure you want to remove the settings for %s?",
   "Add application": "Add application",
-  "Remove application": "Remove application"
+  "Remove application": "Remove application",
+  "Double-click distance": "雙擊距離",
+  "Light": "輕",
+  "Battery is %d%% full": "電池電量為 %d%%",
+  "Battery is charged": "電池已充滿",
+  "Charging": "充電中",
+  "Device info": "裝置資訊",
+  "About this device": "關於此裝置",
+  "Model:": "型號：",
+  "Product ID:": "產品 ID：",
+  "Firmware:": "韌體：",
+  "Serial number:": "序號：",
+  "Pen tool ID:": "筆工具 ID：",
+  "Tilt": "傾斜",
+  "Pressure:": "壓力："
 }

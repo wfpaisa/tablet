@@ -164,3 +164,97 @@ pub fn tablet(pen: &Device) -> io::Result<Tablet> {
     }
     Ok(tablet)
 }
+
+/// Locate the physical input node without depending on its event number.
+pub fn sysfs_path(pen: &Device) -> Option<std::path::PathBuf> {
+    std::fs::read_dir("/sys/class/input").ok()?.flatten().find_map(|entry| {
+        if !entry.file_name().to_string_lossy().starts_with("event") { return None; }
+        let path = entry.path().join("device");
+        let read = |name| std::fs::read_to_string(path.join(name)).unwrap_or_default().trim().to_string();
+        (read("name") == pen.name().unwrap_or_default()
+            && read("phys") == pen.physical_path().unwrap_or_default()
+            && u16::from_str_radix(&read("id/product"), 16).ok() == Some(pen.input_id().product()))
+            .then(|| path.canonicalize().ok()).flatten()
+    })
+}
+
+pub fn firmware(path: &std::path::Path) -> Option<String> {
+    path.ancestors().flat_map(|p| [p.join("version"), p.join("id/version")]).find_map(|p| {
+        let value = std::fs::read_to_string(p).ok()?.trim().to_string();
+        (!value.is_empty()).then_some(value)
+    })
+}
+
+pub fn battery(path: Option<&std::path::Path>, product: u16) -> Option<tablet_config::Battery> {
+    if !tablet_config::wireless_model(product) { return None; }
+    read_battery(std::path::Path::new("/sys/class/power_supply"), path)
+}
+
+fn read_battery(root: &std::path::Path, tablet: Option<&std::path::Path>) -> Option<tablet_config::Battery> {
+    let mut candidates: Vec<_> = std::fs::read_dir(root).ok()?.flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("wacom_battery_"))
+        .map(|e| e.path()).collect();
+    candidates.sort();
+    let matched = tablet.and_then(|tablet| candidates.iter().find(|battery| {
+        let Ok(device) = battery.join("device").canonicalize().or_else(|_| battery.canonicalize()) else { return false; };
+        tablet.ancestors().any(|ancestor| {
+            let hid = ancestor.file_name().is_some_and(|n| n.to_string_lossy().to_uppercase().contains(":056A:"));
+            let usb = std::fs::read_to_string(ancestor.join("idVendor")).is_ok_and(|v| v.trim() == "056a");
+            (hid || usb) && device.starts_with(ancestor)
+        })
+    }));
+    let battery = matched.or_else(|| candidates.first())?;
+    let percent = std::fs::read_to_string(battery.join("capacity")).ok()?.trim().parse::<u8>().ok()?.min(100);
+    let status = std::fs::read_to_string(battery.join("status")).ok()?;
+    Some(tablet_config::Battery { percent, charging: status.trim().eq_ignore_ascii_case("charging") })
+}
+
+/// GNOME's double-click interval is read only at startup and explicit reload.
+pub fn double_click_time() -> std::time::Duration {
+    let ms = std::process::Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.peripherals.mouse", "double-click"])
+        .output().ok().filter(|o| o.status.success())
+        .and_then(|o| String::from_utf8(o.stdout).ok())
+        .and_then(|s| s.split_whitespace().last()?.parse::<u64>().ok())
+        .filter(|&ms| ms > 0).unwrap_or(400);
+    std::time::Duration::from_millis(ms)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn battery_matches_ancestry_falls_back_and_reads_live_capacity() {
+        use std::{fs, os::unix::fs::symlink};
+        let root = std::env::current_dir().unwrap().join("target").join(format!("battery-test-{}-{}",
+            std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        let supplies = root.join("power_supply");
+        let first = supplies.join("wacom_battery_0");
+        let second = supplies.join("wacom_battery_1");
+        let hid = root.join("0003:056A:0376.0001");
+        let input = hid.join("input/input20");
+        fs::create_dir_all(&first).unwrap();
+        fs::create_dir_all(&second).unwrap();
+        fs::create_dir_all(&input).unwrap();
+        symlink(&hid, second.join("device")).unwrap();
+        fs::write(first.join("capacity"), "30\n").unwrap();
+        fs::write(first.join("status"), "Discharging\n").unwrap();
+        fs::write(second.join("capacity"), "85\n").unwrap();
+        fs::write(second.join("status"), "Charging\n").unwrap();
+        let matched = read_battery(&supplies, Some(&input)).unwrap();
+        assert_eq!(matched.percent, 85);
+        assert!(matched.charging);
+        assert_eq!(read_battery(&supplies, None).unwrap().percent, 30);
+        fs::write(second.join("capacity"), "100\n").unwrap();
+        fs::write(second.join("status"), "Full\n").unwrap();
+        let full = read_battery(&supplies, Some(&input)).unwrap();
+        assert_eq!(full.percent, 100);
+        assert!(!full.charging);
+        fs::create_dir_all(input.join("id")).unwrap();
+        fs::write(input.join("id/version"), "0102\n").unwrap();
+        assert_eq!(firmware(&input).as_deref(), Some("0102"));
+        assert!(battery(Some(&input), 0x0374).is_none(), "wired devices never inherit another tablet's battery");
+        fs::remove_dir_all(root).unwrap();
+    }
+}

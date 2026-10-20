@@ -5,6 +5,7 @@ const glassNav = [
   ["mapping", "Mapping", "sidebar-mapping"],
   ["gestures", "Gestures", "gesture-pan"],
   ["shortcuts/express-menu", "On-screen shortcuts", "radial"],
+  ["info", "Device info", "info"],
   ["settings", "Settings", "nav-settings"],
 ];
 let glassRoute = "",
@@ -16,11 +17,12 @@ const gt = (s) => esc(t(s));
 const gb = (label, attrs = "") => `<button ${attrs}>${gt(label)}</button>`;
 const glassSection = (title, body, hint = "") =>
   `<section class="card"><h2>${gt(title)}</h2>${hint ? `<p class="hint">${gt(hint)}</p>` : ""}${body}</section>`;
-const glassGet = (path) => path.split(".").reduce((o, k) => o?.[k], config);
+const glassProfile = path => /^(pen|express_keys)\./.test(path) ? toolProfile() : config;
+const glassGet = (path) => path.split(".").reduce((o, k) => o?.[k], glassProfile(path));
 function glassSet(path, value) {
   const keys = path.split("."),
     last = keys.pop();
-  keys.reduce((o, k) => o[k], config)[last] = value;
+  keys.reduce((o, k) => o[k], glassProfile(path))[last] = value;
 }
 function glassChanged(change, redraw = false) {
   glassUndo = structuredClone(config);
@@ -53,29 +55,30 @@ function glassSwitch(label, path, checked = glassGet(path)) {
   return `<label class="switch-row"><span>${gt(label)}</span><input role="switch" type="checkbox" data-switch="${path}" ${checked ? "checked" : ""}><span class="switch-track"></span></label>`;
 }
 function glassTablet() {
-  return `<svg viewBox="0 0 420 250" aria-hidden="true"><rect x="12" y="12" width="396" height="226" rx="22" class="device-fill"/><rect x="65" y="73" width="290" height="135" rx="7" class="device-area"/><path d="M65 88V73h15m260 0h15v15M65 193v15h15m260 0h15v-15" class="device-line"/></svg>`;
+  return `<img src="${esc(tabletSource())}" alt="${esc(model().name)}" style="width:100%">`;
 }
+
 function glassPen() {
   return (
     glassSection(
       "Pen buttons",
-      `<div class="pen-stage"><svg viewBox="0 0 570 130" aria-hidden="true"><path d="M48 52Q25 65 48 78L458 78 514 65 458 52Z" class="device-fill"/><path d="M450 52v26m36-7 28-6-28-6" class="device-line"/><rect x="295" y="53" width="88" height="24" rx="10" class="device-area"/></svg>${["upper", "lower"].map((key, i) => `<button class="pen-hotspot hotspot" style="left:${i ? 62 : 50}%" data-pen="${key}" data-action-path="pen.${key}_button" aria-label="${gt(i ? "Lower button" : "Upper button")}"></button>`).join("")}</div><div class="two-col">${["upper", "lower"].map((key, i) => `<button class="action-row" data-pen="${key}" data-action-path="pen.${key}_button"><span>${gt(i ? "Lower button" : "Upper button")}</span><strong>${actionIcon(config.pen[`${key}_button`])}${esc(actionLabel(config.pen[`${key}_button`]))}</strong></button>`).join("")}</div>${[config.pen.upper_button, config.pen.lower_button].includes("right_or_hold_middle") ? glassRange("Hold time", "pen.hold_time", 3, ["Short", "Long"]) + `<p class="hint">${gt(HOLD_TIME_HINT)}</p>` : ""}`,
+      `<div class="pen-stage"><svg viewBox="0 0 570 130" aria-hidden="true"><path d="M48 52Q25 65 48 78L458 78 514 65 458 52Z" class="device-fill"/><path d="M450 52v26m36-7 28-6-28-6" class="device-line"/><rect x="295" y="53" width="88" height="24" rx="10" class="device-area"/></svg>${["upper", "lower"].map((key, i) => `<button class="pen-hotspot hotspot" style="left:${i ? 62 : 50}%" data-pen="${key}" data-action-path="pen.${key}_button" aria-label="${gt(i ? "Lower button" : "Upper button")}"></button>`).join("")}</div><div class="two-col">${["upper", "lower"].map((key, i) => `<button class="action-row" data-pen="${key}" data-action-path="pen.${key}_button"><span>${gt(i ? "Lower button" : "Upper button")}</span><strong>${actionIcon(toolProfile().pen[`${key}_button`])}${esc(actionLabel(toolProfile().pen[`${key}_button`]))}</strong></button>`).join("")}</div>${[toolProfile().pen.upper_button, toolProfile().pen.lower_button].includes("right_or_hold_middle") ? glassRange("Hold time", "pen.hold_time", 3, ["Short", "Long"]) + `<p class="hint">${gt(HOLD_TIME_HINT)}</p>` : ""}`,
       "Press a pen button to identify it, then choose its action.",
     ) +
     glassSection(
       "Tip feel",
-      `${glassRange("Tip sensitivity", "pen.tip_sensitivity", 7)}<div class="test-head"><span>${gt("Try your pen")}</span><span id="pressure">0%</span>${gb("Clear", 'id="clear-test"')}</div><canvas id="pen-test" aria-label="${gt("Drawing test area")}"></canvas><div class="pressure-track"><span id="pressure-fill"></span></div>`,
+      `${glassRange("Tip sensitivity", "pen.tip_sensitivity", 7)}${glassRange("Tip feel", "pen.click_threshold", 7, ["Light", "Firm"])}<label class="range-row"><span>${gt("Tip double-click")} · ${gt("Double-click distance")}</span><input type="range" min="0" max="5" value="${DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm)}" id="glass-double-click" aria-label="${gt("Double-click distance")}"><span class="range-ends"><small>${gt("Off")}</small><small>${gt("Large")}</small></span></label><div class="test-head"><span>${gt("Try your pen")}</span><span id="pressure">0%</span>${gb("Clear", 'id="clear-test"')}</div><canvas id="pen-test" aria-label="${gt("Drawing test area")}"></canvas><div class="pressure-track"><span id="pressure-fill"></span></div>`,
     ) +
     glassSection(
       "Pen mode",
-      `${glassSwitch("Use the pen as a mouse", "pen.mode", config.pen.mode === "mouse")}<p class="hint">${gt(MOUSE_MODE_HINT)}</p><footer>${gb("Default", 'id="pen-default"')}</footer>`,
+      `${glassSwitch("Use the pen as a mouse", "pen.mode", toolProfile().pen.mode === "mouse")}<p class="hint">${gt(MOUSE_MODE_HINT)}</p><footer>${gb("Default", 'id="pen-default"')}</footer>`,
     )
   );
 }
 function glassKeys() {
   return glassSection(
     "ExpressKeys",
-    `<div class="tablet-stage">${glassTablet()}<div class="tablet-keys">${Array.from({ length: 4 }, (_, i) => `<button class="hotspot" data-key="${i}" data-action-path="express_keys.${i}" aria-label="${gt("ExpressKey")} ${i + 1}">${i + 1}</button>`).join("")}</div></div><div class="two-col">${Array.from({ length: 4 }, (_, i) => `<button class="action-row" data-key="${i}" data-action-path="express_keys.${i}"><span>${gt("ExpressKey")} ${i + 1}</span><strong>${itemIcon({ action: config.express_keys[i] })}${esc(keyLabel(config.express_keys[i]))}</strong></button>`).join("")}</div><footer>${gb("Default", 'id="keys-default"')}</footer>`,
+    `<div class="tablet-stage">${glassTablet()}<div class="tablet-keys" style="inset:0;display:block">${Array.from({ length: model().keys }, (_, i) => `<button class="hotspot" style="position:absolute;left:${keySpots()[i][0] * 100}%;top:${keySpots()[i][1] * 100}%;transform:translate(-50%,-50%)" data-key="${i}" data-action-path="express_keys.${i}" aria-label="${gt("ExpressKey")} ${i + 1}">${i + 1}</button>`).join("")}</div></div><div class="two-col">${Array.from({ length: model().keys }, (_, i) => `<button class="action-row" data-key="${i}" data-action-path="express_keys.${i}"><span>${gt("ExpressKey")} ${i + 1}</span><strong>${itemIcon({ action: toolProfile().express_keys[i] })}${esc(keyLabel(toolProfile().express_keys[i]))}</strong></button>`).join("")}</div><footer>${gb("Default", 'id="keys-default"')}</footer>`,
     "Press an ExpressKey to identify it, then choose its action.",
   );
 }
@@ -163,6 +166,7 @@ function glassRender() {
           )
         : (
             {
+              info: () => deviceInfoPage(false),
               pen: glassPen,
               keys: glassKeys,
               mapping: glassMapping,
@@ -273,9 +277,11 @@ function glassRecord(apply, anchor) {
   );
 }
 function glassBind() {
+  $("#glass-double-click")?.addEventListener("change", e =>
+    glassChanged(() => { toolProfile().pen.double_click_mm = DOUBLE_CLICK_MM[Number(e.target.value)]; }));
   $("#pen-default")?.addEventListener("click", () =>
     glassChanged(() => {
-      config.pen = structuredClone(DEFAULTS.pen);
+      toolProfile().pen = structuredClone(DEFAULTS.pen);
     }, true),
   );
   document.querySelectorAll("[data-action-path]").forEach((el) => el.addEventListener("click", () => glassActions(el)));
@@ -311,7 +317,7 @@ function glassBind() {
   );
   $("#keys-default")?.addEventListener("click", () =>
     glassChanged(() => {
-      config.express_keys = structuredClone(DEFAULTS.express_keys);
+      toolProfile().express_keys = Array.from({ length: model().keys }, () => ({ type: "disabled" }));
     }, true),
   );
   document.querySelectorAll("[data-display]").forEach((el) =>
@@ -507,7 +513,10 @@ function glassUpdateStatus() {
     const el = $(selector);
     if (el && el.textContent !== value) el.textContent = value;
   };
-  put("#device-name", status.device?.name ?? t("No tablet connected"));
+  put("#device-name", status.device ? `${model().name} ${model().model}` : t("No tablet connected"));
+  const battery = $("#battery-status");
+  if (battery) battery.innerHTML = batteryIndicator();
+  updateDeviceInfo();
   const banner = $("#daemon-banner");
   banner.hidden = !status.error;
   put("#daemon-message", t("The driver is not running. Restart it to reconnect your tablet."));
@@ -534,7 +543,7 @@ function glassUpdateStatus() {
 function glassLiveView() {
   const main = $("main")?.getBoundingClientRect();
   if (!main) return false;
-  return [...document.querySelectorAll("[data-pen], [data-key], #pen-test")].some((el) => {
+  return [...document.querySelectorAll("[data-pen], [data-key], #pen-test, #info-pressure")].some((el) => {
     const r = el.getBoundingClientRect();
     return r.bottom > main.top && r.top < main.bottom && r.right > main.left && r.left < main.right;
   });
@@ -629,7 +638,7 @@ async function glassInit() {
     status = { device: null, error: String(error) };
   }
   $("#glass").innerHTML =
-    `<div class="wf-window">${windowFrame()}<div class="search-wrap"><input id="glass-search" type="search" placeholder="${gt("Search settings")}" aria-label="${gt("Search settings")}"><div id="search-results" hidden></div></div><div class="app-layout"><aside><div class="device-card"><div class="mini-tablet">${glassTablet()}</div><strong id="device-name"></strong><small>${gt("Tablet Center")} · Glass</small></div><nav class="side-nav" aria-label="${gt("Settings")}">${glassNav.map(([route, label, ic]) => `<a data-route="${route}" href="#/${route}">${icon(ic)}${gt(label)}</a>`).join("")}</nav></aside><main><div id="daemon-banner" hidden><span id="daemon-message"></span>${gb("Restart Driver", "data-restart")}</div><header class="page-heading"><small>${gt("Tablet Center")}</small><h1 id="page-title"></h1></header><div id="glass-content"></div></main></div></div>`;
+    `<div class="wf-window">${windowFrame()}<div class="search-wrap"><input id="glass-search" type="search" placeholder="${gt("Search settings")}" aria-label="${gt("Search settings")}"><div id="search-results" hidden></div></div><div class="app-layout"><aside><div class="device-card"><div class="mini-tablet">${glassTablet()}</div><strong id="device-name"></strong><div id="battery-status"></div><a href="#/info">${gt("Device info")}</a><small>${gt("Tablet Center")} · Glass</small></div><nav class="side-nav" aria-label="${gt("Settings")}">${glassNav.map(([route, label, ic]) => `<a data-route="${route}" href="#/${route}">${icon(ic)}${gt(label)}</a>`).join("")}</nav></aside><main><div id="daemon-banner" hidden><span id="daemon-message"></span>${gb("Restart Driver", "data-restart")}</div><header class="page-heading"><small>${gt("Tablet Center")}</small><h1 id="page-title"></h1></header><div id="glass-content"></div></main></div></div>`;
   mountWindowFrame();
   glassSearch();
   document.addEventListener("click", (e) => {

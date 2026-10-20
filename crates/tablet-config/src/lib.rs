@@ -90,6 +90,11 @@ pub struct PenSettings {
     pub lower_button: ButtonAction,
     /// 1 (soft) ..= 7 (firm); 4 leaves the pressure untouched.
     pub tip_sensitivity: u8,
+    /// Tip double-click assist radius: 0 (off), 1, 2, 3, 4 or 6 mm.
+    pub double_click_mm: u8,
+    /// 1 (light: the tablet's own touch threshold, as before) ..= 7 (firm),
+    /// applied before the sensitivity curve.
+    pub click_threshold: u8,
     /// Right-or-middle: how long a held button waits before it becomes a
     /// middle click, 1 (short) ..= 3 (long); see [`hold_middle_time`].
     pub hold_time: u8,
@@ -136,6 +141,8 @@ impl Default for PenSettings {
             upper_button: ButtonAction::PanScroll,
             lower_button: ButtonAction::RightClick,
             tip_sensitivity: 4,
+            double_click_mm: 2,
+            click_threshold: 1,
             hold_time: 2,
         }
     }
@@ -543,8 +550,21 @@ pub fn joystick_mm(speed: u8) -> f64 {
     MM[usize::from(speed.clamp(1, 5)) - 1]
 }
 
-/// The Intuos S has four ExpressKeys, left to right (BTN_0 ..= BTN_3).
-pub const EXPRESS_KEYS: usize = 4;
+/// USB and Bluetooth ids from Linux drivers/hid/wacom_wac.c (v6.12).
+/// Generic HID Intuos USB ids 0374/0376/0378 use the four-key fallback.
+pub fn express_key_count(product: u16) -> usize {
+    match product {
+        0x037a | 0x037b => 0,
+        0x0392 | 0x0393 | 0x03dd => 6,
+        0x0357 | 0x0358 | 0x0360 | 0x0361 => 8,
+        _ => 4,
+    }
+}
+
+pub fn wireless_model(product: u16) -> bool {
+    matches!(product, 0x0376 | 0x0377 | 0x0378 | 0x0379 | 0x03c6 | 0x03c8
+        | 0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0358 | 0x0360 | 0x0361)
+}
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -572,7 +592,7 @@ pub struct AppProfile {
 impl Default for AppProfile {
     fn default() -> Self {
         Self { id: String::new(), name: String::new(), icon: None,
-            pen: PenSettings::default(), express_keys: vec![KeyAction::Disabled; EXPRESS_KEYS] }
+            pen: PenSettings::default(), express_keys: vec![KeyAction::Disabled; express_key_count(0)] }
     }
 }
 
@@ -585,6 +605,13 @@ pub struct AppInfo {
 }
 
 impl Config {
+    pub fn grow_express_keys(&mut self, count: usize) {
+        if self.express_keys.len() < count { self.express_keys.resize(count, KeyAction::Disabled); }
+        for app in &mut self.apps {
+            if app.express_keys.len() < count { app.express_keys.resize(count, KeyAction::Disabled); }
+        }
+    }
+
     pub fn effective(&self, app_id: Option<&str>) -> Config {
         fn normalized(id: &str) -> String {
             let id = id.to_lowercase();
@@ -611,7 +638,7 @@ impl Default for Config {
             pen: PenSettings::default(),
             pan_scroll: PanScrollSettings::default(),
             mapping: MappingSettings::default(),
-            express_keys: vec![KeyAction::Disabled; EXPRESS_KEYS],
+            express_keys: vec![KeyAction::Disabled; express_key_count(0)],
             gestures: GestureSettings::default(),
             shortcuts: ShortcutSettings::default(),
         }
@@ -632,6 +659,10 @@ pub fn v120_per_mm(speed: u8) -> f64 {
 }
 
 impl PenSettings {
+    pub fn click_pressure_percent(&self) -> u8 {
+        [0, 1, 3, 5, 8, 11, 15][usize::from(self.click_threshold.clamp(1, 7)) - 1]
+    }
+
     /// Exponent applied to normalised pressure; below 1 is softer.
     pub fn pressure_gamma(&self) -> f64 {
         const GAMMA: [f64; 7] = [0.4, 0.55, 0.75, 1.0, 1.35, 1.8, 2.4];
@@ -687,12 +718,24 @@ pub enum Request {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct DeviceInfo {
+    #[serde(default)]
+    pub battery: Option<Battery>,
+    #[serde(default)]
+    pub firmware: Option<String>,
+    #[serde(skip)]
+    pub sysfs_path: Option<PathBuf>,
     pub name: String,
     pub vendor: u16,
     pub product: u16,
     /// Active area of the tablet.
     pub width_mm: f64,
     pub height_mm: f64,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Battery {
+    pub percent: u8,
+    pub charging: bool,
 }
 
 /// A monitor in GNOME's layout, in logical pixels.
@@ -712,6 +755,14 @@ pub struct Display {
 /// Live pen state, for the test area in the UI.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PenState {
+    #[serde(default)]
+    pub tilt_x: i32,
+    #[serde(default)]
+    pub tilt_y: i32,
+    #[serde(default)]
+    pub serial: Option<u32>,
+    #[serde(default)]
+    pub tool_id: Option<u32>,
     pub in_proximity: bool,
     pub tip_down: bool,
     /// Pressure after the sensitivity curve, 0.0 ..= 1.0.
@@ -752,6 +803,22 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn old_profiles_keep_defaults_and_grow_without_losing_actions() {
+        let mut config: Config = serde_json::from_str(r#"{"pen":{},"express_keys":[{"type":"left_click"}],"apps":[{"id":"krita","pen":{},"express_keys":[] }]}"#).unwrap();
+        assert_eq!(config.pen.double_click_mm, 2);
+        assert_eq!(config.pen.click_threshold, 1);
+        assert_eq!(config.apps[0].pen.double_click_mm, 2);
+        config.grow_express_keys(express_key_count(0x0357));
+        assert_eq!(config.express_keys.len(), 8);
+        assert_eq!(config.express_keys[0], KeyAction::LeftClick);
+        assert_eq!(config.apps[0].express_keys, vec![KeyAction::Disabled; 8]);
+        config.apps[0].pen.double_click_mm = 6;
+        config.apps[0].pen.click_threshold = 7;
+        assert_eq!(config.effective(Some("krita")).pen.click_pressure_percent(), 15);
+        assert_eq!(config.effective(Some("krita")).pen.double_click_mm, 6);
+    }
 
     #[test]
     fn application_profiles_preserve_globals_and_old_configs() {

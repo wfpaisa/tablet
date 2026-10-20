@@ -33,6 +33,7 @@ struct Shared {
     focused_app: Mutex<Option<String>>,
     /// Bumped on every reload so the device loop picks up new settings.
     generation: AtomicU64,
+    double_click_ms: AtomicU64,
     device: Mutex<Option<DeviceInfo>>,
     pen: Mutex<PenState>,
     displays: Mutex<Vec<Display>>,
@@ -115,6 +116,7 @@ fn effective_config(shared: &Shared) -> Config {
 fn main() {
     let shared = Arc::new(Shared {
         config: RwLock::new(tablet_config::load()),
+        double_click_ms: AtomicU64::new(devices::double_click_time().as_millis() as u64),
         shell: Mutex::new(Some(shell::spawn())),
         ..Default::default()
     });
@@ -242,7 +244,11 @@ const fn libc_ebusy() -> i32 {
 fn run(mut pen: evdev::Device, shared: &Shared) -> io::Result<()> {
     let geometry = devices::geometry(&pen)?;
     let tablet = devices::tablet(&pen)?;
+    let sysfs_path = devices::sysfs_path(&pen);
     let info = DeviceInfo {
+        battery: devices::battery(sysfs_path.as_deref(), pen.input_id().product()),
+        firmware: sysfs_path.as_deref().and_then(devices::firmware),
+        sysfs_path,
         name: pen.name().unwrap_or("Tablet").to_string(),
         vendor: pen.input_id().vendor(),
         product: pen.input_id().product(),
@@ -304,10 +310,12 @@ fn pump(
     let info = info.clone();
     *shared.tablet.lock().unwrap() = Some(tablet);
     eprintln!("tabletd: using {} ({:04x}:{:04x})", info.name, info.vendor, info.product);
+    shared.config.write().unwrap().grow_express_keys(tablet_config::express_key_count(info.product));
     *shared.device.lock().unwrap() = Some(info);
 
     let mut generation = shared.generation.load(Ordering::Acquire);
     let mut processor = pen::PenProcessor::new(effective_config(shared), geometry);
+    processor.set_double_click_time(Duration::from_millis(shared.double_click_ms.load(Ordering::Acquire)));
     let new_mapping = || {
         let mut settings = shared.config.read().unwrap().mapping.clone();
         if let Some(display) = shared.display_override.lock().unwrap().clone() {
@@ -383,6 +391,7 @@ fn pump(
             if current != generation {
                 generation = current;
                 processor.set_config(effective_config(shared));
+                processor.set_double_click_time(Duration::from_millis(shared.double_click_ms.load(Ordering::Acquire)));
                 map = new_mapping();
             }
             let mut out = processor.process_frame(&frame, pad_gesture());
@@ -1077,7 +1086,12 @@ fn client(stream: UnixStream, shared: &Shared) -> io::Result<()> {
     for line in BufReader::new(stream).lines() {
         let response = match serde_json::from_str::<Request>(&line?) {
             Ok(Request::Reload) => {
-                *shared.config.write().unwrap() = tablet_config::load();
+                let mut config = tablet_config::load();
+                if let Some(device) = shared.device.lock().unwrap().as_ref() {
+                    config.grow_express_keys(tablet_config::express_key_count(device.product));
+                }
+                *shared.config.write().unwrap() = config;
+                shared.double_click_ms.store(devices::double_click_time().as_millis() as u64, Ordering::Release);
                 *shared.display_override.lock().unwrap() = None;
                 shared.generation.fetch_add(1, Ordering::AcqRel);
                 prepare_shortcuts(shared);
@@ -1090,7 +1104,10 @@ fn client(stream: UnixStream, shared: &Shared) -> io::Result<()> {
             Ok(Request::Status) => Response {
                 focused_app: shared.focused_app.lock().unwrap().clone(),
                 ok: true,
-                device: shared.device.lock().unwrap().clone(),
+                device: shared.device.lock().unwrap().clone().map(|mut device| {
+                    device.battery = devices::battery(device.sysfs_path.as_deref(), device.product);
+                    device
+                }),
                 pen: Some(shared.pen.lock().unwrap().clone()),
                 displays: shared.displays.lock().unwrap().clone(),
                 toggled_display: shared.display_override.lock().unwrap().clone(),

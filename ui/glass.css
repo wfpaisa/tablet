@@ -941,3 +941,14 @@ button[aria-pressed="true"] {
     grid-template-columns: 20px minmax(0, 1fr) minmax(0, 1.2fr);
   }
 }
+
+.battery-indicator { display: block; margin: 6px 0; font-size: 12px; }
+.battery-indicator meter { width: 36px; }
+.device-info dl { display: grid; grid-template-columns: auto 1fr; gap: 12px 20px; }
+.device-info dd { margin: 0; overflow-wrap: anywhere; }
+.diagnostic-bars { max-width: 480px; }
+.diagnostic-bars label { display: block; margin: 18px 0; }
+.diagnostic-bars meter { display: block; width: 100%; height: 24px; }
+.diagnostic-bars output { float: right; }
+.tablet-stage > img { display: block; width: 100%; }
+.mini-tablet img { display: block; width: 100%; }

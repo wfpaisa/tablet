@@ -687,3 +687,15 @@ html.overlay, body.overlay { background: transparent; }
 .tool-settings .app-strip { flex-shrink:0; margin:24px 0 12px; }
 .tool-settings .corner { position:static; align-self:flex-end; flex-shrink:0; }
 .tool-settings .keys-figure { flex:1 0 auto; }
+
+.battery-indicator { display: inline-flex; align-items: center; gap: 7px; margin: 6px 0; }
+.battery-indicator meter { width: 42px; height: 14px; }
+.device-info dl, .diagnostic-bars { margin: 32px 60px; max-width: 480px; }
+.device-info dl { display: grid; grid-template-columns: auto 1fr; gap: 14px 24px; }
+.device-info dd { margin: 0; overflow-wrap: anywhere; }
+.diagnostic-bars label { display: block; margin: 18px 0; }
+.diagnostic-bars meter { display: block; width: 100%; height: 24px; }
+.diagnostic-bars output { float: right; }
+.column-keys .key-label { transform: translateX(-100%); font-size: 14px; }
+.column-keys .key-ring { width: 7%; height: 6%; }
+.keys-figure:has(.column-keys) { padding-top: 40px; padding-left: 150px; }

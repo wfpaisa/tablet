@@ -55,6 +55,14 @@ enum Held {
 }
 
 pub struct PenProcessor {
+    double_click_time: Duration,
+    first_touch: Option<(Instant, (i32, i32))>,
+    assisted_touch: Option<(i32, i32)>,
+    physical_tip: bool,
+    tilt_x: i32,
+    tilt_y: i32,
+    serial: Option<u32>,
+    tool_id: Option<u32>,
     extra: [crate::pad::Held; 3],
     locks: [Option<KeyCode>; 3],
     tip_held: Held,
@@ -140,6 +148,14 @@ const HOVER_ZOOM_GAIN: f64 = 0.25;
 impl PenProcessor {
     pub fn new(config: Config, geometry: Geometry) -> Self {
         Self {
+            double_click_time: Duration::from_millis(400),
+            first_touch: None,
+            assisted_touch: None,
+            physical_tip: false,
+            tilt_x: 0,
+            tilt_y: 0,
+            serial: None,
+            tool_id: None,
             extra: std::array::from_fn(|_| crate::pad::Held::Nothing),
             locks: [None; 3],
             tip_held: Held::Nothing,
@@ -177,6 +193,25 @@ impl PenProcessor {
         }
     }
 
+    pub fn set_double_click_time(&mut self, time: Duration) {
+        self.double_click_time = time;
+    }
+
+    fn assist_touch(&mut self, now: Instant) {
+        self.assisted_touch = None;
+        let mm = f64::from(self.config.pen.double_click_mm);
+        if mm > 0.0 {
+            if let Some((at, position)) = self.first_touch.take() {
+                let (dx, dy) = self.delta_mm(position.0, position.1);
+                if now.duration_since(at) <= self.double_click_time && dx.hypot(dy) <= mm {
+                    self.assisted_touch = Some(position);
+                    return;
+                }
+            }
+            self.first_touch = Some((now, (self.x, self.y)));
+        } else { self.first_touch = None; }
+    }
+
     pub fn set_pad_effects(&mut self, effects: u8) -> bool {
         let changed = self.pad_effects != effects;
         self.pad_effects = effects;
@@ -186,6 +221,8 @@ impl PenProcessor {
     pub fn relative_mode(&self) -> bool { self.config.pen.mode == PenMode::Relative }
 
     pub fn toggle_mode(&mut self) {
+        self.first_touch = None;
+        self.assisted_touch = None;
         self.hold_tip_until_lift = self.tip;
         self.config.pen.mode = if self.config.pen.mode == PenMode::Relative { PenMode::Pen } else { PenMode::Relative };
         self.relative_last = None;
@@ -225,14 +262,19 @@ impl PenProcessor {
             self.wheel_rest = (0.0, 0.0);
             self.notch_acc = (0, 0);
         }
+        if self.config.pen != config.pen { self.first_touch = None; self.assisted_touch = None; }
         self.config = config;
     }
 
     pub fn state(&self) -> PenState {
         PenState {
+            tilt_x: self.tilt_x,
+            tilt_y: self.tilt_y,
+            serial: self.serial,
+            tool_id: self.tool_id,
             in_proximity: self.in_proximity,
             tip_down: self.tip,
-            pressure: f64::from(self.curved_pressure()) / f64::from(self.geometry.pressure_max.max(1)),
+            pressure: f64::from(if self.tip { self.curved_pressure() } else { 0 }) / f64::from(self.geometry.pressure_max.max(1)),
             panning: self.panning(),
             upper_button: self.buttons_down.0,
             lower_button: self.buttons_down.1,
@@ -302,19 +344,30 @@ impl PenProcessor {
                     Abs::ABS_X => (self.x, moved) = (ev.value(), true),
                     Abs::ABS_Y => (self.y, moved) = (ev.value(), true),
                     Abs::ABS_PRESSURE => self.pressure = ev.value(),
+                    Abs::ABS_TILT_X => { self.tilt_x = ev.value(); out.pen.push(*ev); }
+                    Abs::ABS_TILT_Y => { self.tilt_y = ev.value(); out.pen.push(*ev); }
+                    Abs::ABS_MISC => {
+                        if ev.value() != 0 { self.tool_id = Some(ev.value() as u32); }
+                        out.pen.push(*ev);
+                    }
                     _ => out.pen.push(*ev),
                 },
                 // The virtual pen has no MSC_SERIAL (see devices::virtual_pen).
+                EventType::MISC if ev.code() == evdev::MiscCode::MSC_SERIAL.0 => self.serial = Some(ev.value() as u32),
                 EventType::SYNCHRONIZATION | EventType::MISC => {}
                 _ => out.pen.push(*ev),
             }
         }
 
-        if !frame.iter().any(|e| e.event_type() == EventType::KEY && e.code() == KeyCode::BTN_TOUCH.0)
-            && frame.iter().any(|e| e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_PRESSURE.0) {
-            self.tip = self.pressure > 0;
+        if frame.iter().any(|e| e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_PRESSURE.0)
+            && !frame.iter().any(|e| e.event_type() == EventType::KEY && e.code() == KeyCode::BTN_TOUCH.0) {
+            self.physical_tip = self.pressure > 0;
         }
-        if leaving { self.tip = false; }
+        if leaving { self.physical_tip = false; self.pressure = 0; }
+        self.tip = self.physical_tip && i64::from(self.pressure) * 100
+            >= i64::from(self.geometry.pressure_max.max(1)) * i64::from(self.config.pen.click_pressure_percent());
+        if self.tip && !was_tip { self.assist_touch(Instant::now()); }
+        if !self.tip { self.assisted_touch = None; }
         if was_tip != self.tip {
             if !self.tip || !matches!(self.config.pen.tip, ButtonAction::LeftClick | ButtonAction::Default) {
                 self.tip_held = self.side_button(self.tip_held, self.config.pen.tip.clone(), KeyCode::BTN_TOUCH, self.tip, &mut out);
@@ -345,7 +398,7 @@ impl PenProcessor {
             }
         }
         self.release_ctrl_unless_zooming(&mut out);
-        if !self.panning() && (moved || was_panning || out.precision == Some(false)) {
+        if !self.panning() && (moved || was_panning || self.assisted_touch.is_some() || out.precision == Some(false)) {
             out.pen.push(abs(Abs::ABS_X, self.x));
             out.pen.push(abs(Abs::ABS_Y, self.y));
         }
@@ -362,6 +415,20 @@ impl PenProcessor {
         if touch != self.sent_touch {
             out.pen.push(key(KeyCode::BTN_TOUCH, touch));
             self.sent_touch = touch;
+        }
+        if let Some((x, y)) = self.assisted_touch {
+            for ev in out.pen.iter_mut().chain(out.mouse.iter_mut().flatten()) {
+                if ev.event_type() == EventType::ABSOLUTE {
+                    match Abs(ev.code()) {
+                        Abs::ABS_X => *ev = abs(Abs::ABS_X, x),
+                        Abs::ABS_Y => *ev = abs(Abs::ABS_Y, y),
+                        _ => {}
+                    }
+                }
+            }
+            // Allow intentional dragging once the tip moves out of the assist radius.
+            let (dx, dy) = self.delta_mm(x, y);
+            if dx.hypot(dy) > f64::from(self.config.pen.double_click_mm) { self.assisted_touch = None; }
         }
         if let Some((x, y)) = self.precision_anchor {
             let scale = f64::from(self.config.precision.scale.max(2));
@@ -453,7 +520,7 @@ impl PenProcessor {
         let code = KeyCode(ev.code());
         let down = ev.value() != 0;
         match code {
-            KeyCode::BTN_TOUCH => self.tip = down,
+            KeyCode::BTN_TOUCH => self.physical_tip = down,
             KeyCode::BTN_STYLUS2 => {
                 if self.buttons_down.0 == down { return; }
                 self.buttons_down.0 = down;
@@ -846,6 +913,84 @@ mod tests {
     }
 
     #[test]
+    fn double_click_assist_uses_physical_distance_and_deadline() {
+        let mut p = proc();
+        p.geometry.y_units_per_mm = 200.0;
+        let now = Instant::now();
+        (p.x, p.y) = (1000, 2000);
+        p.assist_touch(now);
+        assert_eq!(p.assisted_touch, None);
+        (p.x, p.y) = (1100, 2200);
+        p.assist_touch(now + Duration::from_millis(400));
+        assert_eq!(p.assisted_touch, Some((1000, 2000)));
+        assert!(p.first_touch.is_none(), "a third click starts a new pair");
+        p.assist_touch(now + Duration::from_millis(500));
+        p.assist_touch(now + Duration::from_millis(901));
+        assert_eq!(p.assisted_touch, None);
+        p.x += 201;
+        p.assist_touch(now + Duration::from_millis(902));
+        assert_eq!(p.assisted_touch, None);
+        p.config.pen.double_click_mm = 0;
+        p.assist_touch(now + Duration::from_millis(903));
+        assert_eq!(p.assisted_touch, None);
+        assert!(p.first_touch.is_none());
+        p.config.pen.double_click_mm = 2;
+        p.set_double_click_time(Duration::from_millis(700));
+        p.assist_touch(now + Duration::from_millis(1000));
+        p.assist_touch(now + Duration::from_millis(1700));
+        assert!(p.assisted_touch.is_some());
+    }
+
+    #[test]
+    fn second_tip_press_and_mouse_click_use_first_position() {
+        for mode in [PenMode::Pen, PenMode::Mouse] {
+            let mut p = proc();
+            p.config.pen.mode = mode;
+            let down = |x, y| vec![abs(Abs::ABS_X, x), abs(Abs::ABS_Y, y),
+                abs(Abs::ABS_PRESSURE, 900), key(KeyCode::BTN_TOUCH, true)];
+            p.process_frame(&down(1000, 2000), None);
+            p.process_frame(&[key(KeyCode::BTN_TOUCH, false), abs(Abs::ABS_PRESSURE, 0)], None);
+            let out = p.process_frame(&down(1100, 2100), None);
+            let events = if mode == PenMode::Pen { out.pen } else { out.mouse.into_iter().flatten().collect() };
+            assert_eq!(has(&events, EventType::ABSOLUTE, Abs::ABS_X.0), Some(1000));
+            assert_eq!(has(&events, EventType::ABSOLUTE, Abs::ABS_Y.0), Some(2000));
+        }
+    }
+
+    #[test]
+    fn threshold_reports_hover_below_raw_pressure_and_releases_when_crossed() {
+        for (level, percent) in [(2, 1), (4, 5), (7, 15)] {
+            let mut p = proc();
+            p.geometry.pressure_max = 1000;
+            p.config.pen.click_threshold = level;
+            p.config.pen.tip_sensitivity = 1;
+            let out = p.process_frame(&[key(KeyCode::BTN_TOOL_PEN, true), key(KeyCode::BTN_TOUCH, true),
+                abs(Abs::ABS_PRESSURE, percent * 10 - 1)], None);
+            assert!(!p.state().tip_down);
+            assert_eq!(p.state().pressure, 0.0);
+            assert_eq!(has(&out.pen, EventType::KEY, KeyCode::BTN_TOUCH.0), None);
+            assert!(p.state().in_proximity);
+            let out = p.process_frame(&[abs(Abs::ABS_PRESSURE, percent * 10)], None);
+            assert_eq!(has(&out.pen, EventType::KEY, KeyCode::BTN_TOUCH.0), Some(1));
+            let out = p.process_frame(&[abs(Abs::ABS_PRESSURE, percent * 10 - 1)], None);
+            assert_eq!(has(&out.pen, EventType::KEY, KeyCode::BTN_TOUCH.0), Some(0));
+            assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0), Some(0));
+        }
+    }
+
+    #[test]
+    fn diagnostics_keep_last_tool_identity_and_live_tilt() {
+        let mut p = proc();
+        p.process_frame(&[abs(Abs::ABS_TILT_X, -35), abs(Abs::ABS_TILT_Y, 42),
+            abs(Abs::ABS_MISC, 0x822), InputEvent::new(EventType::MISC.0, evdev::MiscCode::MSC_SERIAL.0, 1234)], None);
+        p.process_frame(&[abs(Abs::ABS_MISC, 0)], None);
+        let state = p.state();
+        assert_eq!((state.tilt_x, state.tilt_y), (-35, 42));
+        assert_eq!(state.serial, Some(1234));
+        assert_eq!(state.tool_id, Some(0x822));
+    }
+
+    #[test]
     fn mode_toggle_alternates_pen_and_relative_and_survives_unrelated_reload() {
         let mut p = proc();
         p.config.pen.lower_button = ButtonAction::ModeToggle;
@@ -1006,7 +1151,7 @@ mod tests {
     #[test]
     fn with_the_tip_down_it_is_a_plain_right_click() {
         let mut p = right_or_middle();
-        p.process_frame(&[key(KeyCode::BTN_TOUCH, true)], None);
+        p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 900)], None);
         let down = p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
         assert_eq!(mouse_keys(&down), vec![(KeyCode::BTN_RIGHT.0, 1)]);
     }
@@ -1168,7 +1313,7 @@ mod tests {
                 let geometry = Geometry { y_units_per_mm: 200.0, ..GEO };
                 let mut p = PenProcessor::new(config, geometry);
                 p.process_frame(&pos(1000, 1000), Some(gesture));
-                p.process_frame(&[key(KeyCode::BTN_TOUCH, true)], Some(gesture));
+                p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 900)], Some(gesture));
                 let moved = p.process_frame(&pos(end.0, end.1), Some(gesture));
                 let output = match gesture {
                     Gesture::PanScroll | Gesture::Scroll | Gesture::PanZoom => moved,

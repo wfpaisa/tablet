@@ -213,5 +213,19 @@
   "All other": "All other",
   "Are you sure you want to remove the settings for %s?": "Are you sure you want to remove the settings for %s?",
   "Add application": "Add application",
-  "Remove application": "Remove application"
+  "Remove application": "Remove application",
+  "Double-click distance": "더블 클릭 거리",
+  "Light": "가볍게",
+  "Battery is %d%% full": "배터리가 %d%% 충전되었습니다",
+  "Battery is charged": "배터리가 완전히 충전되었습니다",
+  "Charging": "충전 중",
+  "Device info": "장치 정보",
+  "About this device": "이 장치 정보",
+  "Model:": "모델:",
+  "Product ID:": "제품 ID:",
+  "Firmware:": "펌웨어:",
+  "Serial number:": "일련번호:",
+  "Pen tool ID:": "펜 도구 ID:",
+  "Tilt": "기울기",
+  "Pressure:": "필압:"
 }

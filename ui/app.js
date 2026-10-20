@@ -11,7 +11,7 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
     { id: "krita", name: "Krita", icon: "krita" },
   ];
   if (cmd === "get_config") return structuredClone(DEFAULTS);
-  if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: 0x0374 }, pen: { pressure: 0 }, displays: [
+  if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: Number(new URLSearchParams(location.search).get("product")) || 0x0374 }, pen: { pressure: 0 }, displays: [
     { id: "DEL|DELL S2721QS|HH2HM43", name: "Dell Inc. 27\"", x: 0, y: 0, width: 2560, height: 1440, primary: true },
     { id: "DEL|DELL U2412M|YMYH12BL49CL", name: "Dell Inc. 24\"", x: 2560, y: 97, width: 1920, height: 1200 },
   ] };
@@ -21,7 +21,7 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
 const DEFAULTS = {
   apps: [],
   precision: { scale: 2, overlay: true },
-  pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
+  pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, double_click_mm: 2, click_threshold: 1, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
   gestures: { legacy_speed: 3, scroll_speed: 3, wheel_speed: 3, zoom_speed: 3, pan_zoom_speed: 3 },
   mapping: { screen_portion: null, tablet_portion: null, display: null, force_proportions: false, orientation: "landscape" },
@@ -57,11 +57,44 @@ function defaultShortcuts() {
   };
 }
 
-// Models with artwork extracted from the macOS driver.
+// Product ids: Linux drivers/hid/wacom_wac.c (v6.12); generic HID ids
+// absent from its explicit table are marked below.
 const MODELS = {
-  0x0374: { name: "Intuos S", model: "CTL-4100", tablet: "intuos-s", pen: "intuos-pen" },
+  0x0374: { name: "Intuos S", model: "CTL-4100", tablet: "intuos-s", keys: 4, layout: "row" },
+  0x0375: { name: "Intuos M", model: "CTL-6100", keys: 4, layout: "row" }, // Uncertain non-wireless M id.
+  0x0376: { name: "Intuos S", model: "CTL-4100WL", tablet: "intuos-s", keys: 4, layout: "row" }, // Generic HID USB id.
+  0x0377: { name: "Intuos S", model: "CTL-4100WL", tablet: "intuos-s", keys: 4, layout: "row" },
+  0x0378: { name: "Intuos M", model: "CTL-6100WL", keys: 4, layout: "row" }, // Generic HID USB id.
+  0x0379: { name: "Intuos M", model: "CTL-6100WL", keys: 4, layout: "row" },
+  0x037a: { name: "One by Wacom S", model: "CTL-472", keys: 0, layout: "none" },
+  0x037b: { name: "One by Wacom M", model: "CTL-672", keys: 0, layout: "none" },
+  0x0392: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
+  0x0393: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
+  0x0357: { name: "Intuos Pro M", model: "PTH-660", keys: 8, layout: "column" },
+  0x0360: { name: "Intuos Pro M", model: "PTH-660", keys: 8, layout: "column" },
+  0x0358: { name: "Intuos Pro L", model: "PTH-860", keys: 8, layout: "column" },
+  0x0361: { name: "Intuos Pro L", model: "PTH-860", keys: 8, layout: "column" },
 };
-const FALLBACK_MODEL = { name: "Tablet", model: "", tablet: "intuos-s", pen: "intuos-pen" };
+MODELS[0x03c6] = MODELS[0x0377];
+MODELS[0x03c8] = MODELS[0x0379];
+MODELS[0x03dd] = MODELS[0x0393];
+const FALLBACK_MODEL = { name: "Tablet", model: "", keys: 4, layout: "row" };
+
+function keySpots(m = model()) {
+  if (m.tablet) return [0.189, 0.395, 0.602, 0.808].map(x => [x, 0.15]);
+  return Array.from({ length: m.keys }, (_, i) => m.layout === "column"
+    ? [0.10, 0.16 + i * (0.68 / (m.keys - 1)) + (i < m.keys / 2 ? -0.04 : 0.04)]
+    : [0.23 + i * 0.18, 0.13]);
+}
+
+function tabletSource(m = model()) {
+  if (m.tablet) return `assets/devices/${m.tablet}.png`;
+  const column = m.layout === "column";
+  const buttons = keySpots(m).map(([x, y]) => `<rect x="${x * 560 - 13}" y="${y * 360 - 8}" width="26" height="16" rx="5" fill="#17191e" stroke="#626774"/>`).join("");
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 360"><defs><linearGradient id="slab" x2="0" y2="1"><stop stop-color="#464a54"/><stop offset="1" stop-color="#24262d"/></linearGradient></defs><rect x="3" y="3" width="554" height="354" rx="28" fill="url(#slab)" stroke="#777d89" stroke-width="2"/><rect x="${column ? 110 : 55}" y="${column ? 42 : 73}" width="${column ? 400 : 450}" height="245" rx="7" fill="#292c33" stroke="#777d89" stroke-dasharray="6 5"/>${column ? '<circle cx="56" cy="180" r="23" fill="#23262d" stroke="#626774"/>' : ""}${buttons}</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 
 // Pen side-button actions, in menu order. Labels are translation keys.
 const ACTIONS = [
@@ -126,7 +159,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const icon = (name) => `<i class="icon" style="--icon: url(assets/icons/${name}.svg)"></i>`;
 
 function model() {
-  return MODELS[status.device?.product] ?? FALLBACK_MODEL;
+  return { pen: "intuos-pen", ...(MODELS[status.device?.product] ?? FALLBACK_MODEL) };
 }
 
 // UI languages (ui/locales), in their own names.
@@ -293,10 +326,10 @@ function deviceSidebar(active) {
   return `
     <aside class="sidebar">
       <a class="side-device" href="#/devices" style="color:inherit;text-decoration:none">
-        <img src="assets/devices/${m.tablet}.png" alt="">${esc(m.name)}
+        <img src="${esc(tabletSource(m))}" alt="">${esc(m.name)}
       </a>
       ${item("pen", "sidebar-pen", "Pen")}
-      ${item("expresskeys", "sidebar-expresskeys", "ExpressKeys")}
+      ${m.keys ? item("expresskeys", "sidebar-expresskeys", "ExpressKeys") : ""}
       ${item("mapping", "sidebar-mapping", "Mapping")}
       ${item("display-toggle", "sidebar-displaytoggle", "Display toggle")}
     </aside>`;
@@ -365,12 +398,12 @@ function devicesOverview() {
     <section class="content">
       <div class="watermark">${esc(m.name)}</div>
       <h1 class="page-title">${esc(m.name)}</h1>
-      <div class="page-sub">${esc(m.model)}</div>
+      <div class="page-sub">${esc(m.model)}<div id="battery-status">${batteryIndicator()}</div><a href="#/devices/info">${esc(t("Device info"))}</a></div>
       <div class="overview">
         <div class="tablet glow">
-          <div class="tablet-art"><img style="transform:rotate(${orientationTurns() * 90}deg) scale(${orientationTurns() % 2 ? 0.79 : 1})" src="assets/devices/${m.tablet}.png" alt="${esc(m.name)}"></div>
+          <div class="tablet-art"><img style="transform:rotate(${orientationTurns() * 90}deg) scale(${orientationTurns() % 2 ? 0.79 : 1})" src="${esc(tabletSource(m))}" alt="${esc(m.name)}"></div>
           <div class="chips">
-            <a class="chip" href="#/devices/expresskeys">${icon("sidebar-expresskeys")}${esc(t("ExpressKeys"))}</a>
+            ${m.keys ? `<a class="chip" href="#/devices/expresskeys">${icon("sidebar-expresskeys")}${esc(t("ExpressKeys"))}</a>` : ""}
             <a class="chip" href="#/devices/mapping">${icon("sidebar-mapping")}${esc(t("Mapping"))}</a>
             <a class="chip" href="#/devices/display-toggle">${icon("sidebar-displaytoggle")}${esc(t("Display toggle"))}</a>
           </div>
@@ -382,6 +415,43 @@ function devicesOverview() {
       </div>
       ${orientationSelector()}
     </section>`;
+}
+
+function batteryIndicator() {
+  const battery = status.device?.battery;
+  if (!battery) return "";
+  const text = battery.percent === 100 ? t("Battery is charged") : t("Battery is %d%% full").replace("%d%%", `${battery.percent}%`);
+  return `<small class="battery-indicator"><meter min="0" max="100" value="${battery.percent}" aria-label="${esc(text)}"></meter> ${esc(text)}${battery.charging ? ` · ${esc(t("Charging"))}` : ""}</small>`;
+}
+
+function deviceInfoPage(sidebar = true) {
+  const device = status.device;
+  const id = n => Number(n).toString(16).padStart(4, "0");
+  return `${sidebar ? deviceSidebar("") : ""}<section class="content device-info">
+    <h1 class="page-title">${esc(t("About this device"))}</h1>
+    <dl><dt>${esc(t("Model:"))}</dt><dd>${esc(model().name)} ${esc(model().model)}</dd>
+    <dt>${esc(t("Product ID:"))}</dt><dd>${id(device.vendor)}:${id(device.product)}</dd>
+    <dt>${esc(t("Firmware:"))}</dt><dd>${esc(device.firmware ?? "—")}</dd>
+    <dt>${esc(t("Serial number:"))}</dt><dd id="tool-serial">—</dd>
+    <dt>${esc(t("Pen tool ID:"))}</dt><dd id="tool-id">—</dd></dl>
+    <div class="diagnostic-bars">${[["tilt-x", `${t("Tilt")} X`], ["tilt-y", `${t("Tilt")} Y`], ["info-pressure", t("Pressure:")]].map(([id, label]) => `<label>${esc(label)} <output id="${id}-value">0</output><meter id="${id}" min="${id === "info-pressure" ? 0 : -90}" max="${id === "info-pressure" ? 100 : 90}" value="0"></meter></label>`).join("")}</div>
+  </section>`;
+}
+
+function updateDeviceInfo() {
+  if (!$("#tool-serial")) return;
+  const pen = status.pen ?? {};
+  $("#tool-serial").textContent = pen.serial ?? "—";
+  $("#tool-id").textContent = pen.tool_id == null ? "—" : `0x${pen.tool_id.toString(16)}`;
+  for (const [id, value] of [["tilt-x", pen.tilt_x ?? 0], ["tilt-y", pen.tilt_y ?? 0], ["info-pressure", Math.round((pen.pressure ?? 0) * 100)]]) {
+    $(`#${id}`).value = value;
+    $(`#${id}-value`).textContent = value;
+  }
+}
+
+function mountDeviceInfo() {
+  updateDeviceInfo();
+  startPolling(50, updateDeviceInfo);
 }
 
 // Button positions on the Intuos pen artwork, as fractions of its height.
@@ -417,6 +487,14 @@ function penPage() {
             <p class="label">${esc(t("Tip sensitivity"))}</p>
             ${slider("tip", toolProfile().pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
           </div>
+          <div class="slider">
+            <p class="label">${esc(t("Double-click distance"))}</p>
+            ${slider("double-click", DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm ?? 2), 0, 5, "Off", "Large")}
+          </div>
+          <div class="slider">
+            <p class="label">${esc(t("Tip feel"))}</p>
+            ${slider("click-threshold", toolProfile().pen.click_threshold ?? 1, 1, 7, "Light", "Firm")}
+          </div>
           <select id="pen-mode" aria-label="${esc(t("Pen mode"))}">
             ${[["pen", "Pen"], ["mouse", "Mouse"], ["relative", "Relative mouse"]].map(([value, label]) => `<option value="${value}" ${toolProfile().pen.mode === value ? "selected" : ""}>${esc(t(label))}</option>`).join("")}
           </select>
@@ -427,6 +505,8 @@ function penPage() {
       <button class="button corner" id="pen-default">${esc(t("Default"))}</button>
     </section>`;
 }
+
+const DOUBLE_CLICK_MM = [0, 1, 2, 3, 4, 6];
 
 const MOUSE_MODE_HINT = "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.";
 
@@ -448,6 +528,8 @@ function mountPen() {
     if (value === "record") return recordKeystroke(apply);
     apply(typeof value === "string" ? { type: value } : value);
   });
+  bindSlider("double-click", (v) => { toolProfile().pen.double_click_mm = DOUBLE_CLICK_MM[v]; save(); });
+  bindSlider("click-threshold", (v) => { toolProfile().pen.click_threshold = v; save(); });
   bindSlider("tip", (v) => {
     toolProfile().pen.tip_sensitivity = v;
     save();
@@ -730,9 +812,6 @@ function mountTestArea() {
   canvas.addEventListener("dblclick", fit);
 }
 
-// ExpressKey centres on the Intuos S artwork, as fractions of the image.
-const KEY_SPOTS = [0.189, 0.395, 0.602, 0.808];
-const KEY_ROW_Y = 0.15;
 // Room above the tablet for the labels; matches .key-leads in style.css.
 const LEAD_ROOM = 220;
 
@@ -777,7 +856,7 @@ function expressKeysPage() {
   const chosen = selected?.page === "keys" ? selected.index : null;
   // The key itself (a ring over the artwork, as on the Pen page) and its
   // label both open the Actions panel.
-  const callouts = KEY_SPOTS.map(
+  const callouts = keySpots(m).map(
     (_, i) => `<button class="key-label ${i === chosen ? "selected" : ""}" data-key="${i}">${esc(keyLabel(keys[i]))}</button>
       <button class="key-ring ${i === chosen ? "selected" : ""}" data-key="${i}" aria-label="${esc(keyLabel(keys[i]))}"></button>`,
   ).join("");
@@ -787,7 +866,7 @@ function expressKeysPage() {
     <section class="content tool-settings">
       <div class="keys-figure">
         <div class="keys-tablet">
-          <img src="assets/devices/${m.tablet}.png" alt="">
+          <img src="${esc(tabletSource(m))}" alt="">
           <svg class="key-leads"></svg>
           ${callouts}
         </div>
@@ -805,16 +884,19 @@ function layoutKeyLeads() {
   if (!img?.complete) return img?.addEventListener("load", layoutKeyLeads, { once: true });
   const w = img.clientWidth;
   const h = img.clientHeight;
-  const rowY = KEY_ROW_Y * h;
+
   const bendY = -0.12 * w;
-  const paths = KEY_SPOTS.map((spot, i) => {
-    const kx = spot * w;
-    const inner = i === 1 || i === 2;
-    const lx = inner ? kx + (i === 1 ? -0.045 : 0.045) * w : kx;
-    const ly = (inner ? -75 : -45) - 0.19 * w;
+  const column = model().layout === "column";
+  box.classList.toggle("column-keys", column);
+  const paths = keySpots().map(([x, y], i) => {
+    const kx = x * w;
+    const rowY = y * h;
+    const inner = !column && (i === 1 || i === 2);
+    const lx = column ? -24 : inner ? kx + (i === 1 ? -0.045 : 0.045) * w : kx;
+    const ly = column ? rowY : (inner ? -75 : -45) - 0.19 * w;
     const label = box.querySelector(`.key-label[data-key="${i}"]`);
     label.style.left = `${lx}px`;
-    label.style.top = `${ly - 34}px`;
+    label.style.top = `${ly - (column ? 16 : 34)}px`;
     const ring = box.querySelector(`.key-ring[data-key="${i}"]`);
     ring.style.left = `${kx}px`;
     ring.style.top = `${rowY}px`;
@@ -823,6 +905,9 @@ function layoutKeyLeads() {
   });
   const leads = $(".key-leads", box);
   leads.setAttribute("viewBox", `0 -${LEAD_ROOM} ${w} ${h + LEAD_ROOM}`);
+  // Sized to the image, not the box: anything else in the box would make the
+  // viewBox letterbox and shift the leads off the keys.
+  leads.style.height = `${h + LEAD_ROOM}px`;
   leads.innerHTML = paths.join("");
 }
 
@@ -851,14 +936,14 @@ function mountExpressKeys() {
     setKey(index, { type: value });
   });
   $("#keys-default").addEventListener("click", () => {
-    toolProfile().express_keys = structuredClone(DEFAULTS.express_keys);
+    toolProfile().express_keys = Array.from({ length: model().keys }, () => ({ type: "disabled" }));
     save();
     render();
   });
 }
 
 function setKey(index, action) {
-  toolProfile().express_keys = Array.from({ length: 4 }, (_, i) => toolProfile().express_keys?.[i] ?? { type: "disabled" });
+  toolProfile().express_keys = Array.from({ length: Math.max(model().keys, toolProfile().express_keys?.length ?? 0) }, (_, i) => toolProfile().express_keys?.[i] ?? { type: "disabled" });
   toolProfile().express_keys[index] = action;
   save();
   render();
@@ -1006,12 +1091,15 @@ function mappingDiagram() {
   target = subrect(target, config.mapping.screen_portion);
 
   // Tablet image and the part of its active area in use.
-  const img = { x: 160, y: 384, w: 277, h: 221 };
+  const img = { x: 160, y: 384, w: 277, h: model().tablet ? 221 : 277 * 360 / 560 };
+  const active = model().tablet ? ACTIVE_AREA : model().layout === "column"
+    ? { x0: 110 / 560, x1: 510 / 560, y0: 42 / 360, y1: 287 / 360 }
+    : { x0: 55 / 560, x1: 505 / 560, y0: 73 / 360, y1: 318 / 360 };
   let area = {
-    x: img.x + ACTIVE_AREA.x0 * img.w,
-    y: img.y + ACTIVE_AREA.y0 * img.h,
-    w: (ACTIVE_AREA.x1 - ACTIVE_AREA.x0) * img.w,
-    h: (ACTIVE_AREA.y1 - ACTIVE_AREA.y0) * img.h,
+    x: img.x + active.x0 * img.w,
+    y: img.y + active.y0 * img.h,
+    w: (active.x1 - active.x0) * img.w,
+    h: (active.y1 - active.y0) * img.h,
   };
   const turns = orientationTurns();
   const rotate = (x, y) => {
@@ -1031,7 +1119,7 @@ function mappingDiagram() {
   const tabletSelection = { ...area };
   if (config.mapping.force_proportions) {
     const physicalAspect = status.device?.width_mm && status.device?.height_mm
-      ? status.device.width_mm / status.device.height_mm : (ACTIVE_AREA.x1 - ACTIVE_AREA.x0) * img.w / ((ACTIVE_AREA.y1 - ACTIVE_AREA.y0) * img.h);
+      ? status.device.width_mm / status.device.height_mm : (active.x1 - active.x0) * img.w / ((active.y1 - active.y0) * img.h);
     const p = config.mapping.tablet_portion;
     const tablet = (turns % 2 ? 1 / physicalAspect : physicalAspect) * (p ? p.w / p.h : 1);
     const screen = target.w / target.h;
@@ -1079,7 +1167,7 @@ function mappingDiagram() {
       <line x1="${beam[1][0]}" y1="${beam[1][1]}" x2="${beam[2][0]}" y2="${beam[2][1]}" class="beam-edge"/>
       ${monitors}
       ${all}
-      <image href="assets/devices/${model().tablet}.png" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}" transform="rotate(${turns * 90} ${img.x + img.w / 2} ${img.y + img.h / 2})"/>
+      <image href="${esc(tabletSource())}" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}" transform="rotate(${turns * 90} ${img.x + img.w / 2} ${img.y + img.h / 2})"/>
       ${area.w !== full.w || area.h !== full.h ? `<rect x="${full.x}" y="${full.y}" width="${full.w}" height="${full.h}" rx="3" class="area-unused"/>` : ""}
       <rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="3" class="area"/>
       ${editor("screen", screenFull, target)}
@@ -1596,7 +1684,7 @@ function settingsPage(tab = "general") {
     body = status.device
       ? `<h3>${esc(t("Your connected devices"))}</h3>
          <p style="display:flex;align-items:center;gap:16px">
-           <img src="assets/devices/${m.tablet}.png" alt="" style="width:96px">
+           <img src="${esc(tabletSource(m))}" alt="" style="width:96px">
            ${esc(m.name)} &nbsp; <span style="color:var(--muted)">${esc(m.model)}</span>
          </p>`
       : `<p>${esc(t("Connect a device to see its settings here."))}</p>`;
@@ -1769,8 +1857,9 @@ function render() {
       mountPen();
       return;
     } else {
-      view.innerHTML = { expresskeys: expressKeysPage, mapping: mappingPage, "display-toggle": displayTogglePage }[sub]?.() ?? devicesOverview();
+      view.innerHTML = { info: deviceInfoPage, expresskeys: expressKeysPage, mapping: mappingPage, "display-toggle": displayTogglePage }[sub]?.() ?? devicesOverview();
       mountOrientation();
+      if (sub === "info") return mountDeviceInfo();
       if (sub === "mapping") mountMapping();
       if (sub === "expresskeys") return mountExpressKeys();
     }
@@ -1787,7 +1876,9 @@ function render() {
   // Keep the device list fresh so plugging the tablet in updates the page.
   const hadDevice = Boolean(status.device);
   startPolling(1000, () => {
-    if (Boolean(status.device) !== hadDevice) render();
+    if (Boolean(status.device) !== hadDevice) return render();
+    const battery = $("#battery-status");
+    if (battery) battery.innerHTML = batteryIndicator();
   });
 }
 
@@ -2076,6 +2167,14 @@ else if (view) init();
 
 
 function toolProfile() {
+  for (const profile of [config, ...(config.apps ?? [])]) {
+    profile.pen ??= {};
+    for (const [key, value] of Object.entries(DEFAULTS.pen)) {
+      if (profile.pen[key] === undefined) profile.pen[key] = structuredClone(value);
+    }
+    profile.express_keys ??= [];
+    while (profile.express_keys.length < model().keys) profile.express_keys.push({ type: "disabled" });
+  }
   return config.apps?.find(app => app.id === selectedApp) ?? config;
 }
 function appImage(app) {
