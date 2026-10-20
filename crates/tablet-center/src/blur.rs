@@ -44,7 +44,16 @@ pub struct Blur {
     /// The effect and the surface it is on. GTK 3 makes a new wl_surface
     /// every time the window is shown again.
     effect: Option<(*mut c_void, ExtBackgroundEffectSurfaceV1)>,
-    size: (i32, i32),
+    /// The size the region was made for; None while there is no region.
+    size: Option<(i32, i32)>,
+    /// Only Glass is blurred; Tablet has the system frame, whose shadow is
+    /// part of the surface.
+    enabled: bool,
+}
+
+thread_local! {
+    /// The main window's blur, for set_enabled (GTK's main thread only).
+    static MAIN: RefCell<Option<(Rc<RefCell<Blur>>, gtk::ApplicationWindow)>> = const { RefCell::new(None) };
 }
 
 impl Blur {
@@ -64,17 +73,19 @@ impl Blur {
         let mut state = State::default();
         // The capabilities come right after the bind.
         queue.roundtrip(&mut state).ok()?;
-        state.can_blur.then_some(Blur { conn, queue, state, compositor, manager: manager, effect: None, size: (0, 0) })
+        state.can_blur.then_some(Blur { conn, queue, state, compositor, manager, effect: None, size: None, enabled: false })
     }
 
     pub fn class_script() -> String {
         format!("document.documentElement.classList.add('{CLASS}')")
     }
 
-    /// Keeps the blur on the window while it lives.
-    pub fn attach(self, window: &tauri::WebviewWindow) {
+    /// Keeps the blur on the window while it lives, on while `enabled`.
+    pub fn attach(mut self, window: &tauri::WebviewWindow, enabled: bool) {
         let (Ok(gtk_window), webview) = (window.gtk_window(), window.clone()) else { return };
+        self.enabled = enabled;
         let blur = Rc::new(RefCell::new(self));
+        MAIN.with(|m| *m.borrow_mut() = Some((blur.clone(), gtk_window.clone())));
         let update = move |w: &gtk::ApplicationWindow| {
             let Some(gdk_window) = w.window() else { return };
             let size = (gdk_window.width(), gdk_window.height());
@@ -105,6 +116,20 @@ impl Blur {
         }
     }
 
+    /// Turns the main window's blur on or off, when switching interfaces.
+    /// Call on GTK's main thread.
+    pub fn set_enabled(enabled: bool) {
+        MAIN.with(|m| {
+            let Some((blur, window)) = &*m.borrow() else { return };
+            blur.borrow_mut().enabled = enabled;
+            if let Some(gdk_window) = window.window() {
+                if blur.borrow_mut().apply(&gdk_window, (gdk_window.width(), gdk_window.height())) {
+                    window.queue_draw();
+                }
+            }
+        });
+    }
+
     /// Puts the effect on the window's current surface with a region for
     /// its size. Returns whether anything was sent.
     fn apply(&mut self, window: &gtk::gdk::Window, size: (i32, i32)) -> bool {
@@ -114,6 +139,13 @@ impl Blur {
             return false;
         }
         let qh = self.queue.handle();
+        if !self.enabled {
+            let Some((_, effect)) = self.effect.as_ref().filter(|_| self.size.is_some()) else { return false };
+            effect.set_blur_region(None);
+            self.size = None;
+            let _ = self.conn.flush();
+            return true;
+        }
         let new_surface = self.effect.as_ref().map(|(p, _)| *p) != Some(surface_ptr);
         if new_surface {
             if let Some((_, old)) = self.effect.take() {
@@ -123,10 +155,10 @@ impl Blur {
             let Ok(surface) = WlSurface::from_id(&self.conn, id) else { return false };
             let effect = self.manager.get_background_effect(&surface, &qh, ());
             self.effect = Some((surface_ptr, effect));
-        } else if size == self.size {
+        } else if Some(size) == self.size {
             return false;
         }
-        self.size = size;
+        self.size = Some(size);
         let region = self.compositor.create_region(&qh, ());
         for (x, y, w, h) in rounded_rect(size.0, size.1, RADIUS) {
             region.add(x, y, w, h);

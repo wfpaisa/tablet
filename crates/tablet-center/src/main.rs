@@ -436,10 +436,13 @@ fn ui_style_path() -> PathBuf {
 /// Remembers the interface, so the next start opens it directly (with or
 /// without the system title bar) instead of redirecting after loading.
 #[tauri::command(async)]
-fn set_ui_style(style: String) -> Result<(), String> {
-    if !UI_STYLES.iter().any(|(id, ..)| *id == style) {
+fn set_ui_style(app: tauri::AppHandle, style: String) -> Result<(), String> {
+    let Some((_, _, frameless)) = UI_STYLES.iter().find(|(id, ..)| *id == style) else {
         return Err(format!("unknown interface {style}"));
-    }
+    };
+    // Before the page puts the system frame back: its shadow must not blur.
+    let frameless = *frameless;
+    app.run_on_main_thread(move || blur::Blur::set_enabled(frameless)).map_err(|e| e.to_string())?;
     fs::write(ui_style_path(), style).map_err(|e| e.to_string())
 }
 
@@ -453,14 +456,15 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     config.url = tauri::WebviewUrl::App((*page).into());
     config.decorations = !frameless;
     // Glass draws its own see-through frame, so it can blur what is behind.
-    let blur = if *frameless { blur::Blur::new() } else { None };
+    // Set up for every interface, since the window can switch to Glass.
+    let blur = blur::Blur::new();
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &config)?;
     if blur.is_some() {
         builder = builder.initialization_script(blur::Blur::class_script());
     }
     let window = builder.build()?;
     if let Some(blur) = blur {
-        blur.attach(&window);
+        blur.attach(&window, *frameless);
     }
     Ok(())
 }
