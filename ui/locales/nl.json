@@ -228,5 +228,8 @@
   "Pen tool ID:": "Penhulpmiddel-ID:",
   "Tilt": "Kanteling",
   "Pressure:": "Druk:",
-  "Map to its own screen": "Toewijzen aan eigen scherm"
+  "Map to its own screen": "Toewijzen aan eigen scherm",
+  "Touch": "Aanraken",
+  "Enable touch": "Aanraken inschakelen",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Gebruik uw vingers op het scherm. Schakel aanraken uit om tijdens het tekenen uw hand op het scherm te laten rusten."
 }

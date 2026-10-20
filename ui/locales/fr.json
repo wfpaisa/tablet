@@ -228,5 +228,8 @@
   "Pen tool ID:": "ID de l’outil du stylet :",
   "Tilt": "Inclinaison",
   "Pressure:": "Pression :",
-  "Map to its own screen": "Associer à son propre écran"
+  "Map to its own screen": "Associer à son propre écran",
+  "Touch": "Tactile",
+  "Enable touch": "Activer le tactile",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Utilisez vos doigts sur l’écran. Désactivez le tactile pour poser la main sur l’écran pendant que vous dessinez."
 }

@@ -228,5 +228,8 @@
   "Pen tool ID:": "笔工具 ID：",
   "Tilt": "倾斜",
   "Pressure:": "压力：",
-  "Map to its own screen": "映射到自身屏幕"
+  "Map to its own screen": "映射到自身屏幕",
+  "Touch": "触控",
+  "Enable touch": "启用触控",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "可用手指操作屏幕。若要在绘画时将手放在屏幕上，请关闭触控。"
 }

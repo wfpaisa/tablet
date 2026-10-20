@@ -699,3 +699,5 @@ html.overlay, body.overlay { background: transparent; }
 .column-keys .key-label { transform: translateX(-100%); font-size: 14px; }
 .column-keys .key-ring { width: 7%; height: 6%; }
 .keys-figure:has(.column-keys) { padding-top: 40px; padding-left: 150px; }
+.touch-options { margin: 32px 60px; max-width: 480px; }
+.touch-options .toggle-row { width: auto; margin: 0 0 10px; }

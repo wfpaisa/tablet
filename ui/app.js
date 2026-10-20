@@ -23,6 +23,7 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
 
 const DEFAULTS = {
   apps: [],
+  touch: { enabled: true },
   precision: { scale: 2, overlay: true },
   pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, double_click_mm: 2, click_threshold: 1, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
@@ -77,7 +78,7 @@ const MODELS = {
   0x0103: { name: "Wacom One M", model: "CTC6110WL", keys: 0, layout: "none" }, // Bluetooth.
   0x0105: { name: "Wacom One M", model: "CTC6110WL", keys: 0, layout: "none" },
   0x03ce: { name: "Wacom One 12", model: "DTC121", keys: 0, layout: "none", display: true },
-  0x03cb: { name: "Wacom One 13 touch", model: "DTH134", keys: 0, layout: "none", display: true },
+  0x03cb: { name: "Wacom One 13 touch", model: "DTH134", keys: 0, layout: "none", display: true, touch: true },
   0x0392: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
   0x0393: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
   0x0357: { name: "Intuos Pro M", model: "PTH-660", keys: 8, layout: "column" },
@@ -340,6 +341,7 @@ function deviceSidebar(active) {
       </a>
       ${item("pen", "sidebar-pen", "Pen")}
       ${m.keys ? item("expresskeys", "sidebar-expresskeys", "ExpressKeys") : ""}
+      ${hasTouch() ? item("touch", "sidebar-touch", "Touch") : ""}
       ${item("mapping", "sidebar-mapping", "Mapping")}
       ${item("display-toggle", "sidebar-displaytoggle", "Display toggle")}
     </aside>`;
@@ -1276,6 +1278,37 @@ function mappedDisplay() {
   return config.mapping.display ?? ownScreen()?.id ?? null;
 }
 
+// The daemon reports any Wacom touch interface; the model table knows the
+// ones that have it before the daemon has found it.
+function hasTouch() {
+  return Boolean(status.touch || model().touch);
+}
+
+const TOUCH_HINT = "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.";
+
+function touchPage() {
+  const enabled = config.touch?.enabled ?? true;
+  return `
+    ${deviceSidebar("touch")}
+    <section class="content touch-page">
+      <h1 class="page-title">${esc(t("Touch"))}</h1>
+      <div class="touch-options">
+        <label class="toggle-row">
+          <span class="switch"><input type="checkbox" id="touch-enabled" ${enabled ? "checked" : ""}><span></span></span>
+          ${esc(t("Enable touch"))}
+        </label>
+        <p class="hint">${esc(t(TOUCH_HINT))}</p>
+      </div>
+    </section>`;
+}
+
+function mountTouch() {
+  $("#touch-enabled").addEventListener("change", (e) => {
+    config.touch = { ...config.touch, enabled: e.target.checked };
+    save();
+  });
+}
+
 function displayTogglePage() {
   const displays = status.displays ?? [];
   const toggled = status.toggled_display;
@@ -1877,8 +1910,9 @@ function render() {
       mountPen();
       return;
     } else {
-      view.innerHTML = { info: deviceInfoPage, expresskeys: expressKeysPage, mapping: mappingPage, "display-toggle": displayTogglePage }[sub]?.() ?? devicesOverview();
+      view.innerHTML = { info: deviceInfoPage, expresskeys: expressKeysPage, touch: touchPage, mapping: mappingPage, "display-toggle": displayTogglePage }[sub]?.() ?? devicesOverview();
       mountOrientation();
+      if (sub === "touch") mountTouch();
       if (sub === "info") return mountDeviceInfo();
       if (sub === "mapping") mountMapping();
       if (sub === "expresskeys") return mountExpressKeys();

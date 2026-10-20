@@ -228,5 +228,8 @@
   "Pen tool ID:": "ID da ferramenta da caneta:",
   "Tilt": "Inclinação",
   "Pressure:": "Pressão:",
-  "Map to its own screen": "Mapear para a própria tela"
+  "Map to its own screen": "Mapear para a própria tela",
+  "Touch": "Toque",
+  "Enable touch": "Ativar toque",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Use os dedos na tela. Desative o toque para apoiar a mão na tela enquanto desenha."
 }

@@ -228,5 +228,8 @@
   "Pen tool ID:": "Kalem aracı kimliği:",
   "Tilt": "Eğim",
   "Pressure:": "Basınç:",
-  "Map to its own screen": "Kendi ekranına eşle"
+  "Map to its own screen": "Kendi ekranına eşle",
+  "Touch": "Dokunma",
+  "Enable touch": "Dokunmayı etkinleştir",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Ekranda parmaklarınızı kullanın. Çizerken elinizi ekrana dayamak için dokunmayı kapatın."
 }

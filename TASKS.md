@@ -52,4 +52,5 @@ Cintiq Workflows).
   Wacom One S/M and the Wacom One 12 / 13 touch pen displays.
 - [x] **Pen displays**: the Wacom One 12 / 13 touch map to their own screen
   (EDID vendor "WAC") unless another monitor is chosen.
-- [ ] **Touch**: finger input on the Wacom One 13 touch.
+- [x] **Touch**: finger input on the Wacom One 13 touch: on/off switch and
+  touchscreen pinned to its own screen.

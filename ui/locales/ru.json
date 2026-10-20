@@ -228,5 +228,8 @@
   "Pen tool ID:": "Идентификатор инструмента пера:",
   "Tilt": "Наклон",
   "Pressure:": "Нажим:",
-  "Map to its own screen": "Сопоставить с собственным экраном"
+  "Map to its own screen": "Сопоставить с собственным экраном",
+  "Touch": "Сенсорный ввод",
+  "Enable touch": "Включить сенсорный ввод",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Управляйте экраном пальцами. Отключите сенсорный ввод, чтобы опирать руку на экран во время рисования."
 }

@@ -228,5 +228,8 @@
   "Pen tool ID:": "펜 도구 ID:",
   "Tilt": "기울기",
   "Pressure:": "필압:",
-  "Map to its own screen": "자체 화면에 매핑"
+  "Map to its own screen": "자체 화면에 매핑",
+  "Touch": "터치",
+  "Enable touch": "터치 사용",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "손가락으로 화면을 조작합니다. 그리는 동안 손을 화면에 올려 두려면 터치를 끄십시오."
 }

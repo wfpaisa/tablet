@@ -590,6 +590,7 @@ pub fn wireless_model(product: u16) -> bool {
 #[serde(default)]
 pub struct Config {
     pub apps: Vec<AppProfile>,
+    pub touch: TouchSettings,
     pub precision: PrecisionSettings,
     pub pen: PenSettings,
     pub pan_scroll: PanScrollSettings,
@@ -597,6 +598,19 @@ pub struct Config {
     pub express_keys: Vec<KeyAction>,
     pub gestures: GestureSettings,
     pub shortcuts: ShortcutSettings,
+}
+
+/// Finger input of a touch display (Wacom One 13 touch).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct TouchSettings {
+    pub enabled: bool,
+}
+
+impl Default for TouchSettings {
+    fn default() -> Self {
+        Self { enabled: true }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -654,6 +668,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             apps: Vec::new(),
+            touch: TouchSettings::default(),
             precision: PrecisionSettings::default(),
             pen: PenSettings::default(),
             pan_scroll: PanScrollSettings::default(),
@@ -804,6 +819,9 @@ pub struct Response {
     pub apps: Vec<AppInfo>,
     #[serde(default)]
     pub focused_app: Option<String>,
+    /// A touch interface is connected.
+    #[serde(default)]
+    pub touch: bool,
     pub ok: bool,
     pub error: Option<String>,
     pub device: Option<DeviceInfo>,
@@ -836,6 +854,8 @@ mod tests {
         let displays = [screen("DEL|DELL S2721QS|1"), screen("WAC|Wacom One 12|2")];
         assert_eq!(own_screen(&displays).map(|d| d.id.as_str()), Some("WAC|Wacom One 12|2"));
         assert!(own_screen(&displays[..1]).is_none());
+        let old: Config = serde_json::from_str("{}").unwrap();
+        assert!(old.touch.enabled, "touch stays on for old configs");
     }
 
     #[test]

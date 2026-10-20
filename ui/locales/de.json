@@ -228,5 +228,8 @@
   "Pen tool ID:": "Stiftwerkzeug-ID:",
   "Tilt": "Neigung",
   "Pressure:": "Druck:",
-  "Map to its own screen": "Dem eigenen Bildschirm zuordnen"
+  "Map to its own screen": "Dem eigenen Bildschirm zuordnen",
+  "Touch": "Touch",
+  "Enable touch": "Touch aktivieren",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Bedienen Sie den Bildschirm mit den Fingern. Schalten Sie Touch aus, um beim Zeichnen die Hand auf dem Bildschirm abzulegen."
 }

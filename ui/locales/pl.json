@@ -228,5 +228,8 @@
   "Pen tool ID:": "Identyfikator narzędzia pióra:",
   "Tilt": "Nachylenie",
   "Pressure:": "Nacisk:",
-  "Map to its own screen": "Mapuj na własny ekran"
+  "Map to its own screen": "Mapuj na własny ekran",
+  "Touch": "Dotyk",
+  "Enable touch": "Włącz dotyk",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Używaj palców na ekranie. Wyłącz dotyk, aby opierać dłoń na ekranie podczas rysowania."
 }

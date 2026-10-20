@@ -31,6 +31,17 @@ pub fn find_pad() -> Option<Device> {
     })
 }
 
+/// The finger interface of a Wacom touch display or touch tablet:
+/// multitouch axes and no pen tool.
+pub fn find_touch() -> Option<Device> {
+    evdev::enumerate().map(|(_, dev)| dev).find(|dev| {
+        tablet_config::wacom_vendor(dev.input_id().vendor())
+            && !dev.name().unwrap_or_default().ends_with(VIRTUAL_SUFFIX)
+            && dev.supported_absolute_axes().is_some_and(|a| a.contains(AbsoluteAxisCode::ABS_MT_POSITION_X))
+            && !dev.supported_keys().is_some_and(|k| k.contains(KeyCode::BTN_TOOL_PEN))
+    })
+}
+
 /// Keyboard that types ExpressKey shortcuts. Carries every standard key
 /// (KEY_ESC ..= KEY_MICMUTE) so any recorded shortcut can be replayed.
 pub fn virtual_keyboard() -> io::Result<VirtualDevice> {

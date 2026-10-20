@@ -228,5 +228,8 @@
   "Pen tool ID:": "筆工具 ID：",
   "Tilt": "傾斜",
   "Pressure:": "壓力：",
-  "Map to its own screen": "對應到自身螢幕"
+  "Map to its own screen": "對應到自身螢幕",
+  "Touch": "觸控",
+  "Enable touch": "啟用觸控",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "可用手指操作螢幕。若要在繪圖時將手放在螢幕上，請關閉觸控。"
 }

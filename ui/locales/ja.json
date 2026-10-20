@@ -228,5 +228,8 @@
   "Pen tool ID:": "ペンツール ID:",
   "Tilt": "傾き",
   "Pressure:": "筆圧:",
-  "Map to its own screen": "本体の画面にマッピング"
+  "Map to its own screen": "本体の画面にマッピング",
+  "Touch": "タッチ",
+  "Enable touch": "タッチを有効にする",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "指で画面を操作できます。描画中に手を画面に置くには、タッチをオフにしてください。"
 }

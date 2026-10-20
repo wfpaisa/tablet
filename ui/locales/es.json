@@ -228,5 +228,8 @@
   "Pen tool ID:": "ID de la herramienta del lápiz:",
   "Tilt": "Inclinación",
   "Pressure:": "Presión:",
-  "Map to its own screen": "Asignar a su propia pantalla"
+  "Map to its own screen": "Asignar a su propia pantalla",
+  "Touch": "Táctil",
+  "Enable touch": "Activar táctil",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Use los dedos sobre la pantalla. Desactive el táctil para apoyar la mano en la pantalla mientras dibuja."
 }

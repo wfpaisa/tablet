@@ -31,6 +31,7 @@ use tablet_config::{Config, DeviceInfo, Display, Gesture, KeyAction, PenState, R
 struct Shared {
     config: RwLock<Config>,
     focused_app: Mutex<Option<String>>,
+    touch: AtomicBool,
     /// Bumped on every reload so the device loop picks up new settings.
     generation: AtomicU64,
     double_click_ms: AtomicU64,
@@ -138,6 +139,8 @@ fn main() {
     thread::spawn(move || shutdown_on_signal(&signals));
     let pads = Arc::clone(&shared);
     thread::spawn(move || pad_loop(&pads));
+    let touch = Arc::clone(&shared);
+    thread::spawn(move || touch_loop(&touch));
     let shortcuts = Arc::clone(&shared);
     thread::spawn(move || {
         // Give the session a moment to come up when started with it.
@@ -931,6 +934,67 @@ fn pad_loop(shared: &Shared) {
     }
 }
 
+fn touch_loop(shared: &Shared) {
+    let mut last_error = String::new();
+    loop {
+        if let Some(touch) = devices::find_touch() {
+            match run_touch(touch, shared) {
+                Err(e) if e.to_string() != last_error => {
+                    eprintln!("tabletd: touch stopped: {e}; retrying every second");
+                    last_error = e.to_string();
+                }
+                _ => {}
+            }
+            shared.touch.store(false, Ordering::Release);
+        }
+        wait_for_hotplug();
+    }
+}
+
+/// Finger input stays with libinput, which already does GNOME's gestures
+/// and rejects the palm while the pen is near. Turning touch off grabs the
+/// device and drops its events.
+fn run_touch(mut touch: evdev::Device, shared: &Shared) -> io::Result<()> {
+    eprintln!("tabletd: found touch {}", touch.name().unwrap_or("interface"));
+    shared.touch.store(true, Ordering::Release);
+    let direct = touch.properties().contains(evdev::PropType::DIRECT);
+    let mut grabbed = false;
+    let mut generation = None;
+    loop {
+        // Reloads and monitor changes both bump the generation.
+        let current = shared.generation.load(Ordering::Acquire);
+        if generation != Some(current) {
+            generation = Some(current);
+            let enabled = shared.config.read().unwrap().touch.enabled;
+            if enabled == grabbed {
+                if enabled { touch.ungrab()? } else { touch.grab()? }
+                grabbed = !enabled;
+            }
+            if direct { map_touchscreen(&touch, shared); }
+        }
+        if wait_readable(&touch, Some(Duration::from_millis(250)))? {
+            touch.fetch_events()?.for_each(drop);
+        }
+    }
+}
+
+/// Points GNOME's mapping for this touchscreen (mutter's per-device
+/// `output` key) at the pen display's own screen, so fingers land under
+/// them on a multi-monitor desktop.
+fn map_touchscreen(touch: &evdev::Device, shared: &Shared) {
+    let Some(screen) = tablet_config::own_screen(&shared.displays.lock().unwrap()).map(|d| d.id.clone()) else { return };
+    let quote = |s: &str| format!("'{}'", s.replace('\\', "\\\\").replace('\'', "\\'"));
+    let value = format!("[{}]", screen.splitn(3, '|').map(quote).collect::<Vec<_>>().join(", "));
+    let id = touch.input_id();
+    let schema = format!("org.gnome.desktop.peripherals.touchscreen:/org/gnome/desktop/peripherals/touchscreens/{:04x}:{:04x}/",
+        id.vendor(), id.product());
+    let current = Command::new("gsettings").args(["get", &schema, "output"]).output();
+    if current.is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim() == value) { return; }
+    if let Err(e) = Command::new("gsettings").args(["set", &schema, "output", &value]).status() {
+        eprintln!("tabletd: could not map the touchscreen: {e}");
+    }
+}
+
 fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
     pad.grab()?;
     {
@@ -1108,6 +1172,7 @@ fn client(stream: UnixStream, shared: &Shared) -> io::Result<()> {
             },
             Ok(Request::Status) => Response {
                 focused_app: shared.focused_app.lock().unwrap().clone(),
+                touch: shared.touch.load(Ordering::Acquire),
                 ok: true,
                 device: shared.device.lock().unwrap().clone().map(|mut device| {
                     device.battery = devices::battery(device.sysfs_path.as_deref(), device.product);
