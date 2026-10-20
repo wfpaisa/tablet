@@ -37,6 +37,10 @@ struct Shared {
     displays: Mutex<Vec<Display>>,
     /// [`Gesture::id`] of a held ExpressKey assigned to a pen gesture, or 0.
     pad_gesture: AtomicU8,
+    pad_effects: AtomicU8,
+    mode_toggles: AtomicU64,
+    relative_mode: AtomicBool,
+    mouse_mode: AtomicBool,
     /// Last pen position sent to the pointer (after mapping), so ExpressKey
     /// clicks land under the pen.
     pen_pos: Mutex<(i32, i32)>,
@@ -80,6 +84,8 @@ struct Shared {
 struct Outputs {
     pen: VirtualDevice,
     pointer: VirtualDevice,
+    /// Relative mode's mouse; see [`devices::virtual_relative_mouse`].
+    relative: VirtualDevice,
 }
 
 impl Outputs {
@@ -94,6 +100,7 @@ impl Outputs {
         let _ = self.pen.emit(&[up(KeyCode::BTN_TOOL_PEN), up(KeyCode::BTN_TOOL_RUBBER)]);
         let buttons = [KeyCode::BTN_LEFT, KeyCode::BTN_RIGHT, KeyCode::BTN_MIDDLE, KeyCode::BTN_SIDE, KeyCode::BTN_EXTRA];
         let _ = self.pointer.emit(&buttons.map(up));
+        let _ = self.relative.emit(&[up(KeyCode::BTN_LEFT), up(KeyCode::BTN_RIGHT), up(KeyCode::BTN_MIDDLE)]);
         thread::sleep(Duration::from_millis(300));
         drop(self);
         thread::sleep(Duration::from_millis(300));
@@ -230,12 +237,22 @@ fn run(mut pen: evdev::Device, shared: &Shared) -> io::Result<()> {
         height_mm: tablet.height_mm,
     };
     take_over(&mut pen)?;
+    {
+        let mut keyboard = shared.keyboard.lock().unwrap();
+        if keyboard.is_none() { *keyboard = Some(devices::virtual_keyboard()?); }
+    }
     *shared.outputs.lock().unwrap() =
-        Some(Outputs { pen: devices::virtual_pen(&pen)?, pointer: devices::virtual_pointer(&pen)? });
+        Some(Outputs {
+            pen: devices::virtual_pen(&pen)?,
+            pointer: devices::virtual_pointer(&pen)?,
+            relative: devices::virtual_relative_mouse()?,
+        });
     let result = pump(&mut pen, &info, geometry, tablet, shared);
-    // Zoom may have left Ctrl down on our keyboard.
+    precision_feedback(shared, false);
+    // Release pen shortcuts as well as Zoom if the input device disappeared.
     if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
-        let _ = keyboard.emit(&[InputEvent::new(EventType::KEY.0, KeyCode::KEY_LEFTCTRL.0, 0)]);
+        let releases: Vec<_> = (1..=248).map(|code| InputEvent::new(EventType::KEY.0, code, 0)).collect();
+        let _ = keyboard.emit(&releases);
     }
     if let Some(outputs) = shared.outputs.lock().unwrap().take() {
         outputs.retire();
@@ -291,7 +308,16 @@ fn pump(
     let mut last_tick = Instant::now();
     let mut nudge = 1;
     let mut ring = false;
+    let mut mode_toggles = shared.mode_toggles.load(Ordering::Acquire);
     loop {
+        let effects = shared.pad_effects.load(Ordering::Acquire);
+        let effects_changed = processor.set_pad_effects(effects);
+        let toggles = shared.mode_toggles.load(Ordering::Acquire);
+        let mode_changed = (toggles - mode_toggles) % 2 != 0;
+        if mode_changed { processor.toggle_mode(); }
+        mode_toggles = toggles;
+        shared.relative_mode.store(processor.relative_mode(), Ordering::Release);
+        shared.mouse_mode.store(processor.mouse_mode(), Ordering::Release);
         // A held right-or-middle button shows a ring until it is decided.
         if processor.hold_pending() != ring {
             ring = !ring;
@@ -299,21 +325,26 @@ fn pump(
         }
         // Joystick gestures keep emitting while the pen rests, so wake up
         // regularly while one is active.
-        let ticking = processor.wants_ticks() || pad_gesture().is_some();
+        let ticking = effects_changed || mode_changed || processor.wants_ticks() || pad_gesture().is_some() || effects != 0;
         let hide_in = shared.pointer_used.lock().unwrap().map(|t| POINTER_HIDE_DELAY.saturating_sub(t.elapsed()));
         let timeout = match (ticking.then_some(TICK), hide_in) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
-        let readable = wait_readable(pen, timeout)?;
+        let readable = wait_readable(pen, Some(timeout.unwrap_or(TICK).min(TICK)))?;
         if hide_in.is_some() {
             // Mouse mode has no tablet cursor to give way to.
             let pen_cursor = !processor.mouse_mode() && !shared.mouse_owns_cursor.load(Ordering::Acquire);
             hide_pointer(shared, processor.state().in_proximity && pen_cursor, &mut nudge)?;
         }
-        if ticking && last_tick.elapsed() >= TICK {
+        if effects_changed || mode_changed || (ticking && last_tick.elapsed() >= TICK) {
             let dt = last_tick.elapsed().as_secs_f64().min(0.1);
-            let mut out = processor.tick(dt, pad_gesture());
+            let mut out = processor.process_frame(&[], pad_gesture());
+            let tick = processor.tick(dt, pad_gesture());
+            out.mouse.extend(tick.mouse);
+            out.keyboard.extend(tick.keyboard);
+            remap(&map, &mut out.pen);
+            remember_position(shared, &out.pen);
             out.mouse.iter_mut().for_each(|batch| remap(&map, batch));
             // A held button may just have become a middle-button drag.
             let state = processor.state();
@@ -342,6 +373,8 @@ fn pump(
                 map = new_mapping();
             }
             let mut out = processor.process_frame(&frame, pad_gesture());
+            shared.relative_mode.store(processor.relative_mode(), Ordering::Release);
+            shared.mouse_mode.store(processor.mouse_mode(), Ordering::Release);
             remap(&map, &mut out.pen);
             let was_near = shared.pen.lock().unwrap().in_proximity;
             remember_position(shared, &out.pen);
@@ -448,6 +481,10 @@ fn wait_readable(pen: &evdev::Device, timeout: Option<Duration>) -> io::Result<b
 
 /// Sends a pen [`pen::Output`]; false once shutdown took the devices.
 fn emit_pen(shared: &Shared, out: &pen::Output) -> io::Result<bool> {
+    action_effects(out.run.as_deref(), out.on_screen_keyboard);
+    if let Some(active) = out.precision {
+        precision_feedback(shared, active);
+    }
     if !out.keyboard.is_empty() {
         if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
             for batch in &out.keyboard {
@@ -463,12 +500,57 @@ fn emit_pen(shared: &Shared, out: &pen::Output) -> io::Result<bool> {
         outputs.pen.emit(&out.pen)?;
     }
     for batch in &out.mouse {
-        outputs.pointer.emit(batch)?;
+        let relative = batch.iter().any(|e| {
+            e.event_type() == EventType::RELATIVE
+                && (e.code() == evdev::RelativeAxisCode::REL_X.0 || e.code() == evdev::RelativeAxisCode::REL_Y.0)
+        });
+        if relative { outputs.relative.emit(batch)? } else { outputs.pointer.emit(batch)? }
     }
     if !out.mouse.is_empty() {
         *shared.pointer_used.lock().unwrap() = Some(Instant::now());
     }
+    if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
+        for batch in &out.keyboard_after { keyboard.emit(batch)?; }
+    }
     Ok(true)
+}
+
+/// Launching and desktop settings never wait on the input thread.
+fn action_effects(command: Option<&str>, keyboard: bool) {
+    if command.is_none() && !keyboard { return; }
+    let command = command.map(str::to_owned);
+    thread::spawn(move || {
+        if keyboard {
+            let enabled = Command::new("gsettings").args(["get", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled"])
+                .output().ok().is_some_and(|o| o.stdout.starts_with(b"true"));
+            let _ = Command::new("gsettings").args(["set", "org.gnome.desktop.a11y.applications", "screen-keyboard-enabled", if enabled { "false" } else { "true" }])
+                .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        }
+        if let Some(command) = command.filter(|s| !s.trim().is_empty()) {
+            let mut child = Command::new("setsid");
+            child.arg("--fork");
+            if let Some(id) = command.strip_prefix("desktop:") { child.args(["gtk-launch", id]); }
+            else if std::path::Path::new(&command).exists() || command.split_once(':').is_some_and(|(scheme, _)| !scheme.is_empty() && scheme.chars().all(|c| c.is_ascii_alphanumeric() || "+-.".contains(c))) {
+                child.arg("xdg-open").arg(&command);
+            } else { child.args(["sh", "-c", &command]); }
+            let _ = child.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        }
+    });
+}
+
+fn precision_feedback(shared: &Shared, active: bool) {
+    let config = shared.config.read().unwrap();
+    let feedback = if active && config.precision.overlay {
+        let pos = *shared.pen_pos.lock().unwrap();
+        let displays = shared.displays.lock().unwrap();
+        let Some(tablet) = *shared.tablet.lock().unwrap() else { return };
+        let Some((x, y)) = mapping::desktop_point(&displays, tablet, pos) else { return };
+        let Some(display) = displays.iter().find(|d| x >= d.x && x < d.x + d.width && y >= d.y && y < d.y + d.height) else { return };
+        let scale = f64::from(config.precision.scale.max(2));
+        let (w, h) = (display.width / scale, display.height / scale);
+        shell::Feedback::Precision { x: (x - w / 2.0).round() as i32, y: (y - h / 2.0).round() as i32, w: w.round() as i32, h: h.round() as i32 }
+    } else { shell::Feedback::HidePrecision };
+    if let Some(tx) = shared.shell.lock().unwrap().as_ref() { let _ = tx.send(feedback); }
 }
 
 /// Moves the pen to the next target: all displays, then each monitor.
@@ -536,7 +618,7 @@ fn show_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) {
     }
     let pos = *shared.pen_pos.lock().unwrap();
     let pen = shared.pen.lock().unwrap().clone();
-    let pen_mode = shared.config.read().unwrap().pen.mode == tablet_config::PenMode::Pen;
+    let pen_mode = !shared.mouse_mode.load(Ordering::Acquire);
     // Mutter maps the window on the mouse pointer's monitor, which may not
     // be the pen's. Moving the pointer shows it, so a hovering pen gives way
     // to it as for a context menu (see pen_gives_way): one cursor, which
@@ -601,7 +683,7 @@ fn spawn_shortcut_host() -> Option<(Child, ChildStdin)> {
 /// so even the first one shows at once.
 fn prepare_shortcuts(shared: &Shared) {
     let config = shared.config.read().unwrap();
-    let used = [config.pen.upper_button, config.pen.lower_button].iter().any(|a| a.shortcut().is_some())
+    let used = [&config.pen.upper_button, &config.pen.lower_button, &config.pen.tip].iter().any(|a| a.shortcut().is_some())
         || config.express_keys.iter().any(|a| a.shortcut().is_some());
     // The shell extension draws them; the window only starts if it fails.
     let used = used && !config.shortcuts.in_shell;
@@ -651,7 +733,7 @@ fn mouse_moved(shared: &Shared) {
         return;
     }
     let pen = shared.pen.lock().unwrap().clone();
-    let pen_mode = shared.config.read().unwrap().pen.mode == tablet_config::PenMode::Pen;
+    let pen_mode = !shared.mouse_mode.load(Ordering::Acquire);
     if !pen_mode || !pen.in_proximity || pen.tip_down || pen.panning {
         return;
     }
@@ -820,7 +902,10 @@ fn pad_loop(shared: &Shared) {
 
 fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
     pad.grab()?;
-    *shared.keyboard.lock().unwrap() = Some(devices::virtual_keyboard()?);
+    {
+        let mut keyboard = shared.keyboard.lock().unwrap();
+        if keyboard.is_none() { *keyboard = Some(devices::virtual_keyboard()?); }
+    }
     eprintln!("tabletd: using {}", pad.name().unwrap_or("tablet pad"));
     let mut generation = shared.generation.load(Ordering::Acquire);
     let mut processor = pad::PadProcessor::new(shared.config.read().unwrap().express_keys.clone());
@@ -841,6 +926,7 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
             let out = processor.process_frame(&frame, pos);
             frame.clear();
             shared.pad_gesture.store(processor.gesture().map_or(0, Gesture::id), Ordering::Release);
+            shared.pad_effects.store(processor.effects(), Ordering::Release);
             emit_pad(shared, &out)?;
             if out.toggle_display {
                 toggle_display(shared);
@@ -851,9 +937,9 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
         }
     })();
     shared.pad_gesture.store(0, Ordering::Release);
+    shared.pad_effects.store(0, Ordering::Release);
     shared.pad_keys.lock().unwrap().clear();
     let _ = emit_pad(shared, &processor.release_all());
-    shared.keyboard.lock().unwrap().take();
     result
 }
 
@@ -869,6 +955,8 @@ fn remember_keys(shared: &Shared, frame: &[InputEvent]) {
 }
 
 fn emit_pad(shared: &Shared, out: &pad::PadOutput) -> io::Result<()> {
+    action_effects(out.run.as_deref(), out.on_screen_keyboard);
+    if out.toggle_mode { shared.mode_toggles.fetch_add(1, Ordering::AcqRel); }
     if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
         for batch in &out.keyboard {
             keyboard.emit(batch)?;
@@ -876,7 +964,10 @@ fn emit_pad(shared: &Shared, out: &pad::PadOutput) -> io::Result<()> {
     }
     if let Some(outputs) = shared.outputs.lock().unwrap().as_mut() {
         for batch in &out.pointer {
-            outputs.pointer.emit(batch)?;
+            if shared.relative_mode.load(Ordering::Acquire) {
+                let events: Vec<_> = batch.iter().copied().filter(|e| e.event_type() != EventType::ABSOLUTE).collect();
+                outputs.pointer.emit(&events)?;
+            } else { outputs.pointer.emit(batch)?; }
         }
         if !out.pointer.is_empty() {
             *shared.pointer_used.lock().unwrap() = Some(Instant::now());
@@ -889,6 +980,9 @@ fn emit_pad(shared: &Shared, out: &pad::PadOutput) -> io::Result<()> {
                 shared.pad_button_held.store(ev.value() != 0, Ordering::Release);
             }
         }
+    }
+    if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
+        for batch in &out.keyboard_after { keyboard.emit(batch)?; }
     }
     Ok(())
 }

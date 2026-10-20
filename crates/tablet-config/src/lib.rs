@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::{env, fs, io, path::PathBuf};
 
 /// What a pen side button does.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ButtonAction {
     /// Hold the button and drag the tip to scroll in any direction.
@@ -20,6 +20,29 @@ pub enum ButtonAction {
     Wheel,
     Zoom,
     PanZoom,
+    Keystroke { #[serde(default)] keys: Vec<String>, #[serde(default)] label: String },
+    ClickLock,
+    MiddleClickLock,
+    RightClickLock,
+    PressureHold,
+    ModeToggle,
+    Modifier {
+        #[serde(default)] shift: bool,
+        #[serde(default)] ctrl: bool,
+        #[serde(default)] alt: bool,
+        #[serde(default, rename = "super")] super_key: bool,
+        #[serde(default)] click: Option<Click>,
+    },
+    Run {
+        #[serde(default)] command: String,
+        #[serde(default)] label: String,
+    },
+    PrecisionMode,
+    ShowDesktop,
+    Overview,
+    SwitchApplication,
+    NotificationCenter,
+    OnScreenKeyboard,
     LeftClick,
     RightClick,
     MiddleClick,
@@ -52,11 +75,14 @@ pub enum PenMode {
     /// Moves the mouse pointer: one cursor that changes over text and
     /// borders, the tip clicks, no pressure.
     Mouse,
+    Relative,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct PenSettings {
+    pub tip: ButtonAction,
+    pub relative: RelativeSettings,
     pub mode: PenMode,
     /// Button nearest the eraser end (BTN_STYLUS2).
     pub upper_button: ButtonAction,
@@ -69,6 +95,32 @@ pub struct PenSettings {
     pub hold_time: u8,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Click { Left, Right, Middle }
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RelativeSettings {
+    pub speed: u8,
+    pub acceleration: u8,
+}
+
+impl Default for RelativeSettings {
+    fn default() -> Self { Self { speed: 4, acceleration: 4 } }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PrecisionSettings {
+    pub scale: u8,
+    pub overlay: bool,
+}
+
+impl Default for PrecisionSettings {
+    fn default() -> Self { Self { scale: 2, overlay: true } }
+}
+
 /// Wait of [`ButtonAction::RightOrHoldMiddle`] for a [`PenSettings::hold_time`].
 pub fn hold_middle_time(level: u8) -> std::time::Duration {
     const MS: [u64; 3] = [400, 700, 1100];
@@ -78,6 +130,8 @@ pub fn hold_middle_time(level: u8) -> std::time::Duration {
 impl Default for PenSettings {
     fn default() -> Self {
         Self {
+            tip: ButtonAction::LeftClick,
+            relative: RelativeSettings::default(),
             mode: PenMode::Pen,
             upper_button: ButtonAction::PanScroll,
             lower_button: ButtonAction::RightClick,
@@ -157,6 +211,28 @@ pub enum KeyAction {
     /// evdev key names pressed in order and released in reverse, e.g.
     /// `["KEY_LEFTCTRL", "KEY_Z"]`. `label` is what the UI shows.
     Keystroke { keys: Vec<String>, label: String },
+    ClickLock,
+    MiddleClickLock,
+    RightClickLock,
+    PressureHold,
+    ModeToggle,
+    Modifier {
+        #[serde(default)] shift: bool,
+        #[serde(default)] ctrl: bool,
+        #[serde(default)] alt: bool,
+        #[serde(default, rename = "super")] super_key: bool,
+        #[serde(default)] click: Option<Click>,
+    },
+    Run {
+        #[serde(default)] command: String,
+        #[serde(default)] label: String,
+    },
+    PrecisionMode,
+    ShowDesktop,
+    Overview,
+    SwitchApplication,
+    NotificationCenter,
+    OnScreenKeyboard,
     LeftClick,
     RightClick,
     MiddleClick,
@@ -233,7 +309,7 @@ impl Shortcut {
 }
 
 impl ButtonAction {
-    pub fn shortcut(self) -> Option<Shortcut> {
+    pub fn shortcut(&self) -> Option<Shortcut> {
         Some(match self {
             Self::ExpressMenu => Shortcut::ExpressMenu,
             Self::RadialMenu => Shortcut::RadialMenu,
@@ -243,7 +319,7 @@ impl ButtonAction {
         })
     }
 
-    pub fn gesture(self) -> Option<Gesture> {
+    pub fn gesture(&self) -> Option<Gesture> {
         Some(match self {
             Self::PanScroll => Gesture::PanScroll,
             Self::PanScrollLegacy => Gesture::PanScrollLegacy,
@@ -253,6 +329,23 @@ impl ButtonAction {
             Self::PanZoom => Gesture::PanZoom,
             _ => return None,
         })
+    }
+}
+
+impl ButtonAction {
+    pub fn key_action(&self) -> Option<KeyAction> {
+        let value = serde_json::to_value(self).ok()?;
+        let value = match value {
+            serde_json::Value::String(name) => serde_json::json!({"type": name}),
+            serde_json::Value::Object(map) => {
+                let (name, fields) = map.into_iter().next()?;
+                let mut fields = fields.as_object()?.clone();
+                fields.insert("type".into(), name.into());
+                serde_json::Value::Object(fields)
+            }
+            _ => return None,
+        };
+        serde_json::from_value(value).ok()
     }
 }
 
@@ -424,6 +517,7 @@ pub const EXPRESS_KEYS: usize = 4;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    pub precision: PrecisionSettings,
     pub pen: PenSettings,
     pub pan_scroll: PanScrollSettings,
     pub mapping: MappingSettings,
@@ -435,6 +529,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            precision: PrecisionSettings::default(),
             pen: PenSettings::default(),
             pan_scroll: PanScrollSettings::default(),
             mapping: MappingSettings::default(),
@@ -574,6 +669,18 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn new_fields_default_for_old_configs_and_parameter_actions_round_trip() {
+        let config: Config = serde_json::from_str(r#"{"pen":{"lower_button":"right_click"}}"#).unwrap();
+        assert_eq!(config.pen.tip, ButtonAction::LeftClick);
+        assert_eq!(config.pen.relative, RelativeSettings { speed: 4, acceleration: 4 });
+        assert_eq!(config.precision, PrecisionSettings { scale: 2, overlay: true });
+        let modifier: ButtonAction = serde_json::from_str(r#"{"modifier":{"ctrl":true}}"#).unwrap();
+        assert_eq!(modifier.key_action(), Some(KeyAction::Modifier { ctrl: true, shift: false, alt: false, super_key: false, click: None }));
+        let run: ButtonAction = serde_json::from_str(r#"{"run":{"command":"desktop:org.gnome.Nautilus.desktop"}}"#).unwrap();
+        assert_eq!(serde_json::from_value::<ButtonAction>(serde_json::to_value(&run).unwrap()).unwrap(), run);
+    }
 
     #[test]
     fn mapping_orientation_defaults_for_old_configs_and_round_trips() {

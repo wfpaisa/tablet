@@ -3,11 +3,15 @@
 
 use evdev::{AbsoluteAxisCode as Abs, EventType, InputEvent, KeyCode};
 use std::str::FromStr;
-use tablet_config::{Gesture, KeyAction, Shortcut};
+use tablet_config::{Click, Gesture, KeyAction, Shortcut};
 
 #[derive(Debug, Default)]
 pub struct PadOutput {
+    pub run: Option<String>,
+    pub on_screen_keyboard: bool,
+    pub toggle_mode: bool,
     pub keyboard: Vec<Vec<InputEvent>>,
+    pub keyboard_after: Vec<Vec<InputEvent>>,
     pub pointer: Vec<Vec<InputEvent>>,
     /// A key assigned to Display toggle was pressed.
     pub toggle_display: bool,
@@ -17,26 +21,36 @@ pub struct PadOutput {
 
 /// What a held ExpressKey is doing, so its release undoes exactly that.
 #[derive(Debug, Clone, Default, PartialEq)]
-enum Held {
+pub enum Held {
     #[default]
     Nothing,
     Keys(Vec<KeyCode>),
     Mouse(KeyCode),
     Gesture(Gesture),
+    Modifier(Vec<KeyCode>, Option<KeyCode>),
+    Pressure,
+    Precision,
 }
 
 pub struct PadProcessor {
     actions: Vec<KeyAction>,
     held: Vec<Held>,
+    locks: Vec<Option<KeyCode>>,
+    down: Vec<bool>,
 }
 
 impl PadProcessor {
     pub fn new(actions: Vec<KeyAction>) -> Self {
-        Self { held: vec![Held::Nothing; actions.len().max(10)], actions }
+        Self { held: vec![Held::Nothing; actions.len().max(10)], locks: vec![None; actions.len().max(10)], down: vec![false; actions.len().max(10)], actions }
     }
 
     pub fn set_actions(&mut self, actions: Vec<KeyAction>) {
         self.actions = actions;
+    }
+
+    pub fn effects(&self) -> u8 {
+        u8::from(self.held.iter().any(|h| matches!(h, Held::Pressure)))
+            | (u8::from(self.held.iter().any(|h| matches!(h, Held::Precision))) << 1)
     }
 
     /// The pen gesture of a held key, if any.
@@ -55,9 +69,19 @@ impl PadProcessor {
             if index >= self.held.len() {
                 continue;
             }
+            if ev.value() == 2 || self.down[index] == (ev.value() != 0) { continue; }
+            self.down[index] = ev.value() != 0;
             if ev.value() != 0 {
                 let action = self.actions.get(index).cloned().unwrap_or_default();
-                self.held[index] = press(&action, pen_pos, &mut out);
+                if let Some(code) = self.locks[index].take() {
+                    out.pointer.push(vec![key(code, false)]);
+                } else if let Some(code) = lock_key(&action) {
+                    let down = self.locks[index].is_none();
+                    out.pointer.push(vec![key(code, down)]);
+                    self.locks[index] = down.then_some(code);
+                } else {
+                    self.held[index] = press(&action, pen_pos, &mut out);
+                }
             } else {
                 release(std::mem::take(&mut self.held[index]), &mut out);
             }
@@ -71,8 +95,21 @@ impl PadProcessor {
         for held in &mut self.held {
             release(std::mem::take(held), &mut out);
         }
+        for lock in &mut self.locks {
+            if let Some(code) = lock.take() { out.pointer.push(vec![key(code, false)]); }
+        }
+        self.down.fill(false);
         out
     }
+}
+
+pub fn lock_key(action: &KeyAction) -> Option<KeyCode> {
+    Some(match action {
+        KeyAction::ClickLock => KeyCode::BTN_LEFT,
+        KeyAction::MiddleClickLock => KeyCode::BTN_MIDDLE,
+        KeyAction::RightClickLock => KeyCode::BTN_RIGHT,
+        _ => return None,
+    })
 }
 
 /// Presses and releases `action` once, as when it is picked from an
@@ -84,7 +121,7 @@ pub fn tap(action: &KeyAction, pen_pos: (i32, i32)) -> PadOutput {
     out
 }
 
-fn press(action: &KeyAction, (x, y): (i32, i32), out: &mut PadOutput) -> Held {
+pub fn press(action: &KeyAction, (x, y): (i32, i32), out: &mut PadOutput) -> Held {
     let click = |code: KeyCode| vec![abs(Abs::ABS_X, x), abs(Abs::ABS_Y, y), key(code, true)];
     if let Some(gesture) = action.gesture() {
         return Held::Gesture(gesture);
@@ -94,6 +131,33 @@ fn press(action: &KeyAction, (x, y): (i32, i32), out: &mut PadOutput) -> Held {
         return Held::Nothing;
     }
     let mouse = match action {
+        KeyAction::PressureHold => return Held::Pressure,
+        KeyAction::PrecisionMode => return Held::Precision,
+        KeyAction::ModeToggle => { out.toggle_mode = true; return Held::Nothing; }
+        KeyAction::Run { command, .. } => { out.run = Some(command.clone()); return Held::Nothing; }
+        KeyAction::OnScreenKeyboard => { out.on_screen_keyboard = true; return Held::Nothing; }
+        KeyAction::Modifier { shift, ctrl, alt, super_key, click: button } => {
+            let codes: Vec<_> = [(*shift, KeyCode::KEY_LEFTSHIFT), (*ctrl, KeyCode::KEY_LEFTCTRL),
+                (*alt, KeyCode::KEY_LEFTALT), (*super_key, KeyCode::KEY_LEFTMETA)]
+                .into_iter().filter_map(|(on, code)| on.then_some(code)).collect();
+            if !codes.is_empty() { out.keyboard.push(codes.iter().map(|&k| key(k, true)).collect()); }
+            let button = button.map(|c| match c { Click::Left => KeyCode::BTN_LEFT, Click::Right => KeyCode::BTN_RIGHT, Click::Middle => KeyCode::BTN_MIDDLE });
+            if let Some(code) = button { out.pointer.push(click(code)); }
+            return Held::Modifier(codes, button);
+        }
+        KeyAction::ShowDesktop | KeyAction::Overview | KeyAction::NotificationCenter | KeyAction::SwitchApplication => {
+            let codes = match action {
+                KeyAction::ShowDesktop => vec![KeyCode::KEY_LEFTMETA, KeyCode::KEY_D],
+                KeyAction::Overview => vec![KeyCode::KEY_LEFTMETA],
+                KeyAction::NotificationCenter => vec![KeyCode::KEY_LEFTMETA, KeyCode::KEY_V],
+                _ => vec![KeyCode::KEY_LEFTALT, KeyCode::KEY_TAB],
+            };
+            out.keyboard.push(codes.iter().map(|&k| key(k, true)).collect());
+            if matches!(action, KeyAction::SwitchApplication) { return Held::Keys(codes); }
+            out.keyboard.push(codes.iter().rev().map(|&k| key(k, false)).collect());
+            return Held::Nothing;
+        }
+        KeyAction::ClickLock | KeyAction::MiddleClickLock | KeyAction::RightClickLock => return Held::Nothing,
         KeyAction::Disabled => return Held::Nothing,
         KeyAction::DisplayToggle => {
             out.toggle_display = true;
@@ -134,11 +198,15 @@ fn press(action: &KeyAction, (x, y): (i32, i32), out: &mut PadOutput) -> Held {
     Held::Mouse(mouse)
 }
 
-fn release(held: Held, out: &mut PadOutput) {
+pub fn release(held: Held, out: &mut PadOutput) {
     match held {
         Held::Keys(codes) => out.keyboard.push(codes.iter().rev().map(|&k| key(k, false)).collect()),
         Held::Mouse(code) => out.pointer.push(vec![key(code, false)]),
-        Held::Nothing | Held::Gesture(_) => {}
+        Held::Modifier(codes, button) => {
+            if let Some(code) = button { out.pointer.push(vec![key(code, false)]); }
+            if !codes.is_empty() { out.keyboard_after.push(codes.iter().rev().map(|&k| key(k, false)).collect()); }
+        }
+        Held::Nothing | Held::Gesture(_) | Held::Pressure | Held::Precision => {}
     }
 }
 
@@ -160,6 +228,33 @@ mod tests {
 
     fn undo() -> KeyAction {
         KeyAction::Keystroke { keys: vec!["KEY_LEFTCTRL".into(), "KEY_Z".into()], label: "Ctrl+Z".into() }
+    }
+
+    #[test]
+    fn click_lock_ignores_repeat_and_releases_on_second_press_or_disconnect() {
+        let mut p = PadProcessor::new(vec![KeyAction::MiddleClickLock]);
+        let out = p.process_frame(&button(0, true), (0, 0));
+        assert_eq!(out.pointer, vec![vec![key(KeyCode::BTN_MIDDLE, true)]]);
+        assert!(p.process_frame(&button(0, true), (0, 0)).pointer.is_empty());
+        assert!(p.process_frame(&button(0, false), (0, 0)).pointer.is_empty());
+        assert_eq!(p.process_frame(&button(0, true), (0, 0)).pointer, vec![vec![key(KeyCode::BTN_MIDDLE, false)]]);
+        p.process_frame(&button(0, false), (0, 0));
+        p.process_frame(&button(0, true), (0, 0));
+        assert_eq!(p.release_all().pointer, vec![vec![key(KeyCode::BTN_MIDDLE, false)]]);
+    }
+
+    #[test]
+    fn modifier_presses_before_click_and_releases_after_click_in_reverse_order() {
+        let mut p = PadProcessor::new(vec![KeyAction::Modifier { shift: true, ctrl: true, alt: false, super_key: false, click: Some(Click::Right) }]);
+        let out = p.process_frame(&button(0, true), (10, 20));
+        assert_eq!(out.keyboard, vec![vec![key(KeyCode::KEY_LEFTSHIFT, true), key(KeyCode::KEY_LEFTCTRL, true)]]);
+        assert!(out.keyboard_after.is_empty());
+        assert_eq!(out.pointer[0].last(), Some(&key(KeyCode::BTN_RIGHT, true)));
+        p.set_actions(vec![KeyAction::Disabled]);
+        let out = p.process_frame(&button(0, false), (10, 20));
+        assert!(out.keyboard.is_empty());
+        assert_eq!(out.pointer, vec![vec![key(KeyCode::BTN_RIGHT, false)]]);
+        assert_eq!(out.keyboard_after, vec![vec![key(KeyCode::KEY_LEFTCTRL, false), key(KeyCode::KEY_LEFTSHIFT, false)]]);
     }
 
     #[test]

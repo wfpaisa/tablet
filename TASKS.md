@@ -22,17 +22,22 @@ Cintiq Workflows).
 
 ## Medium priority: new actions for pen buttons and ExpressKeys
 
-- [ ] **Keyboard modifier**: hold Ctrl, Shift or Alt while the button is held.
-- [ ] **Open application**: launch a program or file.
-- [ ] **Mode toggle**: switch between pen mode and mouse mode.
-- [ ] **Relative mouse mode**: the pen moves the cursor like a mouse, with a
+- [x] **Keyboard modifier**: hold Ctrl, Shift or Alt while the button is held.
+- [x] **Open application**: launch a program or file.
+- [x] **Mode toggle**: switch between pen mode and mouse mode.
+- [x] **Relative mouse mode**: the pen moves the cursor like a mouse, with a
   speed setting, instead of jumping to the position. The current "Use the
   pen as a mouse" is absolute.
-- [ ] **Pressure hold**: freeze the current pressure while the button is held.
-- [ ] **Click lock**: keep the click pressed until the next click, to drag
+- [x] **Pressure hold**: freeze the current pressure while the button is held.
+- [x] **Click lock**: keep the click pressed until the next click, to drag
   without holding the tip down.
-- [ ] **System actions**: show desktop, Activities overview, switch
+- [x] **System actions**: show desktop, Activities overview, switch
   application, notification center, on-screen keyboard.
+
+- [x] **Pen tip action**: assign the same actions as pen buttons, replacing
+  drawing while the tip is touching.
+- [x] **Precision mode**: hold to reduce pen motion, with a configurable
+  scale and an optional GNOME Shell overlay.
 
 ## Low priority
 

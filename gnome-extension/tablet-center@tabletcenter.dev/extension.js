@@ -22,6 +22,13 @@ const INTERFACE = `
       <arg type="u" direction="in" name="ms"/>
     </method>
     <method name="HideHoldRing"/>
+    <method name="ShowPrecision">
+      <arg type="i" direction="in" name="x"/>
+      <arg type="i" direction="in" name="y"/>
+      <arg type="i" direction="in" name="w"/>
+      <arg type="i" direction="in" name="h"/>
+    </method>
+    <method name="HidePrecision"/>
     <!-- An on-screen shortcut ("express_menu", "radial_menu",
          "app_shortcuts", "keypad"), at desktop point (x, y) when has_at.
          Fails when it cannot be shown, and tabletd opens its window. -->
@@ -127,9 +134,19 @@ class HoldRing {
 
 export default class TabletCenterExtension extends Extension {
     enable() {
+        this._precision = new St.Widget({reactive: false, visible: false,
+            style: 'border: 1px solid rgba(255,255,255,0.85); background-color: transparent;'});
+        Main.layoutManager.uiGroup.add_child(this._precision);
         this._ring = new HoldRing();
         this._menus = new MenuHost();
         this._dbus = Gio.DBusExportedObject.wrapJSObject(INTERFACE, {
+            ShowPrecision: (x, y, w, h) => {
+                this._precision.set_position(x, y);
+                this._precision.set_size(Math.max(w, 1), Math.max(h, 1));
+                this._precision.show();
+                Main.layoutManager.uiGroup.set_child_above_sibling(this._precision, null);
+            },
+            HidePrecision: () => this._precision.hide(),
             ShowHoldRing: (x, y, ms) => this._ring.show(x, y, ms),
             ShowMenu: (name, hasAt, x, y, centered) => this._menus.show(name, hasAt, x, y, centered),
             HideHoldRing: () => this._ring.release(),
@@ -142,6 +159,8 @@ export default class TabletCenterExtension extends Extension {
     disable() {
         Gio.bus_unown_name(this._name);
         this._dbus.unexport();
+        this._precision.destroy();
+        this._precision = null;
         this._ring.destroy();
         this._menus.destroy();
         this._ring = this._menus = this._dbus = this._name = null;

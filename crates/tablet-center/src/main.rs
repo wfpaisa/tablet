@@ -52,6 +52,49 @@ fn exchange(conn: &mut BufReader<UnixStream>, request: &Request) -> io::Result<R
     Ok(serde_json::from_str(&reply)?)
 }
 
+#[derive(serde::Serialize)]
+struct Application {
+    command: String,
+    label: String,
+}
+
+#[tauri::command(async)]
+fn installed_applications() -> Vec<Application> {
+    fn scan(dir: &std::path::Path, base: &std::path::Path, seen: &mut std::collections::HashSet<String>, apps: &mut Vec<Application>) {
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() { scan(&path, base, seen, apps); continue; }
+            if path.extension().is_none_or(|e| e != "desktop") { continue; }
+            let Ok(relative) = path.strip_prefix(base) else { continue };
+            let id = relative.to_string_lossy().replace('/', "-");
+            if !seen.insert(id.clone()) { continue; }
+            let Ok(text) = fs::read_to_string(&path) else { continue };
+            let mut fields = std::collections::HashMap::new();
+            let mut desktop = false;
+            for line in text.lines().map(str::trim) {
+                if line.starts_with('[') { desktop = line == "[Desktop Entry]"; }
+                else if desktop && !line.starts_with('#') {
+                    if let Some((key, value)) = line.split_once('=') { fields.insert(key, value); }
+                }
+            }
+            if fields.get("Type") != Some(&"Application") || ["NoDisplay", "Hidden"].iter().any(|key| fields.get(key) == Some(&"true")) { continue; }
+            if let Some(name) = fields.get("Name") {
+                apps.push(Application { command: format!("desktop:{id}"), label: (*name).into() });
+            }
+        }
+    }
+    let data_home = std::env::var_os("XDG_DATA_HOME").map(PathBuf::from)
+        .or_else(|| home().ok().map(|p| p.join(".local/share")));
+    let data_dirs = std::env::var_os("XDG_DATA_DIRS").unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+    let dirs = data_home.into_iter().chain(std::env::split_paths(&data_dirs));
+    let mut seen = std::collections::HashSet::new();
+    let mut apps = Vec::new();
+    for dir in dirs { let base = dir.join("applications"); scan(&base, &base, &mut seen, &mut apps); }
+    apps.sort_by_cached_key(|app| app.label.to_lowercase());
+    apps
+}
+
 #[tauri::command(async)]
 fn get_config() -> Config {
     tablet_config::load()
@@ -379,7 +422,7 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_config, save_config, save_shell_menus, status, restart_daemon,
+        .invoke_handler(tauri::generate_handler![installed_applications, get_config, save_config, save_shell_menus, status, restart_daemon,
             autostart_enabled, set_autostart, list_backups, create_backup, restore_backup,
             delete_backup, open_backups_folder, reset_config, run_shortcut_action, close_shortcut, pending_shortcut, set_ui_style])
         .build(tauri::generate_context!())

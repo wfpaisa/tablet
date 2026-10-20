@@ -9,6 +9,8 @@ use std::{
 };
 
 pub enum Feedback {
+    Precision { x: i32, y: i32, w: i32, h: i32 },
+    HidePrecision,
     /// A ring at a desktop point that fills in over the given milliseconds.
     HoldRing { x: i32, y: i32, ms: u32 },
     Hide,
@@ -29,6 +31,8 @@ pub fn spawn() -> Sender<Feedback> {
                 Feedback::HoldRing { x, y, ms } => {
                     conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "ShowHoldRing", &(x, y, ms))
                 }
+                Feedback::Precision { x, y, w, h } => conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "ShowPrecision", &(x, y, w, h)),
+                Feedback::HidePrecision => conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "HidePrecision", &()),
                 Feedback::Hide => conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "HideHoldRing", &()),
                 Feedback::Menu { name, at, centered, shown } => {
                     let (x, y) = at.unwrap_or((0, 0));

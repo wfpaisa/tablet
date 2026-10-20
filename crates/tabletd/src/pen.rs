@@ -27,11 +27,15 @@ pub struct Geometry {
 
 #[derive(Debug, Default)]
 pub struct Output {
+    pub run: Option<String>,
+    pub on_screen_keyboard: bool,
+    pub precision: Option<bool>,
     pub pen: Vec<InputEvent>,
     /// Each inner Vec is emitted as its own frame (a double click needs four).
     pub mouse: Vec<Vec<InputEvent>>,
     /// Frames for the virtual keyboard (Ctrl while zooming).
     pub keyboard: Vec<Vec<InputEvent>>,
+    pub keyboard_after: Vec<Vec<InputEvent>>,
     /// A button assigned to Display toggle was pressed.
     pub toggle_display: bool,
     /// A button assigned to an on-screen shortcut was pressed.
@@ -51,6 +55,17 @@ enum Held {
 }
 
 pub struct PenProcessor {
+    extra: [crate::pad::Held; 3],
+    locks: [Option<KeyCode>; 3],
+    tip_held: Held,
+    pad_effects: u8,
+    frozen_pressure: Option<i32>,
+    pressure_active: bool,
+    precision_anchor: Option<(i32, i32)>,
+    relative_last: Option<(i32, i32)>,
+    relative_rest: (f64, f64),
+    previous_mode: PenMode,
+    configured_mode: PenMode,
     config: Config,
     geometry: Geometry,
     x: i32,
@@ -125,6 +140,17 @@ const HOVER_ZOOM_GAIN: f64 = 0.25;
 impl PenProcessor {
     pub fn new(config: Config, geometry: Geometry) -> Self {
         Self {
+            extra: std::array::from_fn(|_| crate::pad::Held::Nothing),
+            locks: [None; 3],
+            tip_held: Held::Nothing,
+            pad_effects: 0,
+            frozen_pressure: None,
+            pressure_active: false,
+            precision_anchor: None,
+            relative_last: None,
+            relative_rest: (0.0, 0.0),
+            previous_mode: config.pen.mode,
+            configured_mode: config.pen.mode,
             config,
             geometry,
             x: 0,
@@ -151,7 +177,47 @@ impl PenProcessor {
         }
     }
 
-    pub fn set_config(&mut self, config: Config) {
+    pub fn set_pad_effects(&mut self, effects: u8) -> bool {
+        let changed = self.pad_effects != effects;
+        self.pad_effects = effects;
+        changed
+    }
+
+    pub fn relative_mode(&self) -> bool { self.config.pen.mode == PenMode::Relative }
+
+    pub fn toggle_mode(&mut self) {
+        self.hold_tip_until_lift = self.tip;
+        self.config.pen.mode = if self.config.pen.mode == PenMode::Relative { PenMode::Pen } else { PenMode::Relative };
+        self.relative_last = None;
+        self.relative_rest = (0.0, 0.0);
+    }
+
+    fn extra_output(&mut self, extra: crate::pad::PadOutput, out: &mut Output) {
+        out.mouse.extend(extra.pointer);
+        out.keyboard.extend(extra.keyboard);
+        out.keyboard_after.extend(extra.keyboard_after);
+        out.run = extra.run.or(out.run.take());
+        out.on_screen_keyboard |= extra.on_screen_keyboard;
+        if extra.toggle_mode { self.toggle_mode(); }
+    }
+
+    fn effects(&mut self, out: &mut Output) {
+        let pressure = self.pad_effects & 1 != 0 || self.extra.iter().any(|h| matches!(h, crate::pad::Held::Pressure));
+        if !pressure || !self.tip { self.frozen_pressure = None; }
+        else if !self.pressure_active { self.frozen_pressure = Some(self.curved_pressure()); }
+        self.pressure_active = pressure;
+        let precision = self.pad_effects & 2 != 0 || self.extra.iter().any(|h| matches!(h, crate::pad::Held::Precision));
+        if precision != self.precision_anchor.is_some() {
+            self.precision_anchor = precision.then_some((self.x, self.y));
+            out.precision = Some(precision);
+        }
+    }
+
+    pub fn set_config(&mut self, mut config: Config) {
+        let mode = config.pen.mode;
+        if mode == self.configured_mode { config.pen.mode = self.config.pen.mode; }
+        else { self.relative_last = None; self.relative_rest = (0.0, 0.0); }
+        self.configured_mode = mode;
         if self.config.mapping.orientation != config.mapping.orientation {
             self.pan_last = None;
             self.zoom_last = None;
@@ -170,7 +236,9 @@ impl PenProcessor {
             panning: self.panning(),
             upper_button: self.buttons_down.0,
             lower_button: self.buttons_down.1,
-            mouse_held: [self.upper, self.lower].iter().any(|h| matches!(h, Held::Mouse(_))),
+            mouse_held: [self.upper, self.lower, self.tip_held].iter().any(|h| matches!(h, Held::Mouse(_)))
+                || self.locks.iter().any(Option::is_some)
+                || self.extra.iter().any(|h| matches!(h, crate::pad::Held::Modifier(_, Some(_)))),
         }
     }
 
@@ -206,6 +274,15 @@ impl PenProcessor {
     /// `pad_gesture` is the gesture of a held ExpressKey, if any.
     pub fn process_frame(&mut self, frame: &[InputEvent], pad_gesture: Option<Gesture>) -> Output {
         let mut out = Output::default();
+        if self.previous_mode != self.config.pen.mode {
+            if self.previous_mode != PenMode::Pen && self.sent_touch {
+                out.mouse.push(vec![key(KeyCode::BTN_LEFT, false)]);
+            }
+            self.hold_tip_until_lift = self.tip;
+            self.relative_last = None;
+            self.previous_mode = self.config.pen.mode;
+        }
+        let was_tip = self.tip;
         let was_panning = self.panning();
         if pad_gesture != self.pad_gesture {
             self.set_pan(|s| s.pad_gesture = pad_gesture);
@@ -233,6 +310,17 @@ impl PenProcessor {
             }
         }
 
+        if !frame.iter().any(|e| e.event_type() == EventType::KEY && e.code() == KeyCode::BTN_TOUCH.0)
+            && frame.iter().any(|e| e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_PRESSURE.0) {
+            self.tip = self.pressure > 0;
+        }
+        if leaving { self.tip = false; }
+        if was_tip != self.tip {
+            if !self.tip || !matches!(self.config.pen.tip, ButtonAction::LeftClick | ButtonAction::Default) {
+                self.tip_held = self.side_button(self.tip_held, self.config.pen.tip.clone(), KeyCode::BTN_TOUCH, self.tip, &mut out);
+            }
+        }
+        self.effects(&mut out);
         if !self.tip {
             self.hold_tip_until_lift = false;
         }
@@ -257,15 +345,16 @@ impl PenProcessor {
             }
         }
         self.release_ctrl_unless_zooming(&mut out);
-        if !self.panning() && (moved || was_panning) {
+        if !self.panning() && (moved || was_panning || out.precision == Some(false)) {
             out.pen.push(abs(Abs::ABS_X, self.x));
             out.pen.push(abs(Abs::ABS_Y, self.y));
         }
 
         // libinput decides tip contact from pressure on Wacom pens, so a
         // suppressed tip must also report zero pressure.
-        let touch = self.tip && !self.panning() && !self.hold_tip_until_lift;
-        let pressure = if touch { self.curved_pressure() } else { 0 };
+        let touch = self.tip && !self.panning() && !self.hold_tip_until_lift
+            && matches!(self.config.pen.tip, ButtonAction::LeftClick | ButtonAction::Default);
+        let pressure = if touch { self.frozen_pressure.unwrap_or_else(|| self.curved_pressure()) } else { 0 };
         if pressure != self.sent_pressure {
             out.pen.push(abs(Abs::ABS_PRESSURE, pressure));
             self.sent_pressure = pressure;
@@ -273,6 +362,18 @@ impl PenProcessor {
         if touch != self.sent_touch {
             out.pen.push(key(KeyCode::BTN_TOUCH, touch));
             self.sent_touch = touch;
+        }
+        if let Some((x, y)) = self.precision_anchor {
+            let scale = f64::from(self.config.precision.scale.max(2));
+            for ev in out.pen.iter_mut().chain(out.mouse.iter_mut().flatten()) {
+                if ev.event_type() == EventType::ABSOLUTE {
+                    let anchor = match Abs(ev.code()) { Abs::ABS_X => x, Abs::ABS_Y => y, _ => continue };
+                    *ev = abs(Abs(ev.code()), anchor + (f64::from(ev.value() - anchor) / scale).round() as i32);
+                }
+            }
+        }
+        if self.relative_mode() {
+            for frame in &mut out.mouse { frame.retain(|e| e.event_type() != EventType::ABSOLUTE); }
         }
         if self.mouse_mode() {
             self.to_mouse(&mut out);
@@ -283,17 +384,35 @@ impl PenProcessor {
     }
 
     pub fn mouse_mode(&self) -> bool {
-        self.config.pen.mode == PenMode::Mouse
+        self.config.pen.mode != PenMode::Pen
     }
 
     /// Mouse mode: the pen's position, tip and raw buttons go to the virtual
     /// mouse instead, and the virtual pen leaves proximity so its cursor
     /// does not show next to the mouse pointer.
     fn to_mouse(&mut self, out: &mut Output) {
+        let relative = self.config.pen.mode == PenMode::Relative;
+        // Like a mouse: the hovering pen moves the cursor; leaving proximity
+        // and coming back elsewhere does not.
+        let delta = if relative && self.in_proximity && !self.panning() {
+            self.relative_last.replace((self.x, self.y)).map(|(x, y)| self.delta_mm(x, y))
+        } else { self.relative_last = None; None };
         let mut frame = Vec::new();
+        if let Some((dx, dy)) = delta {
+            let settings = &self.config.pen.relative;
+            let speed = f64::from(settings.speed.clamp(1, 7)) * 2.0;
+            let acceleration = f64::from(settings.acceleration.clamp(1, 7) - 1);
+            let gain = speed * (1.0 + acceleration * dx.hypot(dy) * 0.15);
+            let scale = if self.precision_anchor.is_some() { f64::from(self.config.precision.scale.max(2)) } else { 1.0 };
+            self.relative_rest.0 += dx * gain / scale;
+            self.relative_rest.1 += dy * gain / scale;
+            for (axis, value) in [(Rel::REL_X, take_whole(&mut self.relative_rest.0)), (Rel::REL_Y, take_whole(&mut self.relative_rest.1))] {
+                if value != 0 { frame.push(rel(axis, value)); }
+            }
+        }
         for ev in std::mem::take(&mut out.pen) {
             match (ev.event_type(), ev.code()) {
-                (EventType::ABSOLUTE, c) if c == Abs::ABS_X.0 || c == Abs::ABS_Y.0 => frame.push(ev),
+                (EventType::ABSOLUTE, c) if c == Abs::ABS_X.0 || c == Abs::ABS_Y.0 => { if !relative { frame.push(ev); } },
                 (EventType::KEY, c) if c == KeyCode::BTN_TOUCH.0 => frame.push(key(KeyCode::BTN_LEFT, ev.value() != 0)),
                 (EventType::KEY, c) if c == KeyCode::BTN_STYLUS.0 => frame.push(key(KeyCode::BTN_RIGHT, ev.value() != 0)),
                 (EventType::KEY, c) if c == KeyCode::BTN_STYLUS2.0 => frame.push(key(KeyCode::BTN_MIDDLE, ev.value() != 0)),
@@ -336,13 +455,15 @@ impl PenProcessor {
         match code {
             KeyCode::BTN_TOUCH => self.tip = down,
             KeyCode::BTN_STYLUS2 => {
+                if self.buttons_down.0 == down { return; }
                 self.buttons_down.0 = down;
-                let action = self.config.pen.upper_button;
+                let action = self.config.pen.upper_button.clone();
                 self.upper = self.side_button(self.upper, action, code, down, out);
             }
             KeyCode::BTN_STYLUS => {
+                if self.buttons_down.1 == down { return; }
                 self.buttons_down.1 = down;
-                let action = self.config.pen.lower_button;
+                let action = self.config.pen.lower_button.clone();
                 self.lower = self.side_button(self.lower, action, code, down, out);
             }
             _ => {
@@ -362,7 +483,11 @@ impl PenProcessor {
         down: bool,
         out: &mut Output,
     ) -> Held {
+        let index = match code { KeyCode::BTN_STYLUS2 => 0, KeyCode::BTN_STYLUS => 1, _ => 2 };
         if !down {
+            let mut extra = crate::pad::PadOutput::default();
+            crate::pad::release(std::mem::take(&mut self.extra[index]), &mut extra);
+            self.extra_output(extra, out);
             match held {
                 Held::Gesture => self.set_pan(|s| s.side_gesture = None),
                 Held::Native(k) => out.pen.push(key(k, false)),
@@ -382,6 +507,18 @@ impl PenProcessor {
         if let Some(shortcut) = action.shortcut() {
             out.shortcut = Some(shortcut);
             return Held::Nothing;
+        }
+        if let Some(key_code) = self.locks[index].take() {
+            out.mouse.push(vec![key(key_code, false)]);
+            return Held::Nothing;
+        }
+        if let Some(action) = action.key_action() {
+            if let Some(key_code) = crate::pad::lock_key(&action) {
+                let down = self.locks[index].is_none();
+                out.mouse.push(vec![key(key_code, down)]);
+                self.locks[index] = down.then_some(key_code);
+                return Held::Nothing;
+            }
         }
         let mouse_key = match action {
             ButtonAction::Default => {
@@ -419,6 +556,14 @@ impl PenProcessor {
             | ButtonAction::RadialMenu
             | ButtonAction::AppShortcuts
             | ButtonAction::Keypad => unreachable!("handled above"),
+            action => {
+                if let Some(action) = action.key_action() {
+                    let mut extra = crate::pad::PadOutput::default();
+                    self.extra[index] = crate::pad::press(&action, (self.x, self.y), &mut extra);
+                    self.extra_output(extra, out);
+                }
+                return Held::Nothing;
+            }
         };
         out.mouse.push(self.at_pen(key(mouse_key, true)));
         Held::Mouse(mouse_key)
@@ -427,7 +572,8 @@ impl PenProcessor {
     /// The pointer device keeps its own position in the compositor, so it
     /// must be moved under the pen before it clicks.
     fn at_pen(&self, ev: InputEvent) -> Vec<InputEvent> {
-        vec![abs(Abs::ABS_X, self.x), abs(Abs::ABS_Y, self.y), ev]
+        if self.config.pen.mode == PenMode::Relative { vec![ev] }
+        else { vec![abs(Abs::ABS_X, self.x), abs(Abs::ABS_Y, self.y), ev] }
     }
 
     fn delta_mm(&self, lx: i32, ly: i32) -> (f64, f64) {
@@ -697,6 +843,132 @@ mod tests {
 
     fn mouse_keys(out: &Output) -> Vec<(u16, i32)> {
         out.mouse.iter().flatten().filter(|e| e.event_type() == EventType::KEY).map(|e| (e.code(), e.value())).collect()
+    }
+
+    #[test]
+    fn mode_toggle_alternates_pen_and_relative_and_survives_unrelated_reload() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::ModeToggle;
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        assert!(p.relative_mode());
+        let mut config = Config::default();
+        config.pen.lower_button = ButtonAction::ModeToggle;
+        config.pen.relative.speed = 7;
+        p.set_config(config);
+        assert!(p.relative_mode());
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None);
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        assert!(!p.mouse_mode());
+    }
+
+    #[test]
+    fn tip_default_keeps_pressure_and_modifier_tip_holds_only_its_action() {
+        let mut p = proc();
+        p.config.pen.tip = ButtonAction::Default;
+        let out = p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 900)], None);
+        assert_eq!(has(&out.pen, EventType::KEY, KeyCode::BTN_TOUCH.0), Some(1));
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0), Some(900));
+        p.process_frame(&[key(KeyCode::BTN_TOUCH, false), abs(Abs::ABS_PRESSURE, 0)], None);
+        p.config.pen.tip = ButtonAction::Modifier { shift: true, ctrl: false, alt: true, super_key: false, click: Some(tablet_config::Click::Middle) };
+        let out = p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 900)], None);
+        assert_eq!(out.keyboard, vec![vec![key(KeyCode::KEY_LEFTSHIFT, true), key(KeyCode::KEY_LEFTALT, true)]]);
+        assert_eq!(mouse_keys(&out), vec![(KeyCode::BTN_MIDDLE.0, 1)]);
+        assert_eq!(p.sent_pressure, 0);
+        p.config.pen.tip = ButtonAction::Default;
+        let out = p.process_frame(&[key(KeyCode::BTN_TOUCH, false), abs(Abs::ABS_PRESSURE, 0)], None);
+        assert_eq!(mouse_keys(&out), vec![(KeyCode::BTN_MIDDLE.0, 0)]);
+        assert_eq!(out.keyboard_after, vec![vec![key(KeyCode::KEY_LEFTALT, false), key(KeyCode::KEY_LEFTSHIFT, false)]]);
+    }
+
+    #[test]
+    fn click_lock_toggles_only_on_presses_of_the_same_control() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::ClickLock;
+        p.config.pen.upper_button = ButtonAction::RightClickLock;
+        assert_eq!(mouse_keys(&p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None)), vec![(KeyCode::BTN_LEFT.0, 1)]);
+        assert!(mouse_keys(&p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None)).is_empty());
+        assert_eq!(mouse_keys(&p.process_frame(&[key(KeyCode::BTN_STYLUS2, true)], None)), vec![(KeyCode::BTN_RIGHT.0, 1)]);
+        assert_eq!(mouse_keys(&p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None)), vec![(KeyCode::BTN_LEFT.0, 0)]);
+    }
+
+    #[test]
+    fn pressure_hold_freezes_then_restores_pressure() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::PressureHold;
+        p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 1000)], None);
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        let out = p.process_frame(&[abs(Abs::ABS_PRESSURE, 3000)], None);
+        assert_eq!(p.sent_pressure, 1000);
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0), None);
+        let out = p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None);
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0), Some(3000));
+    }
+
+    #[test]
+    fn pressure_hold_in_hover_does_not_freeze_a_later_contact() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::PressureHold;
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 1000)], None);
+        p.process_frame(&[abs(Abs::ABS_PRESSURE, 2000)], None);
+        assert_eq!(p.sent_pressure, 2000);
+    }
+
+    #[test]
+    fn precision_has_no_press_jump_scales_motion_and_restores_mapping() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::PrecisionMode;
+        p.process_frame(&pos(1000, 2000), None);
+        let out = p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        assert_eq!(out.precision, Some(true));
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_X.0), None);
+        let out = p.process_frame(&pos(1600, 2400), None);
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_X.0), Some(1300));
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_Y.0), Some(2200));
+        assert_eq!(p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None).precision, Some(false));
+        let out = p.process_frame(&pos(1700, 2500), None);
+        assert_eq!(has(&out.pen, EventType::ABSOLUTE, Abs::ABS_X.0), Some(1700));
+    }
+
+    #[test]
+    fn relative_motion_follows_hover_and_resets_out_of_proximity() {
+        let mut p = proc();
+        p.config.pen.mode = PenMode::Relative;
+        p.config.pen.relative.acceleration = 1;
+        p.process_frame(&[key(KeyCode::BTN_TOOL_PEN, true), abs(Abs::ABS_X, 1000), abs(Abs::ABS_Y, 1000)], None);
+        let out = p.process_frame(&pos(1100, 1000), None);
+        assert_eq!(out.mouse, vec![vec![rel(Rel::REL_X, 8)]], "hovering moves the cursor");
+        p.process_frame(&[key(KeyCode::BTN_TOOL_PEN, false)], None);
+        let out = p.process_frame(&[key(KeyCode::BTN_TOOL_PEN, true), abs(Abs::ABS_X, 9000), abs(Abs::ABS_Y, 9000)], None);
+        assert!(out.mouse.iter().flatten().all(|e| e.event_type() != EventType::RELATIVE && e.event_type() != EventType::ABSOLUTE));
+        let out = p.process_frame(&pos(9100, 9000), None);
+        assert_eq!(out.mouse, vec![vec![rel(Rel::REL_X, 8)]]);
+    }
+
+    #[test]
+    fn tip_action_replaces_touch_and_pressure_including_threshold_contact() {
+        let mut p = proc();
+        p.config.pen.tip = ButtonAction::RightClick;
+        let out = p.process_frame(&[abs(Abs::ABS_PRESSURE, 1000)], None);
+        assert_eq!(mouse_keys(&out), vec![(KeyCode::BTN_RIGHT.0, 1)]);
+        assert!(!out.pen.iter().any(|e| (e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_PRESSURE.0)
+            || (e.event_type() == EventType::KEY && e.code() == KeyCode::BTN_TOUCH.0)));
+        let out = p.process_frame(&[abs(Abs::ABS_PRESSURE, 0)], None);
+        assert_eq!(mouse_keys(&out), vec![(KeyCode::BTN_RIGHT.0, 0)]);
+    }
+
+    #[test]
+    fn expresskey_effects_freeze_pressure_and_restore_precision_without_motion() {
+        let mut p = proc();
+        p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 700)], None);
+        p.set_pad_effects(3);
+        assert_eq!(p.process_frame(&[], None).precision, Some(true));
+        p.process_frame(&[abs(Abs::ABS_PRESSURE, 2200)], None);
+        assert_eq!(p.sent_pressure, 700);
+        p.set_pad_effects(0);
+        let out = p.process_frame(&[], None);
+        assert_eq!(out.precision, Some(false));
+        assert_eq!(p.sent_pressure, 2200);
     }
 
     #[test]

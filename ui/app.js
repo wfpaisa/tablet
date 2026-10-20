@@ -3,7 +3,7 @@
 
 const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
   // Lets the page render in a plain browser while designing.
-  if (cmd === "list_backups") return [];
+  if (cmd === "list_backups" || cmd === "installed_applications") return [];
   if (cmd === "autostart_enabled") return false;
   if (cmd === "get_config") return structuredClone(DEFAULTS);
   if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: 0x0374 }, pen: { pressure: 0 }, displays: [
@@ -14,7 +14,8 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
 });
 
 const DEFAULTS = {
-  pen: { mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
+  precision: { scale: 2, overlay: true },
+  pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
   gestures: { legacy_speed: 3, scroll_speed: 3, wheel_speed: 3, zoom_speed: 3, pan_zoom_speed: 3 },
   mapping: { display: null, force_proportions: false, orientation: "landscape" },
@@ -380,7 +381,8 @@ const PEN_SPOTS = { upper: 0.645, lower: 0.735, tip: 0.975 };
 
 function penPage() {
   const m = model();
-  const label = (key) => esc(t(ACTIONS.find(([k]) => k === config.pen[key])?.[1] ?? "Default"));
+  const label = (key) => key === "tip" && ["default", "left_click"].includes(config.pen[key] ?? "left_click")
+    ? esc(t("Click")) : esc(keyLabel(penAction(config.pen[key])));
   const chosen = selected?.page === "pen" ? selected.key : null;
   const callout = (spot, key, text) => `
     <div class="callout ${key && key === chosen ? "selected" : ""}" data-spot="${spot}" style="top:${PEN_SPOTS[spot] * 100}%">
@@ -389,14 +391,14 @@ function penPage() {
     </div>`;
   return `
     ${deviceSidebar("pen")}
-    ${chosen ? actionsPanel(PEN_GROUPS, config.pen[chosen], config.pen[chosen] === "right_or_hold_middle" ? holdTimePanel() : "") : ""}
+    ${chosen ? actionsPanel(PEN_GROUPS, penAction(config.pen[chosen]).type, config.pen[chosen] === "right_or_hold_middle" ? holdTimePanel() : "") : ""}
     <section class="content">
       <div class="pen-page">
         <div class="pen-callouts" title="${esc(t("Customize functions of the buttons on the device."))}">
           <img src="assets/devices/${m.pen}.png" alt="">
           ${callout("upper", "upper_button")}
           ${callout("lower", "lower_button")}
-          ${callout("tip", null, "Click")}
+          ${callout("tip", "tip")}
         </div>
         <div class="pen-side">
           <p class="label">${esc(t("Test area"))}</p>
@@ -407,10 +409,9 @@ function penPage() {
             <p class="label">${esc(t("Tip sensitivity"))}</p>
             ${slider("tip", config.pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
           </div>
-          <label class="toggle-row">
-            <span class="switch"><input type="checkbox" id="mouse-mode" ${config.pen.mode === "mouse" ? "checked" : ""}><span></span></span>
-            ${esc(t("Use the pen as a mouse"))}
-          </label>
+          <select id="pen-mode" aria-label="${esc(t("Pen mode"))}">
+            ${[["pen", "Pen"], ["mouse", "Mouse"], ["relative", "Relative mouse"]].map(([value, label]) => `<option value="${value}" ${config.pen.mode === value ? "selected" : ""}>${esc(t(label))}</option>`).join("")}
+          </select>
           <p class="gesture-hint">${esc(t(MOUSE_MODE_HINT))}</p>
         </div>
       </div>
@@ -427,9 +428,15 @@ function mountPen() {
     btn.addEventListener("click", () => select({ page: "pen", key: btn.dataset.button })),
   );
   mountActions((value) => {
-    config.pen[selected.key] = value;
-    save();
-    render();
+    const key = selected.key;
+    const apply = (action) => {
+      const { type, ...fields } = action;
+      config.pen[key] = Object.keys(fields).length ? { [type]: fields } : type;
+      save();
+      render();
+    };
+    if (value === "record") return recordKeystroke(apply);
+    apply(typeof value === "string" ? { type: value } : value);
   });
   bindSlider("tip", (v) => {
     config.pen.tip_sensitivity = v;
@@ -440,8 +447,8 @@ function mountPen() {
       config.pen.hold_time = v;
       save();
     });
-  $("#mouse-mode").addEventListener("change", (e) => {
-    config.pen.mode = e.target.checked ? "mouse" : "pen";
+  $("#pen-mode").addEventListener("change", (e) => {
+    config.pen.mode = e.target.value;
     save();
   });
   $("#pen-default").addEventListener("click", () => {
@@ -490,11 +497,28 @@ let selected = null;
 // Action groups as in Tablet Center's Actions panel. Values are config
 // actions; "preset:N" and "record" are ExpressKey keystrokes.
 const GESTURE_VALUES = ["pan_scroll", "pan_scroll_legacy", "pan_zoom", "scroll", "wheel", "zoom"];
-const CLICK_VALUES = ["left_click", "right_click", "middle_click", "double_click", "back", "forward"];
+const CLICK_VALUES = ["left_click", "right_click", "middle_click", "double_click", "back", "forward", "click_lock", "middle_click_lock", "right_click_lock", "pressure_hold", "mode_toggle"];
+const SYSTEM_VALUES = ["show_desktop", "overview", "switch_application", "notification_center", "on_screen_keyboard"];
+const NEW_ACTIONS = [
+  ["click_lock", "Click lock"], ["middle_click_lock", "Middle click lock"], ["right_click_lock", "Right click lock"],
+  ["pressure_hold", "Pressure hold"], ["mode_toggle", "Mode toggle"], ["modifier", "Keyboard modifier"],
+  ["run", "Open/Run"], ["precision_mode", "Precision mode"], ["show_desktop", "Show desktop"],
+  ["overview", "Activities overview"], ["switch_application", "Switch application"],
+  ["notification_center", "Notification center"], ["on_screen_keyboard", "On-screen keyboard"],
+];
+const ACTION_DIALOGS = { mode_toggle: "Mode toggle...", modifier: "Keyboard modifier...", run: "Open/Run...", precision_mode: "Precision mode..." };
+function penAction(action = "left_click") {
+  if (typeof action === "string") return { type: action };
+  const [type, fields] = Object.entries(action)[0];
+  return { type, ...fields };
+}
 const PEN_GROUPS = [
   ["Recommended", ["default", "right_click", "middle_click", "right_or_hold_middle", "pan_scroll", "display_toggle", "disabled"]],
   ["Clicks", [...CLICK_VALUES, "right_or_hold_middle"]],
-  ["Tablet", ["display_toggle"]],
+  ["Keyboard", ["modifier", "record"]],
+  ["Tablet", ["display_toggle", "precision_mode"]],
+  ["Applications", ["run"]],
+  ["Other", SYSTEM_VALUES],
   ["Radial menus", ["express_menu", "radial_menu"]],
   ["Grid panels", ["app_shortcuts", "keypad"]],
   ["Pen gestures", GESTURE_VALUES],
@@ -503,8 +527,10 @@ const PEN_GROUPS = [
 const keyGroups = () => [
   ["Recommended", ["disabled", "preset:0", "preset:1", "pan_scroll", "display_toggle", "record"]],
   ["Clicks", CLICK_VALUES],
-  ["Keyboard", [...KEY_PRESETS.map((_, i) => `preset:${i}`), "record"]],
-  ["Tablet", ["display_toggle"]],
+  ["Keyboard", [...KEY_PRESETS.map((_, i) => `preset:${i}`), "record", "modifier"]],
+  ["Tablet", ["display_toggle", "precision_mode"]],
+  ["Applications", ["run"]],
+  ["Other", SYSTEM_VALUES],
   ["Radial menus", ["express_menu", "radial_menu"]],
   ["Grid panels", ["app_shortcuts", "keypad"]],
   ["Pen gestures", GESTURE_VALUES],
@@ -513,16 +539,19 @@ const keyGroups = () => [
 const menuGroups = () => [
   ["Recommended", ["disabled", "preset:0", "preset:1", "display_toggle", "record"]],
   ["Clicks", CLICK_VALUES],
-  ["Keyboard", [...KEY_PRESETS.map((_, i) => `preset:${i}`), "record"]],
-  ["Tablet", ["display_toggle"]],
+  ["Keyboard", [...KEY_PRESETS.map((_, i) => `preset:${i}`), "record", "modifier"]],
+  ["Tablet", ["display_toggle", "precision_mode"]],
+  ["Applications", ["run"]],
+  ["Other", SYSTEM_VALUES],
   ["Radial menus", ["express_menu", "radial_menu"]],
   ["Grid panels", ["app_shortcuts", "keypad"]],
 ];
 
 function actionLabel(value) {
+  if (value === "left_click" && selected?.page === "pen" && selected.key === "tip") return t("Click");
   if (value.startsWith("preset:")) return t(KEY_PRESETS[Number(value.slice(7))][0]);
   if (value === "record") return `${t("Keyboard shortcut")}…`;
-  return t([...ACTIONS, ...KEY_ACTIONS].find(([v]) => v === value)?.[1] ?? value);
+  return t(ACTION_DIALOGS[value] ?? [...ACTIONS, ...KEY_ACTIONS, ...NEW_ACTIONS].find(([v]) => v === value)?.[1] ?? value);
 }
 
 // Icon of each action, as Tablet Center shows it (assets/icons/action-*.svg).
@@ -534,6 +563,19 @@ const SHORTCUT_ICONS = {
   app_shortcuts: "grid",
   keypad: "keypad",
   right_or_hold_middle: "action-middle_click",
+  click_lock: "action-left_click",
+  middle_click_lock: "action-middle_click",
+  right_click_lock: "action-right_click",
+  pressure_hold: "action-left_click",
+  mode_toggle: "action-default",
+  modifier: "action-keyboard",
+  run: "action-default",
+  precision_mode: "action-display_toggle",
+  show_desktop: "action-display_toggle",
+  overview: "action-display_toggle",
+  switch_application: "action-keyboard",
+  notification_center: "action-keyboard",
+  on_screen_keyboard: "action-keyboard",
 };
 function actionIcon(value) {
   if (value.startsWith("preset:")) return icon(`action-${PRESET_ICONS[Number(value.slice(7))] ?? "keyboard"}`);
@@ -576,8 +618,74 @@ addEventListener("keydown", (e) => {
 
 function mountActions(apply) {
   document.querySelectorAll("[data-action]").forEach((btn) =>
-    btn.addEventListener("click", () => apply(btn.dataset.action)),
+    btn.addEventListener("click", async () => {
+      const value = btn.dataset.action;
+      if (!ACTION_DIALOGS[value]) return apply(value);
+      const current = selected?.page === "pen" ? penAction(config.pen[selected.key])
+        : selected?.page === "keys" ? config.express_keys?.[selected.index] : null;
+      const action = await configureAction(value, current);
+      if (action) apply(action);
+    }),
   );
+}
+
+async function configureAction(type, current) {
+  const action = current?.type === type ? structuredClone(current) : { type };
+  const backdrop = document.createElement("div");
+  backdrop.className = "dialog-backdrop";
+  const range = (key, label, value) => `<label>${esc(t(label))}<input name="${key}" type="range" min="1" max="7" value="${value}"><output>${value}</output></label>`;
+  const check = (key, label, value) => `<label class="toggle-row"><input type="checkbox" name="${key}" ${value ? "checked" : ""}>${esc(t(label))}</label>`;
+  let body = "";
+  if (type === "mode_toggle") {
+    const relative = config.pen.relative ?? DEFAULTS.pen.relative;
+    body = range("speed", "Speed", relative.speed) + range("acceleration", "Acceleration", relative.acceleration);
+  } else if (type === "precision_mode") {
+    const precision = config.precision ?? DEFAULTS.precision;
+    body = `<label>${esc(t("Scale"))}<select name="scale">${[2, 3, 4, 6, 8].map((n) => `<option ${precision.scale === n ? "selected" : ""}>${n}</option>`).join("")}</select></label>`
+      + `<label class="toggle-row"><span class="switch"><input name="overlay" type="checkbox" ${precision.overlay ? "checked" : ""}><span></span></span>${esc(t("Show overlay"))}</label>`;
+  } else if (type === "modifier") {
+    body = [["shift", "Shift"], ["ctrl", "Ctrl"], ["alt", "Alt"], ["super", "Super"]].map(([key, label]) => check(key, label, action[key])).join("")
+      + `<label>${esc(t("Click"))}<select name="click">${[["", "Disabled"], ["left", "Left click"], ["right", "Right click"], ["middle", "Middle click"]].map(([v, label]) => `<option value="${v}" ${action.click === v ? "selected" : ""}>${esc(t(label))}</option>`).join("")}</select></label>`;
+  } else {
+    const apps = await invoke("installed_applications").catch(() => []);
+    body = `<label>${esc(t("Command or file path"))}<input name="command" type="text" required value="${esc(action.command ?? "")}"></label>
+      <label>${esc(t("Applications"))}<select name="application"><option value="">${esc(t("Open/Run"))}</option>${apps.map((app) => `<option value="${esc(app.command)}">${esc(app.label)}</option>`).join("")}</select></label>`;
+  }
+  backdrop.innerHTML = `<form class="dialog" role="dialog" aria-modal="true"><h3>${esc(t(ACTION_DIALOGS[type]))}</h3>${body}
+    <div class="dialog-buttons"><button type="button" class="button" data-cancel>${esc(t("Cancel"))}</button><button type="submit" class="button primary">${esc(t("OK"))}</button></div></form>`;
+  document.body.append(backdrop);
+  backdrop.querySelectorAll('input[type="range"]').forEach((input) => input.oninput = () => input.nextElementSibling.value = input.value);
+  const apps = $('[name="application"]', backdrop);
+  if (apps) apps.onchange = () => { if (apps.value) $('[name="command"]', backdrop).value = apps.value; };
+  return new Promise((resolve) => {
+    const previous = document.activeElement;
+    const close = (value) => { backdrop.remove(); previous?.focus(); resolve(value); };
+    $('[data-cancel]', backdrop).onclick = () => close(null);
+    backdrop.onkeydown = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(null); }
+      if (e.key === "Tab") {
+        const items = [...backdrop.querySelectorAll("input, select, button")];
+        const next = (items.indexOf(document.activeElement) + (e.shiftKey ? -1 : 1) + items.length) % items.length;
+        e.preventDefault(); items[next].focus();
+      }
+    };
+    $('form', backdrop).onsubmit = (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
+      if (type === "mode_toggle") config.pen.relative = { speed: Number(data.get("speed")), acceleration: Number(data.get("acceleration")) };
+      if (type === "precision_mode") config.precision = { scale: Number(data.get("scale")), overlay: data.has("overlay") };
+      if (type === "modifier") {
+        for (const key of ["shift", "ctrl", "alt", "super"]) action[key] = data.has(key);
+        action.click = data.get("click") || null;
+      }
+      if (type === "run") {
+        action.command = data.get("command").trim();
+        action.label = apps.value === action.command ? apps.selectedOptions[0].textContent : action.command;
+      }
+      close(action);
+    };
+    backdrop.querySelector("input, select, button").focus();
+  });
 }
 
 // Draw with the pen to try the sensitivity curve; width follows pressure.
@@ -649,8 +757,8 @@ const KEY_ACTIONS = [
 ];
 
 function keyLabel(action) {
-  if (action?.type === "keystroke") return action.label || t("Keystroke");
-  return t(KEY_ACTIONS.find(([v]) => v === action?.type)?.[1] ?? "Disabled");
+  if (["keystroke", "run"].includes(action?.type) && action.label) return action.label;
+  return t([...KEY_ACTIONS, ...NEW_ACTIONS, ...ACTIONS].find(([v]) => v === action?.type)?.[1] ?? "Disabled");
 }
 
 function expressKeysPage() {
@@ -722,6 +830,7 @@ function mountExpressKeys() {
   );
   mountActions((value) => {
     const index = selected.index;
+    if (typeof value === "object") return setKey(index, value);
     if (value === "record") return recordKeystroke((action) => setKey(index, action));
     if (value.startsWith("preset:")) {
       const [label, keys] = KEY_PRESETS[Number(value.slice(7))];
@@ -1307,6 +1416,7 @@ function mountOnScreen(sub) {
   bindItems();
   mountActions((value) => {
     const index = selected.index;
+    if (typeof value === "object") return setItem(index, { action: value });
     if (value === "record") return recordKeystroke((action) => setItem(index, { action }));
     if (value.startsWith("preset:")) {
       const [label, keys] = KEY_PRESETS[Number(value.slice(7))];

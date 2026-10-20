@@ -64,6 +64,7 @@ const SYNTH_VENDOR: u16 = 0x1209;
 const SYNTH_PEN: u16 = 0x5701;
 const SYNTH_POINTER: u16 = 0x5702;
 const SYNTH_KEYBOARD: u16 = 0x5703;
+const SYNTH_RELATIVE: u16 = 0x5704;
 
 /// Clone of the physical pen's keys, axes and properties, minus MSC_SERIAL.
 /// With the real serial libinput treats both pens as one shared tool, and
@@ -117,6 +118,21 @@ pub fn virtual_pointer(pen: &Device) -> io::Result<VirtualDevice> {
         }
     }
     builder.build()
+}
+
+/// Plain relative mouse for the pen's relative mode. Kept apart from
+/// [`virtual_pointer`]: a device with both absolute and relative X/Y may be
+/// classified differently by udev and libinput.
+pub fn virtual_relative_mouse() -> io::Result<VirtualDevice> {
+    let keys = AttributeSet::from_iter([KeyCode::BTN_LEFT, KeyCode::BTN_RIGHT, KeyCode::BTN_MIDDLE]);
+    let rel = AttributeSet::from_iter([RelativeAxisCode::REL_X, RelativeAxisCode::REL_Y]);
+    let name = format!("Tablet Pen Mouse {VIRTUAL_SUFFIX}");
+    VirtualDevice::builder()?
+        .name(&name)
+        .input_id(InputId::new(BusType::BUS_VIRTUAL, SYNTH_VENDOR, SYNTH_RELATIVE, 1))
+        .with_keys(&keys)?
+        .with_relative_axes(&rel)?
+        .build()
 }
 
 /// Pen or eraser currently in proximity of the tablet.
