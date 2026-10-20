@@ -3371,7 +3371,7 @@ dependencies = [
 
 [[package]]
 name = "tablet-center"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "gtk",
  "serde",
@@ -3386,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "tablet-config"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3394,7 +3394,7 @@ dependencies = [
 
 [[package]]
 name = "tabletd"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "evdev",
  "libc",
