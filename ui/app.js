@@ -140,24 +140,78 @@ const ACTIONS = [
 // stable so ui/locales/*.json need not change when the copy is revised.
 const EXTRA_EN = {
   "Devices manager": "Device manager",
-  "Right · hold Middle": "Right click / hold for middle click",
+  "Right · hold Middle": "Right click; hold for middle click",
   "Force proportions": "Keep proportions",
   "Default": "Restore defaults",
-  "Tablet Center autostart": "Start Tablet Center when you sign in",
-  "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.": "Use the pen to move the mouse pointer and tap the tip to click. Pressure sensitivity is disabled in drawing apps.",
-  "How long to hold the button before it becomes a middle click. Moving the pen while holding it starts the middle click at once.": "Choose how long to hold the button for a middle click. Moving the pen while holding the button also starts a middle click.",
-  "Radial menus open around the pen, so reaching an action takes a short flick.": "Radial menus arrange actions around the cursor. Click an action to use it.",
+  "Tablet Center autostart": "Open when you sign in",
+  "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.": "Move the pointer with the pen and tap to click. In mouse mode, strokes do not respond to pressure.",
+  "How long to hold the button before it becomes a middle click. Moving the pen while holding it starts the middle click at once.": "How long to hold the button for a middle click. Moving the pen while holding the button starts the middle click immediately.",
+  "Radial menus open around the pen, so reaching an action takes a short flick.": "Choose an action around the cursor.",
   "Grid panels hold more actions, like your app's shortcuts or a numeric keypad.": "Use a grid for app shortcuts or a numeric keypad.",
   "Pen gestures scroll, pan and zoom while you hold the button and move the pen.": "Hold a pen button and move the pen to scroll, pan or zoom.",
-  "Each key types once and closes the keypad.": "Select a key to enter it and close the keypad.",
-  "Click an entry to choose its action. Assign this menu to a pen button or ExpressKey to open it.": "Click a menu item to choose its action. To open this menu, assign it to a pen button or ExpressKey.",
-  "Hold the button and drag the tip to pan. Hold it with the pen in the air and move up to zoom in or down to zoom out.": "Hold the button and drag the tip across the tablet to pan. To zoom, keep holding the button and lift the tip above the tablet. Move up to zoom in or down to zoom out.",
+  "Each key types once and closes the keypad.": "Press a key to type it and close the keypad.",
+  "Click an entry to choose its action. Assign this menu to a pen button or ExpressKey to open it.": "Select an item to change its action. Assign the menu to a pen button or ExpressKey to open it.",
+  "Hold the button and drag the tip to pan. Hold it with the pen in the air and move up to zoom in or down to zoom out.": "Hold the button. Drag the tip across the tablet to move the content. With the tip lifted, move up to zoom in or down to zoom out.",
   "Hold the button, touch the tablet and drag: the content moves with the pen.": "Hold the button and drag the tip across the tablet to move the content.",
-  "Hold the button and touch the tablet: the farther you move the pen, the faster it scrolls, even when the pen rests.": "Hold the button and touch the tablet with the tip. Move away from that starting point to scroll. The farther you move, the faster it scrolls. Scrolling continues even when you stop moving the pen.",
-  "Works like a mouse wheel: the farther you move the pen, the faster it turns.": "Scroll as you would with a mouse wheel. Move the pen farther from the starting point to scroll faster.",
-  "Display toggle cycles your cursor between multiple screens and is only available for multi-screen setups.": "Switch the pen between individual screens and all screens. This requires at least two screens.",
-  "Radial menus and grid panels are drawn by the Tablet Center GNOME Shell extension: they open at once and never take the focus. Without the extension they open in a window as before.": "Requires the Tablet Center GNOME Shell extension. Menus open without switching away from your app. Without the extension, menus open in a separate window.",
-  "To prevent this, select \"Force proportions\" to use only a proportional area of the pen display. This may leave a portion of your pen display inactive, but ensures proportional pen movement.": "Match the tablet area to the screen proportions so pen movements keep the same shape on screen. Part of the tablet area may be unused."
+  "Hold the button and touch the tablet: the farther you move the pen, the faster it scrolls, even when the pen rests.": "Hold the button and rest the tip on the tablet. Move farther from the starting point to scroll faster. Scrolling continues while the tip stays on the tablet.",
+  "Works like a mouse wheel: the farther you move the pen, the faster it turns.": "Scroll like a mouse wheel. Move the pen farther from the starting point to scroll faster.",
+  "Display toggle cycles your cursor between multiple screens and is only available for multi-screen setups.": "Switch between each screen and all screens at once. Requires at least two screens.",
+  "Radial menus and grid panels are drawn by the Tablet Center GNOME Shell extension: they open at once and never take the focus. Without the extension they open in a window as before.": "With the Tablet Center GNOME extension, menus open over your current app. Without it, they open in a separate window.",
+  "To prevent this, select \"Force proportions\" to use only a proportional area of the pen display. This may leave a portion of your pen display inactive, but ensures proportional pen movement.": "Match the tablet area to the screen proportions to preserve stroke shapes. Part of the tablet may be unused.",
+  "Backup & restore": "Backups",
+  "Backup title": "Backup name",
+  "Coming to Linux in a later version.": "Coming soon to Linux.",
+  "Connect a device to see its settings here.": "Connect a tablet to set it up.",
+  "Customize functions of the buttons on the device.": "Choose what each button does.",
+  "Hold the button, touch the tablet and drag up or down to scroll.": "Hold the button and drag the tip up or down on the tablet to scroll.",
+  "Hold the button, touch the tablet and move the pen up to zoom in or down to zoom out.": "Hold the button and rest the tip on the tablet. Move up to zoom in or down to zoom out.",
+  "Hold time": "Middle-click delay",
+  "Keystroke": "Keyboard shortcut",
+  "Label": "Name",
+  "New backup": "Create backup",
+  "No backups yet.": "No backups yet. Create one to keep your settings.",
+  "On-screen shortcuts in GNOME Shell": "Show shortcuts without switching apps",
+  "Press the key combination on your keyboard.": "Press the keys for your shortcut.",
+  "Reset all settings to their defaults?": "Reset all settings? Your current changes will be lost.",
+  "Settings saved. Start tabletd to apply them.": "Settings saved. Start the driver to apply them.",
+  "The driver is not running. Restart it to reconnect your tablet.": "The driver is stopped. Restart it to connect your tablet.",
+  "Your connected devices": "Connected devices",
+  "Tip feel": "Pressure to click",
+  "Assign Display toggle to a pen button or ExpressKey to cycle between your displays and all displays.": "Assign “Display toggle” to a pen button or ExpressKey to switch screens.",
+  "Connect your tablet to configure your pen, ExpressKeys and shortcuts.": "Connect your tablet to set up the pen, buttons and shortcuts.",
+  "Keyboard modifier": "Modifier key",
+  "Keyboard modifier...": "Modifier key…",
+  "Mode toggle": "Switch mode",
+  "Mode toggle...": "Switch mode…",
+  "Open/Run": "Open or run",
+  "Open/Run...": "Open or run…",
+  "Precision mode...": "Precision mode…",
+  "Show overlay": "Show on-screen controls",
+  "Portion": "Partial area",
+  "Select an application": "Choose an app",
+  "Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer.": "Choose an app from the list, or select “Browse” to find another.",
+  "Currently running applications:": "Running apps:",
+  "Browse...": "Browse…",
+  "All other": "Other apps",
+  "Are you sure you want to remove the settings for %s?": "Delete the settings for %s?",
+  "Add application": "Add app",
+  "Remove application": "Remove app",
+  "Battery is %d%% full": "Battery: %d%%",
+  "Battery is charged": "Battery charged",
+  "About this device": "Device info",
+  "Pen tool ID:": "Pen ID:",
+  "Map to its own screen": "Use the tablet’s screen",
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Use the screen with your fingers. Turn touch off to rest your hand on the screen while drawing.",
+  "Choose the application whose tool settings you want to customize.": "Choose the app you want to set up.",
+  "Search applications": "Search apps",
+  "No applications found": "No apps found",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Adjust the force needed to reach full pressure. Soft needs less force; Firm needs more.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Allowed distance between two quick taps for a double-click. Increase it if tapping the same spot is difficult. Off disables this help.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Adjust the force needed to click. Light responds to a slight touch; Firm helps prevent accidental clicks.",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Change orientation to “Landscape flipped”?",
+  "Would you like to apply the orientation \"Landscape\"?": "Change orientation to “Landscape”?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Change orientation to “Portrait flipped”?",
+  "Would you like to apply the orientation \"Portrait\"?": "Change orientation to “Portrait”?"
 };
 
 let dict = { ...EXTRA_EN };
@@ -365,7 +419,7 @@ function welcome() {
         <p style="font-size:26px">${esc(t("Welcome to"))}</p>
         <p class="brand">tablet <b>Center</b></p>
         <p style="font-size:17px">${esc(t("Connect a device to see its settings here."))}</p>
-        ${status.error ? `<p style="color:#d8d8d8">${esc(t("The tablet driver is not responding."))} (tabletd)</p>` : ""}
+        ${status.error ? `<p style="color:#d8d8d8">${esc(t("The tablet driver is not responding."))}</p>` : ""}
       </div>
     </section>`;
 }
@@ -1734,7 +1788,7 @@ function settingsPage(tab = "general") {
     const running = !status.error;
     body = `
       <h3>${esc(t("Driver service"))}</h3>
-      <p><span class="status-dot ${running ? "on" : ""}"></span>${esc(t(running ? "Running" : "Not running"))} — tabletd</p>
+      <p><span class="status-dot ${running ? "on" : ""}"></span>${esc(t(running ? "Running" : "Not running"))}</p>
       <hr>
       <button class="button" id="restart">${esc(t("Restart Driver"))}</button>
       <hr>
@@ -1884,7 +1938,7 @@ function mountSettings(tab) {
   $("#restart")?.addEventListener("click", async () => {
     try {
       await invoke("restart_daemon");
-      toast("tabletd ✓");
+      toast(t("Driver restarted"));
     } catch (e) {
       toast(String(e));
     }
@@ -2283,7 +2337,7 @@ function mountAppStrip() {
   $("#add-app").onclick = selectApplication;
   $("#remove-app").onclick = async () => {
     const app = toolProfile();
-    if (selectedApp && await settingsDialog(t("Are you sure you want to remove the settings for %s?").replace("%s", app.name), "OK")) {
+    if (selectedApp && await settingsDialog(t("Are you sure you want to remove the settings for %s?").replace("%s", app.name), "Delete")) {
       config.apps = config.apps.filter(item => item.id !== selectedApp);
       selectedApp = null; selected = null; save(); render();
     }

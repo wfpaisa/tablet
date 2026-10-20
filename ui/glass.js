@@ -67,7 +67,7 @@ function glassPen() {
     ) +
     glassSection(
       "Tip feel",
-      `${glassRange("Tip sensitivity", "pen.tip_sensitivity", 7)}${glassRange("Tip feel", "pen.click_threshold", 7, ["Light", "Firm"])}<label class="range-row"><span>${gt("Tip double-click")} · ${gt("Double-click distance")}</span><input type="range" min="0" max="5" value="${DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm)}" id="glass-double-click" aria-label="${gt("Double-click distance")}"><span class="range-ends"><small>${gt("Off")}</small><small>${gt("Large")}</small></span></label><div class="test-head"><span>${gt("Try your pen")}</span><span id="pressure">0%</span>${gb("Clear", 'id="clear-test"')}</div><canvas id="pen-test" aria-label="${gt("Drawing test area")}"></canvas><div class="pressure-track"><span id="pressure-fill"></span></div>`,
+      `${glassRange("Tip sensitivity", "pen.tip_sensitivity", 7)}${glassRange("Tip feel", "pen.click_threshold", 7, ["Light", "Firm"])}<label class="range-row"><span>${gt("Double-click distance")}</span><input type="range" min="0" max="5" value="${DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm)}" id="glass-double-click" aria-label="${gt("Double-click distance")}"><span class="range-ends"><small>${gt("Off")}</small><small>${gt("Large")}</small></span></label><div class="test-head"><span>${gt("Try your pen")}</span><span id="pressure">0%</span>${gb("Clear", 'id="clear-test"')}</div><canvas id="pen-test" aria-label="${gt("Drawing test area")}"></canvas><div class="pressure-track"><span id="pressure-fill"></span></div>`,
     ) +
     glassSection(
       "Pen mode",
