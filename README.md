@@ -98,11 +98,9 @@ other desktops are not supported (contributions welcome).
 
 Install Rust (stable) and the
 [Tauri 2 Linux prerequisites](https://v2.tauri.app/start/prerequisites/#linux),
-then run `./install.sh` from a checkout: it builds the binaries first.
-Use `./dev.sh` while developing, and `scripts/package.sh` to build the
-release archive. To publish a version, run `scripts/release.sh 0.2.0`: it
-sets the version, tags and pushes, and GitHub Actions builds the archive
-and publishes the release.
+then run `bun run install:local` (or `./install.sh`) from a checkout: it
+builds the binaries first. The other scripts are listed under
+[Development](#development).
 
 Changes are applied immediately; there is no Save button.
 
@@ -131,14 +129,29 @@ tablet ──> tabletd ──> virtual pen, pointer and keyboard (uinput) ──
 
 ## Development
 
+The scripts in `package.json` run with [Bun](https://bun.sh) (`dev.sh` also
+needs it for its local server); each one wraps a shell script you can run
+directly.
+
 ```sh
-./dev.sh            # UI only; talks to the installed service
-./dev.sh --daemon   # also runs a local tabletd build if the service is stopped
-cargo test
+bun run dev               # open the app; UI only, talks to the installed service
+bun run dev:daemon        # same, plus a local tabletd build if the service is stopped
+bun run test              # cargo test for the whole workspace
+bun run install:local     # build and install the app, service and extension (./install.sh)
+bun run uninstall:local   # remove them again (./uninstall.sh; add --purge to delete settings)
+bun run package           # build the release archive in dist/ (scripts/package.sh)
+bun run release 0.2.0     # publish version 0.2.0 (scripts/release.sh)
 ```
 
 The window loads `ui/` from a local server, so UI edits show up with
 Ctrl+R without rebuilding.
+
+`release` checks that `main` is clean and tested, sets the version in
+`Cargo.toml`, commits, tags `v0.2.0` and pushes. GitHub Actions then builds
+the archive and publishes the release with notes generated from the commits.
+`install:local` and `uninstall:local` are not called `install` and
+`uninstall` because package managers run scripts with those names on their
+own during `bun install`.
 
 **Careful when changing `tabletd`.** gnome-shell (Mutter 51) crashes if a
 virtual tablet disappears, or the tablet changes owner, while the pen is in

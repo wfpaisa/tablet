@@ -1,0 +1,13 @@
+{
+  "name": "tablet-center",
+  "private": true,
+  "scripts": {
+    "dev": "./dev.sh",
+    "dev:daemon": "./dev.sh --daemon",
+    "test": "cargo test --workspace",
+    "install:local": "./install.sh",
+    "uninstall:local": "./uninstall.sh",
+    "package": "scripts/package.sh",
+    "release": "scripts/release.sh"
+  }
+}
