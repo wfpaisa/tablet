@@ -668,3 +668,22 @@ html.overlay, body.overlay { background: transparent; }
 .mapping-svg [data-handle="e"], .mapping-svg [data-handle="w"] { cursor: ew-resize; }
 .mapping-svg [data-handle="nw"], .mapping-svg [data-handle="se"] { cursor: nwse-resize; }
 .mapping-svg [data-handle="ne"], .mapping-svg [data-handle="sw"] { cursor: nesw-resize; }
+
+.app-strip { display:flex; align-items:center; gap:8px; margin:24px 0 52px; }
+.app-strip > button { min-width:30px; height:32px; }
+.app-tiles { display:flex; gap:8px; overflow-x:auto; flex:1; padding:4px; }
+.app-tile { flex:0 0 76px; display:flex; align-items:center; flex-direction:column; gap:5px; padding:8px; border:2px solid transparent; border-radius:6px; background:transparent; color:inherit; }
+.app-tile.selected, .application-row.selected { border-color:var(--accent, #269bfa); }
+.app-tile img, .app-tile svg, .app-tile > span { width:32px; height:32px; font-size:26px; }
+.app-tile small { max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.active-app { max-width:120px; overflow:hidden; text-overflow:ellipsis; }
+.app-dialog { width:560px; max-width:90vw; }
+.application-list { height:240px; overflow:auto; margin:12px 0; }
+.application-row { display:flex; align-items:center; gap:12px; width:100%; padding:8px; border:2px solid transparent; background:transparent; color:inherit; text-align:left; }
+.application-row img, .application-row span { width:32px; height:32px; font-size:24px; }
+.tool-settings { display:flex; flex-direction:column; }
+.tool-settings .pen-page { height:auto; flex:1 0 auto; }
+.tool-settings .pen-callouts { height:min(460px, calc(100vh - 270px)); }
+.tool-settings .app-strip { flex-shrink:0; margin:24px 0 12px; }
+.tool-settings .corner { position:static; align-self:flex-end; flex-shrink:0; }
+.tool-settings .keys-figure { flex:1 0 auto; }

@@ -205,5 +205,13 @@
   "Switch application": "Cambiar de aplicación",
   "Screen area": "Área de pantalla",
   "Full screen": "Pantalla completa",
-  "Portion": "Parte"
+  "Portion": "Parte",
+  "Select an application": "Seleccione una aplicación",
+  "Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer.": "Seleccione la aplicación para la que desea personalizar los ajustes de la herramienta. Elija una aplicación de la lista o haga clic en el botón Examinar para seleccionar cualquier aplicación instalada en el equipo.",
+  "Currently running applications:": "Aplicaciones en ejecución:",
+  "Browse...": "Examinar…",
+  "All other": "Todas las demás",
+  "Are you sure you want to remove the settings for %s?": "¿Seguro que desea eliminar los ajustes de %s?",
+  "Add application": "Añadir aplicación",
+  "Remove application": "Eliminar aplicación"
 }

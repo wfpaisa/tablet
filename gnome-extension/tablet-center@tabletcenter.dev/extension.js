@@ -4,6 +4,8 @@
 
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import Shell from 'gi://Shell';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -15,6 +17,9 @@ const OBJECT_PATH = '/dev/tabletcenter/Shell';
 const INTERFACE = `
 <node>
   <interface name="dev.tabletcenter.Shell">
+    <signal name="FocusedAppChanged"><arg type="s" name="id"/><arg type="s" name="name"/></signal>
+    <method name="GetFocusedApp"><arg type="s" direction="out" name="id"/><arg type="s" direction="out" name="name"/></method>
+    <method name="ListRunningApps"><arg type="a(sss)" direction="out" name="apps"/></method>
     <!-- A ring at desktop point (x, y) that fills in over ms milliseconds. -->
     <method name="ShowHoldRing">
       <arg type="i" direction="in" name="x"/>
@@ -140,6 +145,10 @@ export default class TabletCenterExtension extends Extension {
         this._ring = new HoldRing();
         this._menus = new MenuHost();
         this._dbus = Gio.DBusExportedObject.wrapJSObject(INTERFACE, {
+            GetFocusedApp: () => this._focusedApp(),
+            ListRunningApps: () => [Shell.AppSystem.get_default().get_running().map(app => [
+                (app.get_id() ?? '').replace(/\.desktop$/i, ''), app.get_name() ?? '', app.get_icon()?.to_string() ?? '',
+            ])],
             ShowPrecision: (x, y, w, h) => {
                 this._precision.set_position(x, y);
                 this._precision.set_size(Math.max(w, 1), Math.max(h, 1));
@@ -151,12 +160,25 @@ export default class TabletCenterExtension extends Extension {
             ShowMenu: (name, hasAt, x, y, centered) => this._menus.show(name, hasAt, x, y, centered),
             HideHoldRing: () => this._ring.release(),
         });
+        const emitFocus = () =>
+            this._dbus.emit_signal('FocusedAppChanged', new GLib.Variant('(ss)', this._focusedApp()));
+        this._focusSignal = global.display.connect('notify::focus-window', emitFocus);
         this._dbus.export(Gio.DBus.session, OBJECT_PATH);
+        // tabletd may have been running before us: tell it the current focus.
+        emitFocus();
         this._name = Gio.bus_own_name_on_connection(
             Gio.DBus.session, BUS_NAME, Gio.BusNameOwnerFlags.NONE, null, null);
     }
 
+    _focusedApp() {
+        const win = global.display.focus_window;
+        const app = win ? Shell.WindowTracker.get_default().get_window_app(win) : null;
+        return [(app?.get_id() || win?.get_wm_class() || '').replace(/\.desktop$/i, ''),
+            app?.get_name() || win?.get_wm_class() || ''];
+    }
+
     disable() {
+        global.display.disconnect(this._focusSignal);
         Gio.bus_unown_name(this._name);
         this._dbus.unexport();
         this._precision.destroy();

@@ -5,6 +5,11 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
   // Lets the page render in a plain browser while designing.
   if (cmd === "list_backups" || cmd === "installed_applications") return [];
   if (cmd === "autostart_enabled") return false;
+  if (cmd === "running_apps" || cmd === "installed_apps") return [
+    { id: "org.gnome.TextEditor", name: "Text Editor", icon: "org.gnome.TextEditor" },
+    { id: "org.inkscape.Inkscape", name: "Inkscape", icon: "org.inkscape.Inkscape" },
+    { id: "krita", name: "Krita", icon: "krita" },
+  ];
   if (cmd === "get_config") return structuredClone(DEFAULTS);
   if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: 0x0374 }, pen: { pressure: 0 }, displays: [
     { id: "DEL|DELL S2721QS|HH2HM43", name: "Dell Inc. 27\"", x: 0, y: 0, width: 2560, height: 1440, primary: true },
@@ -14,6 +19,7 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
 });
 
 const DEFAULTS = {
+  apps: [],
   precision: { scale: 2, overlay: true },
   pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
@@ -110,6 +116,8 @@ const t = (en) => dict[en] ?? en;
 
 let config = structuredClone(DEFAULTS);
 let status = { device: null, pen: null };
+let selectedApp = null;
+let installedAppCache = null;
 let pollTimer = 0;
 
 const view = document.getElementById("view");
@@ -381,8 +389,8 @@ const PEN_SPOTS = { upper: 0.645, lower: 0.735, tip: 0.975 };
 
 function penPage() {
   const m = model();
-  const label = (key) => key === "tip" && ["default", "left_click"].includes(config.pen[key] ?? "left_click")
-    ? esc(t("Click")) : esc(keyLabel(penAction(config.pen[key])));
+  const label = (key) => key === "tip" && ["default", "left_click"].includes(toolProfile().pen[key] ?? "left_click")
+    ? esc(t("Click")) : esc(keyLabel(penAction(toolProfile().pen[key])));
   const chosen = selected?.page === "pen" ? selected.key : null;
   const callout = (spot, key, text) => `
     <div class="callout ${key && key === chosen ? "selected" : ""}" data-spot="${spot}" style="top:${PEN_SPOTS[spot] * 100}%">
@@ -391,8 +399,8 @@ function penPage() {
     </div>`;
   return `
     ${deviceSidebar("pen")}
-    ${chosen ? actionsPanel(PEN_GROUPS, penAction(config.pen[chosen]).type, config.pen[chosen] === "right_or_hold_middle" ? holdTimePanel() : "") : ""}
-    <section class="content">
+    ${chosen ? actionsPanel(PEN_GROUPS, penAction(toolProfile().pen[chosen]).type, toolProfile().pen[chosen] === "right_or_hold_middle" ? holdTimePanel() : "") : ""}
+    <section class="content tool-settings">
       <div class="pen-page">
         <div class="pen-callouts" title="${esc(t("Customize functions of the buttons on the device."))}">
           <img src="assets/devices/${m.pen}.png" alt="">
@@ -407,14 +415,15 @@ function penPage() {
           <div class="scale"><span>${esc(t("Click"))}</span><span>${esc(t("Maximum"))}</span></div>
           <div class="slider">
             <p class="label">${esc(t("Tip sensitivity"))}</p>
-            ${slider("tip", config.pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
+            ${slider("tip", toolProfile().pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
           </div>
           <select id="pen-mode" aria-label="${esc(t("Pen mode"))}">
-            ${[["pen", "Pen"], ["mouse", "Mouse"], ["relative", "Relative mouse"]].map(([value, label]) => `<option value="${value}" ${config.pen.mode === value ? "selected" : ""}>${esc(t(label))}</option>`).join("")}
+            ${[["pen", "Pen"], ["mouse", "Mouse"], ["relative", "Relative mouse"]].map(([value, label]) => `<option value="${value}" ${toolProfile().pen.mode === value ? "selected" : ""}>${esc(t(label))}</option>`).join("")}
           </select>
           <p class="gesture-hint">${esc(t(MOUSE_MODE_HINT))}</p>
         </div>
       </div>
+      ${appStrip()}
       <button class="button corner" id="pen-default">${esc(t("Default"))}</button>
     </section>`;
 }
@@ -422,6 +431,7 @@ function penPage() {
 const MOUSE_MODE_HINT = "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.";
 
 function mountPen() {
+  mountAppStrip();
   layoutCallouts();
   window.addEventListener("resize", layoutCallouts);
   document.querySelectorAll("[data-button]").forEach((btn) =>
@@ -431,7 +441,7 @@ function mountPen() {
     const key = selected.key;
     const apply = (action) => {
       const { type, ...fields } = action;
-      config.pen[key] = Object.keys(fields).length ? { [type]: fields } : type;
+      toolProfile().pen[key] = Object.keys(fields).length ? { [type]: fields } : type;
       save();
       render();
     };
@@ -439,20 +449,20 @@ function mountPen() {
     apply(typeof value === "string" ? { type: value } : value);
   });
   bindSlider("tip", (v) => {
-    config.pen.tip_sensitivity = v;
+    toolProfile().pen.tip_sensitivity = v;
     save();
   });
   if ($("#hold-time"))
     bindSlider("hold-time", (v) => {
-      config.pen.hold_time = v;
+      toolProfile().pen.hold_time = v;
       save();
     });
   $("#pen-mode").addEventListener("change", (e) => {
-    config.pen.mode = e.target.value;
+    toolProfile().pen.mode = e.target.value;
     save();
   });
   $("#pen-default").addEventListener("click", () => {
-    config.pen = structuredClone(DEFAULTS.pen);
+    toolProfile().pen = structuredClone(DEFAULTS.pen);
     save();
     render();
   });
@@ -588,7 +598,7 @@ function holdTimePanel() {
   return `
     <div class="hold-time">
       <p class="label">${esc(t("Hold time"))}</p>
-      ${slider("hold-time", config.pen.hold_time ?? 2, 1, 3, "Short", "Long")}
+      ${slider("hold-time", toolProfile().pen.hold_time ?? 2, 1, 3, "Short", "Long")}
       <p class="hint">${esc(t(HOLD_TIME_HINT))}</p>
     </div>`;
 }
@@ -621,8 +631,8 @@ function mountActions(apply) {
     btn.addEventListener("click", async () => {
       const value = btn.dataset.action;
       if (!ACTION_DIALOGS[value]) return apply(value);
-      const current = selected?.page === "pen" ? penAction(config.pen[selected.key])
-        : selected?.page === "keys" ? config.express_keys?.[selected.index] : null;
+      const current = selected?.page === "pen" ? penAction(toolProfile().pen[selected.key])
+        : selected?.page === "keys" ? toolProfile().express_keys?.[selected.index] : null;
       const action = await configureAction(value, current);
       if (action) apply(action);
     }),
@@ -637,7 +647,7 @@ async function configureAction(type, current) {
   const check = (key, label, value) => `<label class="toggle-row"><input type="checkbox" name="${key}" ${value ? "checked" : ""}>${esc(t(label))}</label>`;
   let body = "";
   if (type === "mode_toggle") {
-    const relative = config.pen.relative ?? DEFAULTS.pen.relative;
+    const relative = toolProfile().pen.relative ?? DEFAULTS.pen.relative;
     body = range("speed", "Speed", relative.speed) + range("acceleration", "Acceleration", relative.acceleration);
   } else if (type === "precision_mode") {
     const precision = config.precision ?? DEFAULTS.precision;
@@ -672,7 +682,7 @@ async function configureAction(type, current) {
     $('form', backdrop).onsubmit = (e) => {
       e.preventDefault();
       const data = new FormData(e.target);
-      if (type === "mode_toggle") config.pen.relative = { speed: Number(data.get("speed")), acceleration: Number(data.get("acceleration")) };
+      if (type === "mode_toggle") toolProfile().pen.relative = { speed: Number(data.get("speed")), acceleration: Number(data.get("acceleration")) };
       if (type === "precision_mode") config.precision = { scale: Number(data.get("scale")), overlay: data.has("overlay") };
       if (type === "modifier") {
         for (const key of ["shift", "ctrl", "alt", "super"]) action[key] = data.has(key);
@@ -763,7 +773,7 @@ function keyLabel(action) {
 
 function expressKeysPage() {
   const m = model();
-  const keys = config.express_keys ?? [];
+  const keys = toolProfile().express_keys ?? [];
   const chosen = selected?.page === "keys" ? selected.index : null;
   // The key itself (a ring over the artwork, as on the Pen page) and its
   // label both open the Actions panel.
@@ -774,7 +784,7 @@ function expressKeysPage() {
   return `
     ${deviceSidebar("expresskeys")}
     ${chosen !== null ? actionsPanel(keyGroups(), keyValue(keys[chosen])) : ""}
-    <section class="content">
+    <section class="content tool-settings">
       <div class="keys-figure">
         <div class="keys-tablet">
           <img src="assets/devices/${m.tablet}.png" alt="">
@@ -782,6 +792,7 @@ function expressKeysPage() {
           ${callouts}
         </div>
       </div>
+      ${appStrip()}
       <button class="button corner" id="keys-default">${esc(t("Default"))}</button>
     </section>`;
 }
@@ -816,6 +827,7 @@ function layoutKeyLeads() {
 }
 
 function mountExpressKeys() {
+  mountAppStrip();
   layoutKeyLeads();
   window.addEventListener("resize", layoutKeyLeads);
   // Light up the key being pressed; also notice the tablet going away.
@@ -839,15 +851,15 @@ function mountExpressKeys() {
     setKey(index, { type: value });
   });
   $("#keys-default").addEventListener("click", () => {
-    config.express_keys = structuredClone(DEFAULTS.express_keys);
+    toolProfile().express_keys = structuredClone(DEFAULTS.express_keys);
     save();
     render();
   });
 }
 
 function setKey(index, action) {
-  config.express_keys = Array.from({ length: 4 }, (_, i) => config.express_keys?.[i] ?? { type: "disabled" });
-  config.express_keys[index] = action;
+  toolProfile().express_keys = Array.from({ length: 4 }, (_, i) => toolProfile().express_keys?.[i] ?? { type: "disabled" });
+  toolProfile().express_keys[index] = action;
   save();
   render();
 }
@@ -1720,6 +1732,13 @@ function startPolling(ms, onTick) {
     if (document.visibilityState === "visible") {
       status = await invoke("status");
       if (run !== pollTimer) return;
+      const active = $(".active-app");
+      if (active) {
+        const id = status.focused_app?.replace(/\.desktop$/i, "").toLowerCase();
+        active.textContent = config.apps?.find(app => app.id.replace(/\.desktop$/i, "").toLowerCase() === id
+          || app.id.replace(/\.desktop$/i, "").split(".").at(-1).toLowerCase() === id)?.name ?? t("All other");
+        active.title = status.focused_app ?? "";
+      }
       onTick?.();
     }
     if (run === pollTimer) setTimeout(tick, ms);
@@ -1889,6 +1908,11 @@ async function init() {
   await loadLanguage();
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
   await loadConfig();
+  // Reading every icon takes a moment: fill the app strip in when it arrives.
+  invoke("installed_apps").then((apps) => {
+    installedAppCache = apps;
+    if ($(".app-strip")) render();
+  }).catch(() => {});
   saveShellMenus();
   status = await invoke("status");
   window.addEventListener("hashchange", render);
@@ -2049,3 +2073,89 @@ document.addEventListener("scroll", (e) => e.target !== dropdown.menu && closeDr
 // and run their own start-up.
 if (view && uiStyle() !== "classic") setUiStyle(uiStyle());
 else if (view) init();
+
+
+function toolProfile() {
+  return config.apps?.find(app => app.id === selectedApp) ?? config;
+}
+function appImage(app) {
+  const src = app.icon_data ?? installedAppCache?.find(item => item.id.toLowerCase() === app.id.toLowerCase())?.icon_data;
+  return src ? `<img src="${esc(src)}" alt="">` : `<span>${esc(app.name?.slice(0, 1) ?? "?")}</span>`;
+}
+function appStrip() {
+  if (!config.apps?.some(app => app.id === selectedApp)) selectedApp = null;
+  const grid = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z"/></svg>`;
+  return `<div class="app-strip"><button data-app-scroll="-1" aria-label="<">&lt;</button><div class="app-tiles">
+    <button class="app-tile ${selectedApp === null ? "selected" : ""}" data-app="" title="${esc(t("All other"))}">${grid}<small>${esc(t("All other"))}</small></button>
+    ${(config.apps ?? []).map(app => `<button class="app-tile ${selectedApp === app.id ? "selected" : ""}" data-app="${esc(app.id)}" title="${esc(app.name)}">${appImage(app)}<small>${esc(app.name)}</small></button>`).join("")}
+    </div><button data-app-scroll="1" aria-label=">">&gt;</button><button id="add-app" title="${esc(t("Add application"))}">+</button><button id="remove-app" title="${esc(t("Remove application"))}" ${selectedApp === null ? "disabled" : ""}>−</button>
+    <small class="active-app">${esc(status.focused_app ?? t("All other"))}</small></div>`;
+}
+function mountAppStrip() {
+  document.querySelectorAll("[data-app]").forEach(button => button.onclick = () => {
+    selectedApp = button.dataset.app || null; selected = null; render();
+  });
+  document.querySelectorAll("[data-app-scroll]").forEach(button => button.onclick = () => {
+    $(".app-tiles").scrollBy({ left: Number(button.dataset.appScroll) * 180, behavior: "smooth" });
+  });
+  $("#add-app").onclick = selectApplication;
+  $("#remove-app").onclick = async () => {
+    const app = toolProfile();
+    if (selectedApp && await settingsDialog(t("Are you sure you want to remove the settings for %s?").replace("%s", app.name), "OK")) {
+      config.apps = config.apps.filter(item => item.id !== selectedApp);
+      selectedApp = null; selected = null; save(); render();
+    }
+  };
+}
+async function selectApplication() {
+  const backdrop = document.createElement("div");
+  backdrop.className = "dialog-backdrop";
+  backdrop.innerHTML = `<form class="dialog app-dialog" role="dialog" aria-modal="true"><h3>${esc(t("Select an application"))}</h3>
+    <p>${esc(t("Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer."))}</p>
+    <label>${esc(t("Currently running applications:"))}</label><input type="search" aria-label="${esc(t("Select an application"))}" hidden><div class="application-list"></div>
+    <div class="dialog-buttons"><button type="button" class="button" data-browse>${esc(t("Browse..."))}</button><button type="submit" class="button primary" disabled>${esc(t("OK"))}</button><button type="button" class="button" data-cancel>${esc(t("Cancel"))}</button></div></form>`;
+  const previous = document.activeElement;
+  const close = () => { backdrop.remove(); previous?.focus(); };
+  let choice = null;
+  let apps = [];
+  const search = $("input", backdrop);
+  const show = () => {
+    const list = $(".application-list", backdrop);
+    list.innerHTML = apps.filter(app => app.name.toLowerCase().includes(search.value.toLowerCase())).map(app =>
+      `<button type="button" data-id="${esc(app.id)}" class="application-row ${choice?.id === app.id ? "selected" : ""}">${appImage(app)}${esc(app.name)}</button>`).join("");
+    list.querySelectorAll("button").forEach(button => button.onclick = () => {
+      choice = apps.find(app => app.id === button.dataset.id); $("[type=submit]", backdrop).disabled = false; show();
+    });
+  };
+  $("[data-cancel]", backdrop).onclick = close;
+  backdrop.onkeydown = e => {
+    if (e.key === "Escape") close();
+    if (e.key === "Tab") {
+      const items = [...backdrop.querySelectorAll("input, button")].filter(item => !item.disabled && !item.hidden);
+      const index = items.indexOf(document.activeElement);
+      e.preventDefault(); items[(index + (e.shiftKey ? -1 : 1) + items.length) % items.length]?.focus();
+    }
+  };
+  search.oninput = show;
+  $("[data-browse]", backdrop).onclick = async () => {
+    installedAppCache ??= await invoke("installed_apps").catch(() => []);
+    apps = installedAppCache; search.hidden = false; search.focus(); show();
+  };
+  $("form", backdrop).onsubmit = e => {
+    e.preventDefault(); if (!choice) return;
+    config.apps ??= [];
+    if (!config.apps.some(app => app.id.toLowerCase() === choice.id.toLowerCase())) {
+      const current = toolProfile();
+      config.apps.push({ id: choice.id, name: choice.name, icon: choice.icon ?? choice.icon_path ?? null,
+        pen: structuredClone(current.pen), express_keys: structuredClone(current.express_keys) });
+    }
+    selectedApp = config.apps.find(app => app.id.toLowerCase() === choice.id.toLowerCase()).id;
+    selected = null; save(); close(); render();
+  };
+  document.body.append(backdrop);
+  $("[data-cancel]", backdrop).focus();
+  const running = await invoke("running_apps").catch(() => []);
+  installedAppCache ??= await invoke("installed_apps").catch(() => []);
+  apps = running.map(app => ({ ...app, icon_data: installedAppCache.find(item => item.id.toLowerCase() === app.id.toLowerCase())?.icon_data }));
+  show();
+}

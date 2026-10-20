@@ -549,6 +549,7 @@ pub const EXPRESS_KEYS: usize = 4;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
+    pub apps: Vec<AppProfile>,
     pub precision: PrecisionSettings,
     pub pen: PenSettings,
     pub pan_scroll: PanScrollSettings,
@@ -558,9 +559,54 @@ pub struct Config {
     pub shortcuts: ShortcutSettings,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AppProfile {
+    pub id: String,
+    pub name: String,
+    pub icon: Option<String>,
+    pub pen: PenSettings,
+    pub express_keys: Vec<KeyAction>,
+}
+
+impl Default for AppProfile {
+    fn default() -> Self {
+        Self { id: String::new(), name: String::new(), icon: None,
+            pen: PenSettings::default(), express_keys: vec![KeyAction::Disabled; EXPRESS_KEYS] }
+    }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+pub struct AppInfo {
+    pub id: String,
+    pub name: String,
+    pub icon: Option<String>,
+}
+
+impl Config {
+    pub fn effective(&self, app_id: Option<&str>) -> Config {
+        fn normalized(id: &str) -> String {
+            let id = id.to_lowercase();
+            id.strip_suffix(".desktop").unwrap_or(&id).to_string()
+        }
+        let mut config = self.clone();
+        if let Some(id) = app_id.map(normalized) {
+            let profile = self.apps.iter().find(|app| normalized(&app.id) == id)
+                .or_else(|| self.apps.iter().find(|app| normalized(&app.id).rsplit('.').next() == Some(id.as_str())));
+            if let Some(app) = profile {
+                config.pen = app.pen.clone();
+                config.express_keys = app.express_keys.clone();
+            }
+        }
+        config
+    }
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
+            apps: Vec::new(),
             precision: PrecisionSettings::default(),
             pen: PenSettings::default(),
             pan_scroll: PanScrollSettings::default(),
@@ -634,6 +680,7 @@ pub fn save(config: &Config) -> io::Result<()> {
 pub enum Request {
     Reload,
     Status,
+    RunningApps,
     /// Run an action picked from an on-screen shortcut (taps it once).
     Run { action: KeyAction },
 }
@@ -682,6 +729,10 @@ pub struct PenState {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Response {
+    #[serde(default)]
+    pub apps: Vec<AppInfo>,
+    #[serde(default)]
+    pub focused_app: Option<String>,
     pub ok: bool,
     pub error: Option<String>,
     pub device: Option<DeviceInfo>,
@@ -701,6 +752,29 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn application_profiles_preserve_globals_and_old_configs() {
+        let mut config: Config = serde_json::from_str("{}").unwrap();
+        assert!(config.apps.is_empty());
+        let partial: AppProfile = serde_json::from_str(r#"{"id":"code"}"#).unwrap();
+        assert_eq!(partial.pen, config.pen);
+        assert_eq!(partial.express_keys, config.express_keys);
+        let mut app = AppProfile { id: "org.gnome.TextEditor.desktop".into(), ..Default::default() };
+        app.pen.tip_sensitivity = 7;
+        app.express_keys = vec![KeyAction::LeftClick];
+        config.apps.push(app);
+        for id in ["ORG.GNOME.TEXTEDITOR", "org.gnome.TextEditor.desktop", "TextEditor"] {
+            let effective = config.effective(Some(id));
+            assert_eq!(effective.pen.tip_sensitivity, 7);
+            assert_eq!(effective.express_keys, vec![KeyAction::LeftClick]);
+            assert_eq!(effective.mapping, config.mapping);
+            assert_eq!(effective.shortcuts, config.shortcuts);
+        }
+        assert_eq!(config.effective(None), config);
+        assert_eq!(config.effective(Some("other")), config);
+        assert_eq!(serde_json::from_value::<Config>(serde_json::to_value(&config).unwrap()).unwrap(), config);
+    }
 
     #[test]
     fn portions_default_and_validate_on_deserialization() {

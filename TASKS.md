@@ -7,7 +7,7 @@ Cintiq Workflows).
 
 ## High priority
 
-- [ ] **Per-application settings**: different pen buttons and ExpressKeys
+- [x] **Per-application settings**: different pen buttons and ExpressKeys
   for each program (Krita, GIMP, Blender…). The GNOME Shell extension
   reports the focused window to `tabletd`, which switches to that app's
   profile. The largest task.

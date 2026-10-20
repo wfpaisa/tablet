@@ -205,5 +205,13 @@
   "Switch application": "애플리케이션 전환",
   "Screen area": "화면 영역",
   "Full screen": "전체 화면",
-  "Portion": "일부 영역"
+  "Portion": "일부 영역",
+  "Select an application": "Select an application",
+  "Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer.": "Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer.",
+  "Currently running applications:": "Currently running applications:",
+  "Browse...": "Browse...",
+  "All other": "All other",
+  "Are you sure you want to remove the settings for %s?": "Are you sure you want to remove the settings for %s?",
+  "Add application": "Add application",
+  "Remove application": "Remove application"
 }

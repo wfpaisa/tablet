@@ -56,6 +56,11 @@ fn exchange(conn: &mut BufReader<UnixStream>, request: &Request) -> io::Result<R
 struct Application {
     command: String,
     label: String,
+    id: String,
+    name: String,
+    icon: Option<String>,
+    icon_path: Option<String>,
+    icon_data: Option<String>,
 }
 
 #[tauri::command(async)]
@@ -80,7 +85,10 @@ fn installed_applications() -> Vec<Application> {
             }
             if fields.get("Type") != Some(&"Application") || ["NoDisplay", "Hidden"].iter().any(|key| fields.get(key) == Some(&"true")) { continue; }
             if let Some(name) = fields.get("Name") {
-                apps.push(Application { command: format!("desktop:{id}"), label: (*name).into() });
+                let resolved = fields.get("Icon").and_then(|icon| resolve_app_icon(icon));
+                let (icon_path, icon_data) = resolved.map(|(path, data)| (Some(path), Some(data))).unwrap_or_default();
+                apps.push(Application { command: format!("desktop:{id}"), label: (*name).into(),
+                    id: id.trim_end_matches(".desktop").into(), name: (*name).into(), icon: fields.get("Icon").map(|value| (*value).into()), icon_path, icon_data });
             }
         }
     }
@@ -94,6 +102,45 @@ fn installed_applications() -> Vec<Application> {
     apps.sort_by_cached_key(|app| app.label.to_lowercase());
     apps
 }
+
+fn resolve_app_icon(icon: &str) -> Option<(String, String)> {
+    fn scan(dir: &std::path::Path, depth: u8, icons: &mut std::collections::HashMap<String, PathBuf>) {
+        if depth == 0 { return; }
+        let Ok(entries) = fs::read_dir(dir) else { return };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                scan(&path, depth - 1, icons);
+            } else if path.extension().is_some_and(|s| s == "png" || s == "svg") {
+                if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+                    icons.entry(name.into()).or_insert(path);
+                }
+            }
+        }
+    }
+    static ICONS: std::sync::OnceLock<std::collections::HashMap<String, PathBuf>> = std::sync::OnceLock::new();
+    let path = if std::path::Path::new(icon).is_absolute() { PathBuf::from(icon) } else {
+        ICONS.get_or_init(|| {
+            let mut roots = Vec::new();
+            if let Ok(home) = home() { roots.extend([home.join(".icons"), home.join(".local/share/icons")]); }
+            if let Some(data_home) = std::env::var_os("XDG_DATA_HOME") { roots.push(PathBuf::from(data_home).join("icons")); }
+            let dirs = std::env::var_os("XDG_DATA_DIRS").unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+            roots.extend(std::env::split_paths(&dirs).flat_map(|p| [p.join("icons"), p.join("pixmaps")]));
+            let mut icons = std::collections::HashMap::new();
+            for root in roots { scan(&root, 6, &mut icons); }
+            icons
+        }).get(icon).cloned()?
+    };
+    let mime = match path.extension()?.to_str()? { "png" => "image/png", "svg" => "image/svg+xml", _ => return None };
+    let bytes = fs::read(&path).ok()?;
+    Some((path.to_string_lossy().into_owned(), format!("data:{mime};base64,{}", gtk::glib::base64_encode(&bytes))))
+}
+
+#[tauri::command(async)]
+fn installed_apps() -> Vec<Application> { installed_applications() }
+
+#[tauri::command(async)]
+fn running_apps() -> Result<Vec<tablet_config::AppInfo>, String> { Ok(ask(&Request::RunningApps)?.apps) }
 
 #[tauri::command(async)]
 fn get_config() -> Config {
@@ -422,7 +469,7 @@ fn main() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![installed_applications, get_config, save_config, save_shell_menus, status, restart_daemon,
+        .invoke_handler(tauri::generate_handler![installed_apps, running_apps, installed_applications, get_config, save_config, save_shell_menus, status, restart_daemon,
             autostart_enabled, set_autostart, list_backups, create_backup, restore_backup,
             delete_backup, open_backups_folder, reset_config, run_shortcut_action, close_shortcut, pending_shortcut, set_ui_style])
         .build(tauri::generate_context!())

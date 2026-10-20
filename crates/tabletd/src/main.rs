@@ -30,6 +30,7 @@ use tablet_config::{Config, DeviceInfo, Display, Gesture, KeyAction, PenState, R
 #[derive(Default)]
 struct Shared {
     config: RwLock<Config>,
+    focused_app: Mutex<Option<String>>,
     /// Bumped on every reload so the device loop picks up new settings.
     generation: AtomicU64,
     device: Mutex<Option<DeviceInfo>>,
@@ -107,11 +108,23 @@ impl Outputs {
     }
 }
 
+fn effective_config(shared: &Shared) -> Config {
+    shared.config.read().unwrap().effective(shared.focused_app.lock().unwrap().as_deref())
+}
+
 fn main() {
     let shared = Arc::new(Shared {
         config: RwLock::new(tablet_config::load()),
         shell: Mutex::new(Some(shell::spawn())),
         ..Default::default()
+    });
+    let focus = Arc::clone(&shared);
+    shell::watch_focus(move |id| {
+        let mut current = focus.focused_app.lock().unwrap();
+        if *current != id {
+            *current = id;
+            focus.generation.fetch_add(1, Ordering::AcqRel);
+        }
     });
     let ipc = Arc::clone(&shared);
     thread::spawn(move || {
@@ -294,7 +307,7 @@ fn pump(
     *shared.device.lock().unwrap() = Some(info);
 
     let mut generation = shared.generation.load(Ordering::Acquire);
-    let mut processor = pen::PenProcessor::new(shared.config.read().unwrap().clone(), geometry);
+    let mut processor = pen::PenProcessor::new(effective_config(shared), geometry);
     let new_mapping = || {
         let mut settings = shared.config.read().unwrap().mapping.clone();
         if let Some(display) = shared.display_override.lock().unwrap().clone() {
@@ -369,7 +382,7 @@ fn pump(
             let current = shared.generation.load(Ordering::Acquire);
             if current != generation {
                 generation = current;
-                processor.set_config(shared.config.read().unwrap().clone());
+                processor.set_config(effective_config(shared));
                 map = new_mapping();
             }
             let mut out = processor.process_frame(&frame, pad_gesture());
@@ -684,7 +697,11 @@ fn spawn_shortcut_host() -> Option<(Child, ChildStdin)> {
 fn prepare_shortcuts(shared: &Shared) {
     let config = shared.config.read().unwrap();
     let used = [&config.pen.upper_button, &config.pen.lower_button, &config.pen.tip].iter().any(|a| a.shortcut().is_some())
-        || config.express_keys.iter().any(|a| a.shortcut().is_some());
+        || config.express_keys.iter().any(|a| a.shortcut().is_some())
+        || config.apps.iter().any(|app| {
+            [&app.pen.upper_button, &app.pen.lower_button, &app.pen.tip].iter().any(|a| a.shortcut().is_some())
+                || app.express_keys.iter().any(|a| a.shortcut().is_some())
+        });
     // The shell extension draws them; the window only starts if it fails.
     let used = used && !config.shortcuts.in_shell;
     drop(config);
@@ -908,7 +925,7 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
     }
     eprintln!("tabletd: using {}", pad.name().unwrap_or("tablet pad"));
     let mut generation = shared.generation.load(Ordering::Acquire);
-    let mut processor = pad::PadProcessor::new(shared.config.read().unwrap().express_keys.clone());
+    let mut processor = pad::PadProcessor::new(effective_config(shared).express_keys);
     let mut frame = Vec::new();
     let result = (|| loop {
         for ev in pad.fetch_events()? {
@@ -919,7 +936,7 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
             let current = shared.generation.load(Ordering::Acquire);
             if current != generation {
                 generation = current;
-                processor.set_actions(shared.config.read().unwrap().express_keys.clone());
+                processor.set_actions(effective_config(shared).express_keys);
             }
             let pos = *shared.pen_pos.lock().unwrap();
             remember_keys(shared, &frame);
@@ -1066,7 +1083,12 @@ fn client(stream: UnixStream, shared: &Shared) -> io::Result<()> {
                 prepare_shortcuts(shared);
                 Response { ok: true, ..Default::default() }
             }
+            Ok(Request::RunningApps) => match shell::running_apps() {
+                Ok(apps) => Response { ok: true, apps, ..Default::default() },
+                Err(e) => Response { error: Some(e.to_string()), ..Default::default() },
+            },
             Ok(Request::Status) => Response {
+                focused_app: shared.focused_app.lock().unwrap().clone(),
                 ok: true,
                 device: shared.device.lock().unwrap().clone(),
                 pen: Some(shared.pen.lock().unwrap().clone()),

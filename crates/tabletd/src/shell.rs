@@ -46,3 +46,44 @@ pub fn spawn() -> Sender<Feedback> {
     });
     tx
 }
+
+pub fn running_apps() -> zbus::Result<Vec<tablet_config::AppInfo>> {
+    let conn = zbus::blocking::Connection::session()?;
+    let reply = conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "ListRunningApps", &())?;
+    let apps: Vec<(String, String, String)> = reply.body().deserialize()?;
+    Ok(apps.into_iter().map(|(id, name, icon)| tablet_config::AppInfo {
+        id, name, icon: if icon.is_empty() { None } else { Some(icon) },
+    }).collect())
+}
+
+/// Follows the focused application. Only our own signal is matched (a
+/// catch-all rule would wake us for every broadcast on the session bus); the
+/// extension emits the current focus right after it starts, so a restarted
+/// extension resyncs without watching the name owner.
+pub fn watch_focus(mut changed: impl FnMut(Option<String>) + Send + 'static) {
+    thread::spawn(move || loop {
+        let mut track = || -> zbus::Result<()> {
+            let conn = zbus::blocking::Connection::session()?;
+            let rule = zbus::MatchRule::builder()
+                .msg_type(zbus::message::Type::Signal)
+                .interface(BUS_NAME)?
+                .member("FocusedAppChanged")?
+                .build();
+            let messages = zbus::blocking::MessageIterator::for_match_rule(rule, &conn, Some(64))?;
+            // Subscribed first, so a change between the two is not lost.
+            if let Ok(reply) = conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "GetFocusedApp", &()) {
+                if let Ok((id, _)) = reply.body().deserialize::<(String, String)>() {
+                    changed((!id.is_empty()).then_some(id));
+                }
+            }
+            for message in messages {
+                if let Ok((id, _)) = message?.body().deserialize::<(String, String)>() {
+                    changed((!id.is_empty()).then_some(id));
+                }
+            }
+            Ok(())
+        };
+        let _ = track();
+        thread::sleep(std::time::Duration::from_secs(2));
+    });
+}
