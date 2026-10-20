@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "最大筆圧に必要な力を調整します。「柔らかい」は軽い力、「硬い」は強い力が必要です。",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "ダブルクリックと認識する 2 回のタップの距離です。同じ場所をタップしにくい場合は広げてください。「オフ」で補助を無効にします。",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "クリックに必要な力を調整します。「軽い」はわずかな接触に反応し、「硬い」は誤クリックを防ぎやすくなります。",
-  "More information": "詳細情報"
+  "More information": "詳細情報",
+  "Tip": "ペン先",
+  "Pressure": "筆圧",
+  "Previous": "前へ",
+  "Next": "次へ",
+  "Application in use now": "使用中のアプリケーション",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "ペン先がカーソルになります。タブレット上の各位置が画面上の位置に対応し、描画アプリは筆圧と傾きを受け取ります。",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "マウスのようにカーソルを動かします。ペンを持ち上げて置き直すと続けて動かせます。大きな画面で便利です。"
 }

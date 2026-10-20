@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Ajusta la fuerza necesaria para alcanzar la presión máxima. Suave requiere menos fuerza; Firme requiere más.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Distancia permitida entre dos toques rápidos para reconocer un doble clic. Auméntala si te cuesta tocar el mismo punto. Desactivado quita esta ayuda.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Ajusta la fuerza necesaria para hacer clic. Ligera responde al mínimo contacto; Firme ayuda a evitar clics accidentales.",
-  "More information": "Más información"
+  "More information": "Más información",
+  "Tip": "Punta",
+  "Pressure": "Presión",
+  "Previous": "Anterior",
+  "Next": "Siguiente",
+  "Application in use now": "Aplicación en uso",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "La punta del lápiz es el cursor: cada punto de la tableta es un punto de la pantalla. Las aplicaciones de dibujo reciben presión e inclinación.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Mueve el cursor como un ratón: levanta el lápiz y vuelve a apoyarlo para seguir. Útil en pantallas grandes."
 }

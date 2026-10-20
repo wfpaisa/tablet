@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Règle la force nécessaire pour atteindre la pression maximale. Souple demande moins de force ; Ferme en demande plus.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Distance autorisée entre deux appuis rapides pour un double clic. Augmentez-la si vous avez du mal à toucher le même point. Désactivé supprime cette aide.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Règle la force nécessaire pour cliquer. Léger réagit au moindre contact ; Ferme aide à éviter les clics involontaires.",
-  "More information": "Plus d'informations"
+  "More information": "Plus d'informations",
+  "Tip": "Pointe",
+  "Pressure": "Pression",
+  "Previous": "Précédent",
+  "Next": "Suivant",
+  "Application in use now": "Application utilisée",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "La pointe du stylet est le curseur : chaque point de la tablette correspond à un point de l'écran. Les applications de dessin reçoivent la pression et l'inclinaison.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Déplace le curseur comme une souris : soulevez le stylet et reposez-le pour continuer. Pratique sur les grands écrans."
 }

@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Legt die Kraft für den maximalen Druck fest. Weich erfordert weniger Kraft, Fest mehr.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Erlaubter Abstand zwischen zwei schnellen Tippern für einen Doppelklick. Erhöhen Sie ihn, wenn Sie denselben Punkt schwer treffen. Aus deaktiviert diese Hilfe.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Legt die Kraft für einen Klick fest. Leicht reagiert auf minimale Berührung, Fest hilft gegen versehentliche Klicks.",
-  "More information": "Weitere Informationen"
+  "More information": "Weitere Informationen",
+  "Tip": "Spitze",
+  "Pressure": "Druck",
+  "Previous": "Zurück",
+  "Next": "Weiter",
+  "Application in use now": "Aktive Anwendung",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "Die Stiftspitze ist der Zeiger: Jede Stelle auf dem Tablett entspricht einer Stelle auf dem Bildschirm. Zeichenprogramme erhalten Druck und Neigung.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Bewegt den Zeiger wie eine Maus: Heben Sie den Stift an und setzen Sie ihn wieder auf, um weiterzumachen. Praktisch bei großen Bildschirmen."
 }

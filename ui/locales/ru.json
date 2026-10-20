@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Задаёт усилие для максимального нажима. Мягкое требует меньше усилий, Жёсткое — больше.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Допустимое расстояние между двумя быстрыми касаниями для двойного щелчка. Увеличьте его, если трудно попасть в одну точку. Выкл. отключает эту помощь.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Задаёт усилие для щелчка. Лёгкое реагирует на едва заметное касание, Жёсткое помогает избежать случайных щелчков.",
-  "More information": "Подробнее"
+  "More information": "Подробнее",
+  "Tip": "Наконечник",
+  "Pressure": "Нажим",
+  "Previous": "Назад",
+  "Next": "Далее",
+  "Application in use now": "Активное приложение",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "Наконечник пера — это курсор: каждая точка планшета соответствует точке экрана. Графические приложения получают нажим и наклон.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Перемещает курсор как мышь: поднимите перо и снова опустите, чтобы продолжить. Удобно на больших экранах."
 }

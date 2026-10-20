@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "En yüksek basınca ulaşmak için gereken kuvveti ayarlar. Yumuşak daha az, Sert daha fazla kuvvet gerektirir.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Çift tıklama için iki hızlı dokunuş arasındaki izin verilen mesafe. Aynı noktaya dokunmakta zorlanıyorsanız artırın. Kapalı bu yardımı kapatır.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Tıklamak için gereken kuvveti ayarlar. Hafif en küçük temasa tepki verir; Sert yanlışlıkla tıklamayı önlemeye yardımcı olur.",
-  "More information": "Daha fazla bilgi"
+  "More information": "Daha fazla bilgi",
+  "Tip": "Uç",
+  "Pressure": "Basınç",
+  "Previous": "Önceki",
+  "Next": "Sonraki",
+  "Application in use now": "Kullanılan uygulama",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "Kalem ucu imleçtir: tabletteki her nokta ekrandaki bir noktaya karşılık gelir. Çizim uygulamaları basınç ve eğim alır.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "İmleci fare gibi hareket ettirir: devam etmek için kalemi kaldırıp yeniden indirin. Büyük ekranlarda kullanışlıdır."
 }

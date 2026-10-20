@@ -703,7 +703,7 @@ html.overlay, body.overlay { background: transparent; }
 .tool-settings { display:flex; flex-direction:column; }
 .tool-settings .pen-page { height:auto; flex:1 0 auto; }
 .tool-settings .pen-callouts { height:min(460px, calc(100vh - 270px)); }
-.tool-settings .app-strip { flex-shrink:0; margin:24px 0 12px; }
+.tool-settings .app-strip { order:-1; flex-shrink:0; margin:0 0 18px; }
 .tool-settings .corner { position:static; align-self:flex-end; flex-shrink:0; }
 .tool-settings .keys-figure { flex:1 0 auto; }
 
@@ -728,3 +728,46 @@ html.overlay, body.overlay { background: transparent; }
 .help-popup { position:absolute; top:calc(100% + 8px); left:-110px; z-index:15; width:260px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius); background:var(--raised); box-shadow:0 10px 30px rgba(0, 0, 0, .45); color:var(--text); font-size:13px; font-weight:400; line-height:1.45; opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .12s, transform .12s, visibility .12s; pointer-events:none; }
 .help-popup::before { content:""; position:absolute; top:-6px; left:114px; width:10px; height:10px; border-left:1px solid var(--line); border-top:1px solid var(--line); background:var(--raised); transform:rotate(45deg); }
 .help:hover .help-popup, .help-button:focus-visible + .help-popup, .help.open .help-popup { opacity:1; visibility:visible; transform:none; }
+
+/* Pen page: the pen on the left, settings grouped in cards on the right. */
+.tool-settings .pen-page { align-items:flex-start; gap:clamp(24px, 4vw, 64px); }
+.pen-page .pen-callouts { position:sticky; top:0; }
+.pen-page .pen-side { display:flex; flex-direction:column; gap:14px; flex:0 1 400px; min-width:280px; padding:0 0 8px; }
+.card { padding:16px 18px 18px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+.card h4 { margin:0 0 4px; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+.card-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:10px; }
+.card-head h4 { margin:0; }
+.card-head output { color:var(--muted); font-size:13px; font-variant-numeric:tabular-nums; }
+.card .slider { margin-top:12px; }
+.card .slider .label { margin-bottom:6px; font-size:15px; }
+.card .scale { font-size:13px; }
+.pen-page .test-area { height:max(110px, min(220px, calc(100vh - 700px))); border-radius:8px 8px 0 0; overflow:hidden; }
+.pen-page .pressure { height:6px; margin-top:0; border-radius:0 0 4px 4px; overflow:hidden; }
+.pen-page .pressure span { background:var(--accent); transition:width .05s linear; }
+.pen-mode { display:flex; width:100%; margin-top:10px; }
+.pen-mode button { flex:1; padding:7px 8px; }
+.pen-mode button[aria-checked="true"] { background:var(--raised); color:var(--text); }
+.mode-hint { margin:10px 0 0; color:var(--muted); font-size:13px; line-height:1.45; }
+.link-button { align-self:flex-end; padding:6px 10px; border:0; border-radius:6px; background:transparent; color:var(--muted); font:inherit; font-size:14px; cursor:pointer; }
+.link-button:hover { background:var(--raised); color:var(--text); }
+
+/* Application strip: chips with icon and name, at the top of tool pages. */
+.app-strip { gap:6px; padding:6px 8px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+.app-strip-label { flex-shrink:0; padding:0 6px 0 4px; color:var(--muted); font-size:12px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; }
+.app-strip > button { display:grid; place-items:center; min-width:32px; height:32px; padding:0; border:0; border-radius:8px; background:transparent; color:var(--muted); font-size:18px; cursor:pointer; }
+.app-strip > button:hover:not(:disabled) { background:var(--raised); color:var(--text); }
+.app-strip > button:disabled { opacity:.35; cursor:default; }
+.app-tiles { gap:6px; padding:2px; scrollbar-width:none; }
+.app-tile { flex:0 0 auto; flex-direction:row; gap:8px; height:36px; padding:0 12px 0 8px; border:1px solid transparent; border-radius:18px; color:var(--muted); cursor:pointer; }
+.app-tile:hover { background:var(--raised); color:var(--text); }
+.app-tile.selected { border-color:var(--accent); background:rgba(53, 132, 228, .18); color:var(--text); }
+.app-tile img, .app-tile svg, .app-tile > span { width:20px; height:20px; font-size:14px; }
+.app-tile > span { display:grid; place-items:center; border-radius:5px; background:var(--raised-hover); text-transform:uppercase; }
+.app-tile small { max-width:160px; font-size:14px; }
+.active-app { display:flex; align-items:center; gap:6px; flex-shrink:0; max-width:180px; padding-left:10px; border-left:1px solid var(--line); color:var(--muted); }
+.active-app::before { content:""; flex-shrink:0; width:7px; height:7px; border-radius:50%; background:#33d17a; }
+.app-strip > button[hidden] { display:none; }
+.pen-mode button { line-height:1.2; }
+.app-tiles.fade-end { mask-image:linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.app-tiles.fade-start { mask-image:linear-gradient(to right, transparent, #000 28px); }
+.app-tiles.fade-start.fade-end { mask-image:linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }

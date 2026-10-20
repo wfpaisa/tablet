@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Ustawia siłę potrzebną do osiągnięcia maksymalnego nacisku. Miękka wymaga mniej siły, a Twarda więcej.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Dozwolona odległość między dwoma szybkimi dotknięciami dla dwukrotnego kliknięcia. Zwiększ ją, jeśli trudno trafić w ten sam punkt. Wyłączone wyłącza tę pomoc.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Ustawia siłę potrzebną do kliknięcia. Lekki reaguje na delikatny dotyk, a Twarda pomaga uniknąć przypadkowych kliknięć.",
-  "More information": "Więcej informacji"
+  "More information": "Więcej informacji",
+  "Tip": "Końcówka",
+  "Pressure": "Nacisk",
+  "Previous": "Poprzednia",
+  "Next": "Następna",
+  "Application in use now": "Aplikacja w użyciu",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "Końcówka pióra jest kursorem: każde miejsce na tablecie to miejsce na ekranie. Aplikacje do rysowania otrzymują nacisk i nachylenie.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Porusza kursorem jak mysz: unieś pióro i postaw je ponownie, aby kontynuować. Przydatne na dużych ekranach."
 }

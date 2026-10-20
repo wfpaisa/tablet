@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "调整达到最大压力所需的力度。“软”需要较小力度，“硬”需要较大力度。",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "识别双击时，两次快速轻点之间允许的距离。难以点中同一位置时可增大距离。选择“关”可停用此辅助。",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "调整单击所需的力度。“轻”在轻触时即可响应，“硬”有助于避免误点击。",
-  "More information": "更多信息"
+  "More information": "更多信息",
+  "Tip": "笔尖",
+  "Pressure": "压力",
+  "Previous": "上一个",
+  "Next": "下一个",
+  "Application in use now": "正在使用的应用程序",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "笔尖即光标：数位板上的每个位置对应屏幕上的一个位置。绘图应用可获得压力和倾斜。",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "像鼠标一样移动光标：抬起笔再放下即可继续移动。适合大屏幕。"
 }

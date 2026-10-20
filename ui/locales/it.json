@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Regola la forza necessaria per raggiungere la pressione massima. Morbida richiede meno forza; Rigida ne richiede di più.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Distanza consentita tra due tocchi rapidi per un doppio clic. Aumentala se fai fatica a toccare lo stesso punto. Disattivato rimuove questo aiuto.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Regola la forza necessaria per fare clic. Leggera risponde al minimo contatto; Rigida aiuta a evitare clic accidentali.",
-  "More information": "Altre informazioni"
+  "More information": "Altre informazioni",
+  "Tip": "Punta",
+  "Pressure": "Pressione",
+  "Previous": "Precedente",
+  "Next": "Successivo",
+  "Application in use now": "Applicazione in uso",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "La punta della penna è il cursore: ogni punto della tavoletta corrisponde a un punto dello schermo. Le app di disegno ricevono pressione e inclinazione.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Muove il cursore come un mouse: solleva la penna e riappoggiala per continuare. Utile su schermi grandi."
 }

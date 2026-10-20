@@ -241,5 +241,12 @@
   "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Stelt de kracht in voor de maximale druk. Zacht vraagt minder kracht; Stevig vraagt meer.",
   "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Toegestane afstand tussen twee snelle tikken voor een dubbelklik. Vergroot die als u moeilijk hetzelfde punt raakt. Uit schakelt deze hulp uit.",
   "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Stelt de kracht in voor een klik. Licht reageert op de kleinste aanraking; Stevig helpt onbedoelde klikken te voorkomen.",
-  "More information": "Meer informatie"
+  "More information": "Meer informatie",
+  "Tip": "Punt",
+  "Pressure": "Druk",
+  "Previous": "Vorige",
+  "Next": "Volgende",
+  "Application in use now": "Toepassing in gebruik",
+  "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.": "De penpunt is de cursor: elke plek op het tablet is een plek op het scherm. Tekenprogramma's krijgen druk en kanteling.",
+  "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens.": "Beweegt de cursor als een muis: til de pen op en zet hem weer neer om verder te gaan. Handig op grote schermen."
 }

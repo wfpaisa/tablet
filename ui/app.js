@@ -568,36 +568,50 @@ function penPage() {
           ${callout("tip", "tip")}
         </div>
         <div class="pen-side">
-          <p class="label">${esc(t("Test area"))}</p>
-          <div class="test-area"><canvas id="test"></canvas></div>
-          <div class="pressure"><span id="pressure-fill" style="width:0"></span></div>
-          <div class="scale"><span>${esc(t("Click"))}</span><span>${esc(t("Maximum"))}</span></div>
-          <div class="slider">
-            ${helpLabel("Tip sensitivity", TIP_SENSITIVITY_HELP)}
-            ${slider("tip", toolProfile().pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
-          </div>
-          <div class="slider">
-            ${helpLabel("Double-click distance", DOUBLE_CLICK_HELP)}
-            ${slider("double-click", DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm ?? 2), 0, 5, "Off", "Large")}
-          </div>
-          <div class="slider">
-            ${helpLabel("Tip feel", TIP_FEEL_HELP)}
-            ${slider("click-threshold", toolProfile().pen.click_threshold ?? 1, 1, 7, "Light", "Firm")}
-          </div>
-          <select id="pen-mode" aria-label="${esc(t("Pen mode"))}">
-            ${[["pen", "Pen"], ["mouse", "Mouse"], ["relative", "Relative mouse"]].map(([value, label]) => `<option value="${value}" ${toolProfile().pen.mode === value ? "selected" : ""}>${esc(t(label))}</option>`).join("")}
-          </select>
-          <p class="gesture-hint">${esc(t(MOUSE_MODE_HINT))}</p>
+          <section class="card">
+            <div class="card-head"><h4>${esc(t("Test area"))}</h4><output id="pressure-value">0%</output></div>
+            <div class="test-area"><canvas id="test"></canvas></div>
+            <div class="pressure" title="${esc(t("Pressure"))}"><span id="pressure-fill" style="width:0"></span></div>
+            <div class="scale"><span>${esc(t("Click"))}</span><span>${esc(t("Maximum"))}</span></div>
+          </section>
+          <section class="card">
+            <h4>${esc(t("Tip"))}</h4>
+            <div class="slider">
+              ${helpLabel("Tip sensitivity", TIP_SENSITIVITY_HELP)}
+              ${slider("tip", toolProfile().pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
+            </div>
+            <div class="slider">
+              ${helpLabel("Tip feel", TIP_FEEL_HELP)}
+              ${slider("click-threshold", toolProfile().pen.click_threshold ?? 1, 1, 7, "Light", "Firm")}
+            </div>
+            <div class="slider">
+              ${helpLabel("Double-click distance", DOUBLE_CLICK_HELP)}
+              ${slider("double-click", DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm ?? 2), 0, 5, "Off", "Large")}
+            </div>
+          </section>
+          <section class="card">
+            <h4 id="pen-mode-label">${esc(t("Pen mode"))}</h4>
+            <div class="segmented pen-mode" role="radiogroup" aria-labelledby="pen-mode-label">
+              ${PEN_MODES.map(([value, label]) => `<button type="button" role="radio" data-mode="${value}" aria-checked="${penMode() === value}">${esc(t(label))}</button>`).join("")}
+            </div>
+            <p class="mode-hint" id="pen-mode-hint">${esc(t(PEN_MODES.find(([value]) => value === penMode())[2]))}</p>
+          </section>
+          <button class="link-button" id="pen-default">${esc(t("Default"))}</button>
         </div>
       </div>
       ${appStrip()}
-      <button class="button corner" id="pen-default">${esc(t("Default"))}</button>
     </section>`;
 }
 
 const DOUBLE_CLICK_MM = [0, 1, 2, 3, 4, 6];
 
 const MOUSE_MODE_HINT = "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.";
+const PEN_MODES = [
+  ["pen", "Pen", "The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt."],
+  ["mouse", "Mouse", MOUSE_MODE_HINT],
+  ["relative", "Relative mouse", "Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens."],
+];
+const penMode = () => toolProfile().pen.mode ?? "pen";
 
 function mountPen() {
   mountAppStrip();
@@ -628,10 +642,12 @@ function mountPen() {
       toolProfile().pen.hold_time = v;
       save();
     });
-  $("#pen-mode").addEventListener("change", (e) => {
-    toolProfile().pen.mode = e.target.value;
+  document.querySelectorAll("[data-mode]").forEach((button) => button.addEventListener("click", () => {
+    toolProfile().pen.mode = button.dataset.mode;
     save();
-  });
+    document.querySelectorAll("[data-mode]").forEach((item) => item.setAttribute("aria-checked", item === button));
+    $("#pen-mode-hint").textContent = t(PEN_MODES.find(([value]) => value === button.dataset.mode)[2]);
+  }));
   $("#pen-default").addEventListener("click", () => {
     toolProfile().pen = structuredClone(DEFAULTS.pen);
     save();
@@ -642,6 +658,8 @@ function mountPen() {
     const p = status.pen?.pressure ?? 0;
     const fill = $("#pressure-fill");
     if (fill) fill.style.width = `${Math.round(p * 100)}%`;
+    const value = $("#pressure-value");
+    if (value) value.textContent = `${Math.round(p * 100)}%`;
     // Light up the button being pressed, so users learn which is which.
     for (const key of ["upper_button", "lower_button"]) {
       document.querySelectorAll(`.callout [data-button="${key}"]`).forEach((el) =>
@@ -961,7 +979,7 @@ function expressKeysPage() {
         </div>
       </div>
       ${appStrip()}
-      <button class="button corner" id="keys-default">${esc(t("Default"))}</button>
+      <button class="link-button corner" id="keys-default">${esc(t("Default"))}</button>
     </section>`;
 }
 
@@ -1955,7 +1973,7 @@ function startPolling(ms, onTick) {
         const id = status.focused_app?.replace(/\.desktop$/i, "").toLowerCase();
         active.textContent = config.apps?.find(app => app.id.replace(/\.desktop$/i, "").toLowerCase() === id
           || app.id.replace(/\.desktop$/i, "").split(".").at(-1).toLowerCase() === id)?.name ?? t("All other");
-        active.title = status.focused_app ?? "";
+        active.title = `${t("Application in use now")}: ${status.focused_app ?? t("All other")}`;
       }
       onTick?.();
     }
@@ -2320,10 +2338,10 @@ function appImage(app) {
 function appStrip() {
   if (!config.apps?.some(app => app.id === selectedApp)) selectedApp = null;
   const grid = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z"/></svg>`;
-  return `<div class="app-strip"><button data-app-scroll="-1" aria-label="<">&lt;</button><div class="app-tiles">
+  return `<div class="app-strip"><span class="app-strip-label">${esc(t("Applications"))}</span><button data-app-scroll="-1" aria-label="${esc(t("Previous"))}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="app-tiles">
     <button class="app-tile ${selectedApp === null ? "selected" : ""}" data-app="" title="${esc(t("All other"))}">${grid}<small>${esc(t("All other"))}</small></button>
     ${(config.apps ?? []).map(app => `<button class="app-tile ${selectedApp === app.id ? "selected" : ""}" data-app="${esc(app.id)}" title="${esc(app.name)}">${appImage(app)}<small>${esc(app.name)}</small></button>`).join("")}
-    </div><button data-app-scroll="1" aria-label=">">&gt;</button><button id="add-app" title="${esc(t("Add application"))}">+</button><button id="remove-app" title="${esc(t("Remove application"))}" ${selectedApp === null ? "disabled" : ""}>−</button>
+    </div><button data-app-scroll="1" aria-label="${esc(t("Next"))}"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button id="add-app" title="${esc(t("Add application"))}">+</button><button id="remove-app" title="${esc(t("Remove application"))}" ${selectedApp === null ? "disabled" : ""}>−</button>
     <small class="active-app">${esc(status.focused_app ?? t("All other"))}</small></div>`;
 }
 function mountAppStrip() {
@@ -2333,6 +2351,21 @@ function mountAppStrip() {
   document.querySelectorAll("[data-app-scroll]").forEach(button => button.onclick = () => {
     $(".app-tiles").scrollBy({ left: Number(button.dataset.appScroll) * 180, behavior: "smooth" });
   });
+  // The arrows show only when the chips overflow, and fade at either end.
+  const tiles = $(".app-tiles");
+  const arrows = () => {
+    const overflow = tiles.scrollWidth > tiles.clientWidth + 1;
+    tiles.classList.toggle("fade-start", overflow && tiles.scrollLeft > 0);
+    tiles.classList.toggle("fade-end", overflow && tiles.scrollLeft + tiles.clientWidth < tiles.scrollWidth - 1);
+    document.querySelectorAll("[data-app-scroll]").forEach(button => {
+      button.hidden = !overflow;
+      button.disabled = button.dataset.appScroll === "-1" ? tiles.scrollLeft <= 0
+        : tiles.scrollLeft + tiles.clientWidth >= tiles.scrollWidth - 1;
+    });
+  };
+  tiles.onscroll = arrows;
+  new ResizeObserver(arrows).observe(tiles);
+  tiles.querySelector(".selected")?.scrollIntoView({ block: "nearest", inline: "nearest" });
   $("#add-app").onclick = selectApplication;
   $("#remove-app").onclick = async () => {
     const app = toolProfile();
