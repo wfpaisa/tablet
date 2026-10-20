@@ -152,6 +152,13 @@ impl PenProcessor {
     }
 
     pub fn set_config(&mut self, config: Config) {
+        if self.config.mapping.orientation != config.mapping.orientation {
+            self.pan_last = None;
+            self.zoom_last = None;
+            self.stick = None;
+            self.wheel_rest = (0.0, 0.0);
+            self.notch_acc = (0, 0);
+        }
         self.config = config;
     }
 
@@ -423,6 +430,13 @@ impl PenProcessor {
         vec![abs(Abs::ABS_X, self.x), abs(Abs::ABS_Y, self.y), ev]
     }
 
+    fn delta_mm(&self, lx: i32, ly: i32) -> (f64, f64) {
+        self.config.mapping.orientation.delta(
+            f64::from(self.x - lx) / self.geometry.x_units_per_mm,
+            f64::from(self.y - ly) / self.geometry.y_units_per_mm,
+        )
+    }
+
     /// Pan/Scroll and Scroll: the content moves with the pen.
     fn scroll(&mut self, gesture: Gesture, out: &mut Output) {
         let Some((lx, ly)) = self.pan_last.replace((self.x, self.y)) else {
@@ -436,8 +450,8 @@ impl PenProcessor {
         };
         let gain = v120_per_mm(speed);
         let sign = if self.config.pan_scroll.content_follows_pen { 1.0 } else { -1.0 };
-        let dx_mm = if vertical_only { 0.0 } else { f64::from(self.x - lx) / self.geometry.x_units_per_mm };
-        let dy_mm = f64::from(self.y - ly) / self.geometry.y_units_per_mm;
+        let (dx_mm, dy_mm) = self.delta_mm(lx, ly);
+        let dx_mm = if vertical_only { 0.0 } else { dx_mm };
         // Wheel up (+) moves the view up, so content follows a pen moving
         // down; horizontal wheel right (+) needs the pen moving left.
         self.wheel_rest.0 -= dx_mm * gain * sign;
@@ -452,11 +466,11 @@ impl PenProcessor {
     /// up zooms in. Ctrl goes down with the first step, so merely holding the
     /// button does not leave a modifier pressed for long.
     fn hover_zoom(&mut self, out: &mut Output) {
-        let Some((_, ly)) = self.zoom_last.replace((self.x, self.y)) else {
+        let Some((lx, ly)) = self.zoom_last.replace((self.x, self.y)) else {
             return;
         };
         let gain = v120_per_mm(self.config.gestures.pan_zoom_speed) * HOVER_ZOOM_GAIN;
-        self.wheel_rest.1 -= f64::from(self.y - ly) / self.geometry.y_units_per_mm * gain;
+        self.wheel_rest.1 -= self.delta_mm(lx, ly).1 * gain;
         let v = take_whole(&mut self.wheel_rest.1);
         if v == 0 {
             return;
@@ -499,7 +513,11 @@ impl PenProcessor {
             _ => (g.legacy_speed, 1.0),
         };
         let mm = joystick_mm(speed) * travel;
-        (mm * self.geometry.x_units_per_mm, mm * self.geometry.y_units_per_mm)
+        if self.config.mapping.orientation.is_portrait() {
+            (mm * self.geometry.y_units_per_mm, mm * self.geometry.x_units_per_mm)
+        } else {
+            (mm * self.geometry.x_units_per_mm, mm * self.geometry.y_units_per_mm)
+        }
     }
 
     /// Joystick gestures: accumulate travel since touch-down, one axis at a
@@ -508,7 +526,7 @@ impl PenProcessor {
         let counts = self.stick_counts(gesture);
         let pos = (self.x, self.y);
         let st = self.stick.get_or_insert(Stick { last: pos, ..Stick::default() });
-        let d = (f64::from(pos.0 - st.last.0), f64::from(pos.1 - st.last.1));
+        let d = self.config.mapping.orientation.delta(f64::from(pos.0 - st.last.0), f64::from(pos.1 - st.last.1));
         st.last = pos;
         if d == (0.0, 0.0) {
             return;
@@ -840,6 +858,72 @@ mod tests {
         p.process_frame(&pos(1000, 1000), None);
         p.process_frame(&[key(KeyCode::BTN_STYLUS2, true)], None);
         p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 900)], None);
+    }
+
+    #[test]
+    fn user_up_scrolls_the_same_when_flipped() {
+        let mut values = Vec::new();
+        for (orientation, y) in [
+            (tablet_config::Orientation::Landscape, 500),
+            (tablet_config::Orientation::LandscapeFlipped, 1500),
+        ] {
+            let mut p = proc();
+            p.config.mapping.orientation = orientation;
+            p.config.pen.upper_button = ButtonAction::PanScroll;
+            touch_with_button(&mut p);
+            values.push(wheel_v(&p.process_frame(&pos(1000, y), None)));
+        }
+        assert_ne!(values[0], 0);
+        assert_eq!(values[0], values[1]);
+    }
+
+    #[test]
+    fn gestures_follow_user_up_in_every_orientation() {
+        use tablet_config::Orientation;
+        for gesture in [
+            Gesture::PanScroll, Gesture::Scroll, Gesture::PanZoom,
+            Gesture::PanScrollLegacy, Gesture::Wheel, Gesture::Zoom,
+        ] {
+            let mut expected = None;
+            for (orientation, end) in [
+                (Orientation::Landscape, (1000, 0)),
+                (Orientation::Portrait, (500, 1000)),
+                (Orientation::LandscapeFlipped, (1000, 2000)),
+                (Orientation::PortraitFlipped, (1500, 1000)),
+            ] {
+                let mut config = Config::default();
+                config.mapping.orientation = orientation;
+                let geometry = Geometry { y_units_per_mm: 200.0, ..GEO };
+                let mut p = PenProcessor::new(config, geometry);
+                p.process_frame(&pos(1000, 1000), Some(gesture));
+                p.process_frame(&[key(KeyCode::BTN_TOUCH, true)], Some(gesture));
+                let moved = p.process_frame(&pos(end.0, end.1), Some(gesture));
+                let output = match gesture {
+                    Gesture::PanScroll | Gesture::Scroll | Gesture::PanZoom => moved,
+                    _ => p.tick(1.0, Some(gesture)),
+                };
+                let actual = wheel(&output);
+                assert_eq!(actual.0, 0, "{gesture:?} {orientation:?}");
+                assert_ne!(actual.1, 0, "{gesture:?} {orientation:?}");
+                assert_eq!(actual, *expected.get_or_insert(actual), "{gesture:?} {orientation:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn hover_zoom_follows_user_up_in_every_orientation() {
+        use tablet_config::Orientation;
+        for (orientation, end) in [
+            (Orientation::Landscape, (1000, 500)),
+            (Orientation::Portrait, (500, 1000)),
+            (Orientation::LandscapeFlipped, (1000, 1500)),
+            (Orientation::PortraitFlipped, (1500, 1000)),
+        ] {
+            let mut p = pan_zoom();
+            p.config.mapping.orientation = orientation;
+            let out = p.process_frame(&pos(end.0, end.1), None);
+            assert_eq!(wheel(&out), (0, 137), "{orientation:?}");
+        }
     }
 
     #[test]

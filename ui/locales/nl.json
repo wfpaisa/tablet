@@ -165,5 +165,14 @@
   "Search actions": "Acties zoeken",
   "Drawing test area": "Tekentestgebied",
   "Your tools, your way.": "Uw gereedschap, op uw manier.",
-  "Driver restarted": "Stuurprogramma herstart"
+  "Driver restarted": "Stuurprogramma herstart",
+  "Landscape": "Liggend",
+  "Landscape flipped": "Liggend omgekeerd",
+  "Portrait": "Staand",
+  "Portrait flipped": "Staand omgekeerd",
+  "Tablet orientation": "Tabletoriëntatie",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Wilt u de oriëntatie \"Liggend omgekeerd\" toepassen?",
+  "Would you like to apply the orientation \"Landscape\"?": "Wilt u de oriëntatie \"Liggend\" toepassen?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Wilt u de oriëntatie \"Staand omgekeerd\" toepassen?",
+  "Would you like to apply the orientation \"Portrait\"?": "Wilt u de oriëntatie \"Staand\" toepassen?"
 }

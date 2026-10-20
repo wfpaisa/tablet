@@ -165,5 +165,14 @@
   "Search actions": "Eylem ara",
   "Drawing test area": "Çizim test alanı",
   "Your tools, your way.": "Araçlarınız, sizin tarzınız.",
-  "Driver restarted": "Sürücü yeniden başlatıldı"
+  "Driver restarted": "Sürücü yeniden başlatıldı",
+  "Landscape": "Yatay",
+  "Landscape flipped": "Ters yatay",
+  "Portrait": "Dikey",
+  "Portrait flipped": "Ters dikey",
+  "Tablet orientation": "Tablet yönü",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "\"Ters yatay\" yönünü uygulamak istiyor musunuz?",
+  "Would you like to apply the orientation \"Landscape\"?": "\"Yatay\" yönünü uygulamak istiyor musunuz?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "\"Ters dikey\" yönünü uygulamak istiyor musunuz?",
+  "Would you like to apply the orientation \"Portrait\"?": "\"Dikey\" yönünü uygulamak istiyor musunuz?"
 }

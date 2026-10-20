@@ -165,5 +165,14 @@
   "Search actions": "搜尋動作",
   "Drawing test area": "繪圖測試區域",
   "Your tools, your way.": "你的工具，你的方式。",
-  "Driver restarted": "驅動程式已重新啟動"
+  "Driver restarted": "驅動程式已重新啟動",
+  "Landscape": "橫向",
+  "Landscape flipped": "橫向翻轉",
+  "Portrait": "直向",
+  "Portrait flipped": "直向翻轉",
+  "Tablet orientation": "繪圖板方向",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "是否套用「橫向翻轉」方向？",
+  "Would you like to apply the orientation \"Landscape\"?": "是否套用「橫向」方向？",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "是否套用「直向翻轉」方向？",
+  "Would you like to apply the orientation \"Portrait\"?": "是否套用「直向」方向？"
 }

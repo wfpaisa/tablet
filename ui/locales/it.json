@@ -165,5 +165,14 @@
   "Search actions": "Cerca azioni",
   "Drawing test area": "Area di prova del disegno",
   "Your tools, your way.": "I tuoi strumenti, a modo tuo.",
-  "Driver restarted": "Driver riavviato"
+  "Driver restarted": "Driver riavviato",
+  "Landscape": "Orizzontale",
+  "Landscape flipped": "Orizzontale capovolta",
+  "Portrait": "Verticale",
+  "Portrait flipped": "Verticale capovolta",
+  "Tablet orientation": "Orientamento della tavoletta",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Vuoi applicare l’orientamento \"Orizzontale capovolta\"?",
+  "Would you like to apply the orientation \"Landscape\"?": "Vuoi applicare l’orientamento \"Orizzontale\"?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Vuoi applicare l’orientamento \"Verticale capovolta\"?",
+  "Would you like to apply the orientation \"Portrait\"?": "Vuoi applicare l’orientamento \"Verticale\"?"
 }

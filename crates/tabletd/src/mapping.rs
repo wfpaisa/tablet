@@ -1,8 +1,8 @@
 //! Tablet-to-screen mapping done in the daemon. The compositor maps our
 //! virtual pen to the whole desktop, so choosing one monitor (or trimming the
-//! tablet area) is a per-axis linear remap of the absolute coordinates.
+//! tablet area) remaps the rotated absolute coordinates on each output axis.
 
-use tablet_config::{Display, MappingSettings};
+use tablet_config::{Display, MappingSettings, Orientation};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Axis {
@@ -19,9 +19,8 @@ impl Axis {
         Self { min: min.into(), max: max.into(), from: (0.0, 1.0), to: (0.0, 1.0) }
     }
 
-    fn apply(&self, value: i32) -> i32 {
+    fn apply(&self, n: f64) -> i32 {
         let span = self.max - self.min;
-        let n = (f64::from(value) - self.min) / span;
         let n = ((n - self.from.0) / (self.from.1 - self.from.0)).clamp(0.0, 1.0);
         let out = self.to.0 + n * (self.to.1 - self.to.0);
         (self.min + out * span).round() as i32
@@ -32,6 +31,7 @@ impl Axis {
 pub struct Mapping {
     x: Axis,
     y: Axis,
+    orientation: Orientation,
 }
 
 /// Physical tablet facts needed to build a mapping.
@@ -46,6 +46,7 @@ pub struct Tablet {
 impl Mapping {
     pub fn new(settings: &MappingSettings, displays: &[Display], tablet: Tablet) -> Self {
         let mut map = Self {
+            orientation: settings.orientation,
             x: Axis::full(tablet.x_range.0, tablet.x_range.1),
             y: Axis::full(tablet.y_range.0, tablet.y_range.1),
         };
@@ -59,8 +60,12 @@ impl Mapping {
         map.x.to = ((target.0 - desktop.0) / desktop.2, (target.0 + target.2 - desktop.0) / desktop.2);
         map.y.to = ((target.1 - desktop.1) / desktop.3, (target.1 + target.3 - desktop.1) / desktop.3);
 
-        if settings.force_proportions && tablet.height_mm > 0.0 && target.3 > 0.0 {
-            let tablet_aspect = tablet.width_mm / tablet.height_mm;
+        if settings.force_proportions && tablet.width_mm > 0.0 && tablet.height_mm > 0.0 && target.3 > 0.0 {
+            let tablet_aspect = if settings.orientation.is_portrait() {
+                tablet.height_mm / tablet.width_mm
+            } else {
+                tablet.width_mm / tablet.height_mm
+            };
             let screen_aspect = target.2 / target.3;
             if tablet_aspect > screen_aspect {
                 map.x.from.1 = screen_aspect / tablet_aspect;
@@ -71,12 +76,11 @@ impl Mapping {
         map
     }
 
-    pub fn x(&self, value: i32) -> i32 {
-        self.x.apply(value)
-    }
-
-    pub fn y(&self, value: i32) -> i32 {
-        self.y.apply(value)
+    pub fn map(&self, x: i32, y: i32) -> (i32, i32) {
+        let x = (f64::from(x) - self.x.min) / (self.x.max - self.x.min);
+        let y = (f64::from(y) - self.y.min) / (self.y.max - self.y.min);
+        let (u, v) = self.orientation.position(x, y);
+        (self.x.apply(u), self.y.apply(v))
     }
 }
 
@@ -141,27 +145,60 @@ mod tests {
     #[test]
     fn all_displays_is_identity() {
         let m = Mapping::new(&MappingSettings::default(), &two_monitors(), TABLET);
-        assert_eq!((m.x(7600), m.y(4750)), (7600, 4750));
+        assert_eq!(m.map(7600, 4750), (7600, 4750));
     }
 
     #[test]
     fn one_monitor_uses_its_half_of_the_desktop() {
         let settings = MappingSettings { display: Some("right".into()), ..Default::default() };
         let m = Mapping::new(&settings, &two_monitors(), TABLET);
-        assert_eq!(m.x(0), 7600, "tablet left edge -> right monitor's left edge");
-        assert_eq!(m.x(15200), 15200);
-        assert_eq!(m.y(9500), 9500);
+        assert_eq!(m.map(0, 0).0, 7600, "tablet left edge -> right monitor's left edge");
+        assert_eq!(m.map(15200, 0).0, 15200);
+        assert_eq!(m.map(0, 9500).1, 9500);
     }
 
     #[test]
     fn force_proportions_trims_the_bottom_for_wide_screens() {
         // 16:10 tablet onto a 16:9 monitor: full width, top 90% of the height.
-        let settings = MappingSettings { display: Some("left".into()), force_proportions: true };
+        let settings = MappingSettings { display: Some("left".into()), force_proportions: true, ..Default::default() };
         let m = Mapping::new(&settings, &two_monitors(), TABLET);
-        assert_eq!(m.x(15200), 7600);
+        assert_eq!(m.map(15200, 0).0, 7600);
         let used: f64 = 9500.0 * (152.0 / 95.0) / (1920.0 / 1080.0);
-        assert_eq!(m.y(used.round() as i32), 9500, "bottom of the used area -> bottom of screen");
-        assert_eq!(m.y(9500), 9500, "trimmed strip clamps to the edge");
+        assert_eq!(m.map(0, used.round() as i32).1, 9500, "bottom of the used area -> bottom of screen");
+        assert_eq!(m.map(0, 9500).1, 9500, "trimmed strip clamps to the edge");
+    }
+
+    #[test]
+    fn orientations_map_all_corners() {
+        let tablet = Tablet { x_range: (100, 15300), y_range: (200, 9700), ..TABLET };
+        let corners = [(100, 200), (15300, 200), (15300, 9700), (100, 9700)];
+        for (orientation, order) in [
+            (Orientation::Landscape, [0, 1, 2, 3]),
+            (Orientation::Portrait, [1, 2, 3, 0]),
+            (Orientation::LandscapeFlipped, [2, 3, 0, 1]),
+            (Orientation::PortraitFlipped, [3, 0, 1, 2]),
+        ] {
+            let settings = MappingSettings { orientation, ..Default::default() };
+            let m = Mapping::new(&settings, &two_monitors(), tablet);
+            for (physical, expected) in corners.iter().zip(order) {
+                assert_eq!(m.map(physical.0, physical.1), corners[expected], "{orientation:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn portrait_proportions_use_rotated_dimensions() {
+        let settings = MappingSettings {
+            orientation: Orientation::Portrait,
+            force_proportions: true,
+            ..Default::default()
+        };
+        let m = Mapping::new(&settings, &[display("screen", 0.0, 1000.0, 1600.0)], TABLET);
+        assert_eq!(m.map(15200, 0), (15200, 9500));
+        assert_eq!(m.y.from, (0.0, 1.0));
+        assert_eq!(m.x.from, (0.0, 1.0));
+        let m = Mapping::new(&settings, &[display("screen", 0.0, 1920.0, 1080.0)], TABLET);
+        assert!((m.y.from.1 - (95.0 / 152.0) / (1920.0 / 1080.0)).abs() < 1e-10);
     }
 
     #[test]
@@ -174,6 +211,6 @@ mod tests {
     fn unknown_display_falls_back_to_all() {
         let settings = MappingSettings { display: Some("unplugged".into()), ..Default::default() };
         let m = Mapping::new(&settings, &two_monitors(), TABLET);
-        assert_eq!(m.x(3800), 3800);
+        assert_eq!(m.map(3800, 0).0, 3800);
     }
 }

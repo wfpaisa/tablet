@@ -165,5 +165,14 @@
   "Search actions": "Szukaj akcji",
   "Drawing test area": "Obszar testowy rysowania",
   "Your tools, your way.": "Twoje narzędzia, po twojemu.",
-  "Driver restarted": "Sterownik uruchomiony ponownie"
+  "Driver restarted": "Sterownik uruchomiony ponownie",
+  "Landscape": "Pozioma",
+  "Landscape flipped": "Pozioma odwrócona",
+  "Portrait": "Pionowa",
+  "Portrait flipped": "Pionowa odwrócona",
+  "Tablet orientation": "Orientacja tabletu",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Czy chcesz zastosować orientację „Pozioma odwrócona”?",
+  "Would you like to apply the orientation \"Landscape\"?": "Czy chcesz zastosować orientację „Pozioma”?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Czy chcesz zastosować orientację „Pionowa odwrócona”?",
+  "Would you like to apply the orientation \"Portrait\"?": "Czy chcesz zastosować orientację „Pionowa”?"
 }

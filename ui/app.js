@@ -17,7 +17,7 @@ const DEFAULTS = {
   pen: { mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
   gestures: { legacy_speed: 3, scroll_speed: 3, wheel_speed: 3, zoom_speed: 3, pan_zoom_speed: 3 },
-  mapping: { display: null, force_proportions: false },
+  mapping: { display: null, force_proportions: false, orientation: "landscape" },
   express_keys: [{ type: "disabled" }, { type: "disabled" }, { type: "disabled" }, { type: "disabled" }],
   shortcuts: defaultShortcuts(),
 };
@@ -311,6 +311,44 @@ function welcome() {
     </section>`;
 }
 
+const ORIENTATIONS = [
+  ["landscape", "Landscape"],
+  ["portrait", "Portrait"],
+  ["landscape_flipped", "Landscape flipped"],
+  ["portrait_flipped", "Portrait flipped"],
+];
+
+function orientationTurns() {
+  return Math.max(0, ORIENTATIONS.findIndex(([value]) => value === config.mapping.orientation));
+}
+
+function orientationSelector() {
+  return `<div class="orientation-selector" role="group" aria-label="${esc(t("Tablet orientation"))}">
+    ${ORIENTATIONS.map(([value, label], turns) => `
+      <button type="button" data-orientation="${value}" aria-label="${esc(t(label))}" title="${esc(t(label))}"
+        aria-pressed="${turns === orientationTurns()}">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><g transform="rotate(${turns * 90} 24 24)">
+          <rect x="7" y="12" width="34" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M11 13H37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        </g></svg>
+      </button>`).join("")}
+  </div>`;
+}
+
+function mountOrientation() {
+  document.querySelectorAll("[data-orientation]").forEach((button) => {
+    button.onclick = async () => {
+      const value = button.dataset.orientation;
+      if (value === (config.mapping.orientation ?? "landscape")) return;
+      const label = ORIENTATIONS.find(([key]) => key === value)[1];
+      if (!await settingsDialog(`Would you like to apply the orientation "${label}"?`, "OK")) return;
+      config.mapping.orientation = value;
+      save();
+      render();
+    };
+  });
+}
+
 function devicesOverview() {
   const m = model();
   return `
@@ -321,7 +359,7 @@ function devicesOverview() {
       <div class="page-sub">${esc(m.model)}</div>
       <div class="overview">
         <div class="tablet glow">
-          <div class="tablet-art"><img src="assets/devices/${m.tablet}.png" alt="${esc(m.name)}"></div>
+          <div class="tablet-art"><img style="transform:rotate(${orientationTurns() * 90}deg) scale(${orientationTurns() % 2 ? 0.79 : 1})" src="assets/devices/${m.tablet}.png" alt="${esc(m.name)}"></div>
           <div class="chips">
             <a class="chip" href="#/devices/expresskeys">${icon("sidebar-expresskeys")}${esc(t("ExpressKeys"))}</a>
             <a class="chip" href="#/devices/mapping">${icon("sidebar-mapping")}${esc(t("Mapping"))}</a>
@@ -333,6 +371,7 @@ function devicesOverview() {
           <a class="chip" href="#/devices/pen">${icon("sidebar-pen")}${esc(t("Pen"))}</a>
         </div>
       </div>
+      ${orientationSelector()}
     </section>`;
 }
 
@@ -839,15 +878,30 @@ function mappingDiagram() {
 
   // Tablet image and the part of its active area in use.
   const img = { x: 160, y: 384, w: 277, h: 221 };
-  const area = {
+  let area = {
     x: img.x + ACTIVE_AREA.x0 * img.w,
     y: img.y + ACTIVE_AREA.y0 * img.h,
     w: (ACTIVE_AREA.x1 - ACTIVE_AREA.x0) * img.w,
     h: (ACTIVE_AREA.y1 - ACTIVE_AREA.y0) * img.h,
   };
+  const turns = orientationTurns();
+  const rotate = (x, y) => {
+    const dx = x - (img.x + img.w / 2), dy = y - (img.y + img.h / 2);
+    const [u, v] = [[dx, dy], [-dy, dx], [-dx, -dy], [dy, -dx]][turns];
+    return [img.x + img.w / 2 + u, img.y + img.h / 2 + v];
+  };
+  const corners = [rotate(area.x, area.y), rotate(area.x + area.w, area.y + area.h)];
+  area = {
+    x: Math.min(...corners.map(([x]) => x)),
+    y: Math.min(...corners.map(([, y]) => y)),
+    w: Math.abs(corners[1][0] - corners[0][0]),
+    h: Math.abs(corners[1][1] - corners[0][1]),
+  };
   const full = { ...area };
   if (config.mapping.force_proportions) {
-    const tablet = status.device?.width_mm && status.device?.height_mm ? status.device.width_mm / status.device.height_mm : area.w / area.h;
+    const physicalAspect = status.device?.width_mm && status.device?.height_mm
+      ? status.device.width_mm / status.device.height_mm : (ACTIVE_AREA.x1 - ACTIVE_AREA.x0) * img.w / ((ACTIVE_AREA.y1 - ACTIVE_AREA.y0) * img.h);
+    const tablet = turns % 2 ? 1 / physicalAspect : physicalAspect;
     const screen = target.w / target.h;
     if (tablet > screen) area.w *= screen / tablet;
     else area.h *= tablet / screen;
@@ -887,7 +941,7 @@ function mappingDiagram() {
       <line x1="${beam[1][0]}" y1="${beam[1][1]}" x2="${beam[2][0]}" y2="${beam[2][1]}" class="beam-edge"/>
       ${monitors}
       ${all}
-      <image href="assets/devices/${model().tablet}.png" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}"/>
+      <image href="assets/devices/${model().tablet}.png" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}" transform="rotate(${turns * 90} ${img.x + img.w / 2} ${img.y + img.h / 2})"/>
       ${area.w !== full.w || area.h !== full.h ? `<rect x="${full.x}" y="${full.y}" width="${full.w}" height="${full.h}" rx="3" class="area-unused"/>` : ""}
       <rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="3" class="area"/>
     </svg>`;
@@ -914,7 +968,8 @@ function mountMapping() {
     render();
   });
   $("#mapping-default").addEventListener("click", () => {
-    config.mapping = structuredClone(DEFAULTS.mapping);
+    // Orientation belongs to the device page, not to this one.
+    config.mapping = { ...structuredClone(DEFAULTS.mapping), orientation: config.mapping.orientation };
     save();
     render();
   });
@@ -1514,6 +1569,7 @@ function render() {
       return;
     } else {
       view.innerHTML = { expresskeys: expressKeysPage, mapping: mappingPage, "display-toggle": displayTogglePage }[sub]?.() ?? devicesOverview();
+      mountOrientation();
       if (sub === "mapping") mountMapping();
       if (sub === "expresskeys") return mountExpressKeys();
     }

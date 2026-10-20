@@ -165,5 +165,14 @@
   "Search actions": "アクションを検索",
   "Drawing test area": "描画テスト領域",
   "Your tools, your way.": "あなたの道具を、あなたらしく。",
-  "Driver restarted": "ドライバーを再起動しました"
+  "Driver restarted": "ドライバーを再起動しました",
+  "Landscape": "横向き",
+  "Landscape flipped": "横向き（反転）",
+  "Portrait": "縦向き",
+  "Portrait flipped": "縦向き（反転）",
+  "Tablet orientation": "タブレットの向き",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "向きを「横向き（反転）」に変更しますか？",
+  "Would you like to apply the orientation \"Landscape\"?": "向きを「横向き」に変更しますか？",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "向きを「縦向き（反転）」に変更しますか？",
+  "Would you like to apply the orientation \"Portrait\"?": "向きを「縦向き」に変更しますか？"
 }

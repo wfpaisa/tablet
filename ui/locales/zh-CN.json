@@ -165,5 +165,14 @@
   "Search actions": "搜索操作",
   "Drawing test area": "绘图测试区域",
   "Your tools, your way.": "你的工具，你的方式。",
-  "Driver restarted": "驱动程序已重启"
+  "Driver restarted": "驱动程序已重启",
+  "Landscape": "横向",
+  "Landscape flipped": "横向翻转",
+  "Portrait": "纵向",
+  "Portrait flipped": "纵向翻转",
+  "Tablet orientation": "数位板方向",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "是否应用“横向翻转”方向？",
+  "Would you like to apply the orientation \"Landscape\"?": "是否应用“横向”方向？",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "是否应用“纵向翻转”方向？",
+  "Would you like to apply the orientation \"Portrait\"?": "是否应用“纵向”方向？"
 }

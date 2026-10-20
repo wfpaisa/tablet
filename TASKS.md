@@ -11,9 +11,8 @@ Cintiq Workflows).
   for each program (Krita, GIMP, Blender…). The GNOME Shell extension
   reports the focused window to `tabletd`, which switches to that app's
   profile. The largest task.
-- [ ] **Orientation / left-handed**: rotate the tablet 180° to use it with
-  the ExpressKeys on the right. A coordinate change in `mapping.rs` and an
-  option on the Mapping page.
+- [x] **Tablet orientation**: landscape, portrait, landscape flipped and
+  portrait flipped, with rotated pen coordinates, gestures and tablet diagrams.
 - [ ] **Precision mode**: while the button is held, the tablet covers only a
   small area around the cursor for fine work. A coordinate change in
   `mapping.rs` and a new button action.

@@ -165,5 +165,14 @@
   "Search actions": "Rechercher une action",
   "Drawing test area": "Zone de test de dessin",
   "Your tools, your way.": "Vos outils, à votre façon.",
-  "Driver restarted": "Pilote redémarré"
+  "Driver restarted": "Pilote redémarré",
+  "Landscape": "Paysage",
+  "Landscape flipped": "Paysage inversé",
+  "Portrait": "Portrait",
+  "Portrait flipped": "Portrait inversé",
+  "Tablet orientation": "Orientation de la tablette",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Voulez-vous appliquer l’orientation « Paysage inversé » ?",
+  "Would you like to apply the orientation \"Landscape\"?": "Voulez-vous appliquer l’orientation « Paysage » ?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Voulez-vous appliquer l’orientation « Portrait inversé » ?",
+  "Would you like to apply the orientation \"Portrait\"?": "Voulez-vous appliquer l’orientation « Portrait » ?"
 }

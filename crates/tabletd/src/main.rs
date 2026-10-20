@@ -895,10 +895,17 @@ fn emit_pad(shared: &Shared, out: &pad::PadOutput) -> io::Result<()> {
 
 /// Moves absolute positions into the configured screen area.
 fn remap(map: &mapping::Mapping, events: &mut [InputEvent]) {
+    let position = |axis: evdev::AbsoluteAxisCode| {
+        events.iter().find(|e| e.event_type() == EventType::ABSOLUTE && e.code() == axis.0).map(|e| e.value())
+    };
+    let (Some(x), Some(y)) = (position(evdev::AbsoluteAxisCode::ABS_X), position(evdev::AbsoluteAxisCode::ABS_Y)) else {
+        return;
+    };
+    let (x, y) = map.map(x, y);
     for ev in events.iter_mut().filter(|e| e.event_type() == EventType::ABSOLUTE) {
         let value = match evdev::AbsoluteAxisCode(ev.code()) {
-            evdev::AbsoluteAxisCode::ABS_X => map.x(ev.value()),
-            evdev::AbsoluteAxisCode::ABS_Y => map.y(ev.value()),
+            evdev::AbsoluteAxisCode::ABS_X => x,
+            evdev::AbsoluteAxisCode::ABS_Y => y,
             _ => continue,
         };
         *ev = InputEvent::new(EventType::ABSOLUTE.0, ev.code(), value);

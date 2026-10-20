@@ -191,6 +191,23 @@ button { font: inherit; color: inherit; }
 .tablet { position: relative; width: 400px; }
 .tablet img { width: 100%; display: block; }
 .tablet.glow .tablet-art { filter: drop-shadow(0 0 22px rgba(53, 132, 228, .8)); }
+.tablet-art { aspect-ratio: 277 / 221; display: flex; align-items: center; }
+.orientation-selector {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 8px;
+  border-radius: 14px 0 0 14px;
+  background: var(--panel);
+}
+.orientation-selector button { width: 48px; height: 48px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; }
+.orientation-selector button:hover { background: var(--raised-hover); }
+.orientation-selector button[aria-pressed="true"] { color: var(--accent); }
+.orientation-selector svg { width: 100%; height: 100%; }
 .tablet .chips {
   position: absolute;
   inset: 33% 0 auto;

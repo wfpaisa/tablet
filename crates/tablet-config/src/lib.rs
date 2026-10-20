@@ -102,10 +102,45 @@ impl Default for PanScrollSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Orientation {
+    #[default]
+    Landscape,
+    Portrait,
+    LandscapeFlipped,
+    PortraitFlipped,
+}
+
+impl Orientation {
+    pub fn position(self, x: f64, y: f64) -> (f64, f64) {
+        match self {
+            Self::Landscape => (x, y),
+            Self::Portrait => (1.0 - y, x),
+            Self::LandscapeFlipped => (1.0 - x, 1.0 - y),
+            Self::PortraitFlipped => (y, 1.0 - x),
+        }
+    }
+
+    pub fn delta(self, dx: f64, dy: f64) -> (f64, f64) {
+        match self {
+            Self::Landscape => (dx, dy),
+            Self::Portrait => (-dy, dx),
+            Self::LandscapeFlipped => (-dx, -dy),
+            Self::PortraitFlipped => (dy, -dx),
+        }
+    }
+
+    pub fn is_portrait(self) -> bool {
+        matches!(self, Self::Portrait | Self::PortraitFlipped)
+    }
+}
+
 /// Which part of the desktop the tablet drives.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct MappingSettings {
+    pub orientation: Orientation,
     /// [`Display::id`] of one monitor, or `None` for all of them.
     pub display: Option<String>,
     /// Trim the tablet area so its aspect ratio matches the target, keeping
@@ -533,4 +568,28 @@ pub struct Response {
     /// ExpressKeys held right now, left to right.
     #[serde(default)]
     pub express_keys: Vec<bool>,
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mapping_orientation_defaults_for_old_configs_and_round_trips() {
+        let old: Config = serde_json::from_str(r#"{"mapping":{"force_proportions":true}}"#).unwrap();
+        assert_eq!(old.mapping.orientation, Orientation::Landscape);
+        for (orientation, name) in [
+            (Orientation::Landscape, "landscape"),
+            (Orientation::Portrait, "portrait"),
+            (Orientation::LandscapeFlipped, "landscape_flipped"),
+            (Orientation::PortraitFlipped, "portrait_flipped"),
+        ] {
+            let mut config = old.clone();
+            config.mapping.orientation = orientation;
+            let value = serde_json::to_value(&config).unwrap();
+            assert_eq!(value["mapping"]["orientation"], name);
+            assert_eq!(serde_json::from_value::<Config>(value).unwrap(), config);
+        }
+    }
 }

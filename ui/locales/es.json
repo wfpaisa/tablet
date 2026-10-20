@@ -165,5 +165,14 @@
   "Search actions": "Buscar acciones",
   "Drawing test area": "Área de prueba de dibujo",
   "Your tools, your way.": "Tus herramientas, a tu manera.",
-  "Driver restarted": "Controlador reiniciado"
+  "Driver restarted": "Controlador reiniciado",
+  "Landscape": "Horizontal",
+  "Landscape flipped": "Horizontal invertida",
+  "Portrait": "Vertical",
+  "Portrait flipped": "Vertical invertida",
+  "Tablet orientation": "Orientación de la tableta",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "¿Desea aplicar la orientación \"Horizontal invertida\"?",
+  "Would you like to apply the orientation \"Landscape\"?": "¿Desea aplicar la orientación \"Horizontal\"?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "¿Desea aplicar la orientación \"Vertical invertida\"?",
+  "Would you like to apply the orientation \"Portrait\"?": "¿Desea aplicar la orientación \"Vertical\"?"
 }

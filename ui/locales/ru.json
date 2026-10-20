@@ -165,5 +165,14 @@
   "Search actions": "Поиск действий",
   "Drawing test area": "Область для пробного рисования",
   "Your tools, your way.": "Ваши инструменты — по-вашему.",
-  "Driver restarted": "Драйвер перезапущен"
+  "Driver restarted": "Драйвер перезапущен",
+  "Landscape": "Альбомная",
+  "Landscape flipped": "Перевёрнутая альбомная",
+  "Portrait": "Книжная",
+  "Portrait flipped": "Перевёрнутая книжная",
+  "Tablet orientation": "Ориентация планшета",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Применить ориентацию «Перевёрнутая альбомная»?",
+  "Would you like to apply the orientation \"Landscape\"?": "Применить ориентацию «Альбомная»?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Применить ориентацию «Перевёрнутая книжная»?",
+  "Would you like to apply the orientation \"Portrait\"?": "Применить ориентацию «Книжная»?"
 }

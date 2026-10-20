@@ -165,5 +165,14 @@
   "Search actions": "동작 검색",
   "Drawing test area": "그리기 테스트 영역",
   "Your tools, your way.": "나만의 도구, 나만의 방식.",
-  "Driver restarted": "드라이버를 다시 시작했습니다"
+  "Driver restarted": "드라이버를 다시 시작했습니다",
+  "Landscape": "가로",
+  "Landscape flipped": "가로 반전",
+  "Portrait": "세로",
+  "Portrait flipped": "세로 반전",
+  "Tablet orientation": "태블릿 방향",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "방향을 \"가로 반전\"(으)로 적용하시겠습니까?",
+  "Would you like to apply the orientation \"Landscape\"?": "방향을 \"가로\"(으)로 적용하시겠습니까?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "방향을 \"세로 반전\"(으)로 적용하시겠습니까?",
+  "Would you like to apply the orientation \"Portrait\"?": "방향을 \"세로\"(으)로 적용하시겠습니까?"
 }

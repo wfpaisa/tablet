@@ -165,5 +165,14 @@
   "Search actions": "Aktionen durchsuchen",
   "Drawing test area": "Zeichen-Testbereich",
   "Your tools, your way.": "Ihre Werkzeuge, Ihre Art.",
-  "Driver restarted": "Treiber neu gestartet"
+  "Driver restarted": "Treiber neu gestartet",
+  "Landscape": "Querformat",
+  "Landscape flipped": "Querformat gedreht",
+  "Portrait": "Hochformat",
+  "Portrait flipped": "Hochformat gedreht",
+  "Tablet orientation": "Tablettausrichtung",
+  "Would you like to apply the orientation \"Landscape flipped\"?": "Möchten Sie die Ausrichtung „Querformat gedreht“ anwenden?",
+  "Would you like to apply the orientation \"Landscape\"?": "Möchten Sie die Ausrichtung „Querformat“ anwenden?",
+  "Would you like to apply the orientation \"Portrait flipped\"?": "Möchten Sie die Ausrichtung „Hochformat gedreht“ anwenden?",
+  "Would you like to apply the orientation \"Portrait\"?": "Möchten Sie die Ausrichtung „Hochformat“ anwenden?"
 }
