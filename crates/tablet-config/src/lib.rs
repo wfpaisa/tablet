@@ -190,6 +190,34 @@ impl Orientation {
     }
 }
 
+/// A normalized rectangle in the target's coordinate system.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(from = "RectFields")]
+pub struct Rect {
+    pub x: f64,
+    pub y: f64,
+    pub w: f64,
+    pub h: f64,
+}
+
+#[derive(Deserialize)]
+struct RectFields { x: f64, y: f64, w: f64, h: f64 }
+
+impl From<RectFields> for Rect {
+    fn from(r: RectFields) -> Self {
+        Self { x: r.x, y: r.y, w: r.w, h: r.h }.clamped()
+    }
+}
+
+impl Rect {
+    pub fn clamped(self) -> Self {
+        let finite = |n: f64, fallback| if n.is_finite() { n } else { fallback };
+        let w = finite(self.w, 1.0).clamp(0.05, 1.0);
+        let h = finite(self.h, 1.0).clamp(0.05, 1.0);
+        Self { x: finite(self.x, 0.0).clamp(0.0, 1.0 - w), y: finite(self.y, 0.0).clamp(0.0, 1.0 - h), w, h }
+    }
+}
+
 /// Which part of the desktop the tablet drives.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -200,6 +228,10 @@ pub struct MappingSettings {
     /// Trim the tablet area so its aspect ratio matches the target, keeping
     /// circles round. Trims from the bottom or right, like Wacom's driver.
     pub force_proportions: bool,
+    /// Fractions of the selected monitor or whole desktop.
+    pub screen_portion: Option<Rect>,
+    /// Fractions of the tablet after rotation into the user orientation.
+    pub tablet_portion: Option<Rect>,
 }
 
 /// What an ExpressKey does.
@@ -669,6 +701,18 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn portions_default_and_validate_on_deserialization() {
+        let old: MappingSettings = serde_json::from_str(r#"{"force_proportions":true}"#).unwrap();
+        assert_eq!(old.screen_portion, None);
+        assert_eq!(old.tablet_portion, None);
+        let r: Rect = serde_json::from_str(r#"{"x":2,"y":-1,"w":0,"h":3}"#).unwrap();
+        assert_eq!(r, Rect { x: 0.95, y: 0.0, w: 0.05, h: 1.0 });
+        assert_eq!(serde_json::from_value::<Rect>(serde_json::to_value(r).unwrap()).unwrap(), r);
+        assert_eq!(Rect { x: f64::NAN, y: f64::INFINITY, w: f64::NAN, h: -2.0 }.clamped(),
+            Rect { x: 0.0, y: 0.0, w: 1.0, h: 0.05 });
+    }
 
     #[test]
     fn new_fields_default_for_old_configs_and_parameter_actions_round_trip() {

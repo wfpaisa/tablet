@@ -18,7 +18,7 @@ const DEFAULTS = {
   pen: { tip: "left_click", relative: { speed: 4, acceleration: 4 }, mode: "pen", upper_button: "pan_scroll", lower_button: "right_click", tip_sensitivity: 4, hold_time: 2 },
   pan_scroll: { speed: 3, content_follows_pen: true },
   gestures: { legacy_speed: 3, scroll_speed: 3, wheel_speed: 3, zoom_speed: 3, pan_zoom_speed: 3 },
-  mapping: { display: null, force_proportions: false, orientation: "landscape" },
+  mapping: { screen_portion: null, tablet_portion: null, display: null, force_proportions: false, orientation: "landscape" },
   express_keys: [{ type: "disabled" }, { type: "disabled" }, { type: "disabled" }, { type: "disabled" }],
   shortcuts: defaultShortcuts(),
 };
@@ -938,6 +938,10 @@ function mappingPage() {
       <input type="radio" name="display" value="${esc(value)}" ${(m.display ?? "") === value ? "checked" : ""}>
       <span></span>${esc(label)}
     </label>`;
+  const portionOptions = (kind, full) => `
+    <p class="label" style="margin-top:34px">${esc(t(kind === "screen" ? "Screen area" : "Tablet area"))}</p>
+    ${[["full", full], ["portion", "Portion"]].map(([value, label]) => `
+      <label class="radio"><input type="radio" name="${kind}_area" value="${value}" ${(!!m[`${kind}_portion`] === (value === "portion")) ? "checked" : ""}><span></span>${esc(t(label))}</label>`).join("")}`;
   const displayOptions = displays
     .map((d, i) => option(d.id, `${t("Display %s").replace("%s", i + 1)} · ${d.name} (${Math.round(d.width)}×${Math.round(d.height)})`))
     .join("");
@@ -950,14 +954,14 @@ function mappingPage() {
           <p class="label">${esc(t("Display mapping"))}</p>
           ${option("", t(displays.length > 1 ? "Map to all displays" : "Map to full display"))}
           ${displayOptions}
+          ${portionOptions("screen", "Full screen")}
           <p class="label" style="margin-top:34px">${esc(t("Force proportions"))}
             <span class="help" title="${esc(t(FORCE_HELP))}">?</span></p>
           <label class="toggle-row" style="width:auto;margin:0">
             <span class="switch"><input type="checkbox" id="force" ${m.force_proportions ? "checked" : ""}><span></span></span>
             ${esc(t(m.force_proportions ? "On" : "Off"))}
           </label>
-          <p class="label" style="margin-top:34px">${esc(t("Tablet area"))}</p>
-          <label class="radio"><input type="radio" checked><span></span>${esc(t("Use full area"))}</label>
+          ${portionOptions("tablet", "Use full area")}
         </div>
       </div>
       <button class="button corner" id="mapping-default">${esc(t("Default"))}</button>
@@ -983,7 +987,11 @@ function mappingDiagram() {
   const box = (d) => ({ x: ox + (d.x - x0) * scale, y: oy + (d.y - y0) * scale, w: d.width * scale, h: d.height * scale });
 
   const selected = displays.find((d) => d.id === config.mapping.display);
-  const target = selected ? box(selected) : { x: ox, y: oy, w: dw * scale, h: dh * scale };
+  let target = selected ? box(selected) : { x: ox, y: oy, w: dw * scale, h: dh * scale };
+
+  const screenFull = { ...target };
+  const subrect = (b, p) => p ? { x: b.x + p.x * b.w, y: b.y + p.y * b.h, w: b.w * p.w, h: b.h * p.h } : { ...b };
+  target = subrect(target, config.mapping.screen_portion);
 
   // Tablet image and the part of its active area in use.
   const img = { x: 160, y: 384, w: 277, h: 221 };
@@ -1007,10 +1015,13 @@ function mappingDiagram() {
     h: Math.abs(corners[1][1] - corners[0][1]),
   };
   const full = { ...area };
+  area = subrect(area, config.mapping.tablet_portion);
+  const tabletSelection = { ...area };
   if (config.mapping.force_proportions) {
     const physicalAspect = status.device?.width_mm && status.device?.height_mm
       ? status.device.width_mm / status.device.height_mm : (ACTIVE_AREA.x1 - ACTIVE_AREA.x0) * img.w / ((ACTIVE_AREA.y1 - ACTIVE_AREA.y0) * img.h);
-    const tablet = turns % 2 ? 1 / physicalAspect : physicalAspect;
+    const p = config.mapping.tablet_portion;
+    const tablet = (turns % 2 ? 1 / physicalAspect : physicalAspect) * (p ? p.w / p.h : 1);
     const screen = target.w / target.h;
     if (tablet > screen) area.w *= screen / tablet;
     else area.h *= tablet / screen;
@@ -1033,16 +1044,22 @@ function mappingDiagram() {
     })
     .join("");
   const all = !selected && displays.length > 1
-    ? `<rect x="${target.x}" y="${target.y}" width="${target.w}" height="${target.h}" rx="8" class="span"/>`
+    ? `<rect x="${screenFull.x}" y="${screenFull.y}" width="${screenFull.w}" height="${screenFull.h}" rx="8" class="span"/>`
     : "";
 
   // Projection from the active area's top edge to the target's bottom edge.
   const beam = [
-    [target.x + GAP, target.y + target.h - GAP],
-    [target.x + target.w - GAP, target.y + target.h - GAP],
+    [target.x, target.y + target.h],
+    [target.x + target.w, target.y + target.h],
     [area.x + area.w, area.y],
     [area.x, area.y],
   ];
+  const editor = (kind, bounds, r) => !config.mapping[`${kind}_portion`] ? "" : `
+    <g class="portion-editor" data-portion="${kind}" data-bounds="${[bounds.x, bounds.y, bounds.w, bounds.h].join(",")}">
+      <rect class="portion-body" x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}"/>
+      ${[["nw", 0, 0], ["n", .5, 0], ["ne", 1, 0], ["e", 1, .5], ["se", 1, 1], ["s", .5, 1], ["sw", 0, 1], ["w", 0, .5]].map(([handle, x, y]) =>
+        `<rect class="portion-handle" data-handle="${handle}" x="${r.x + x * r.w - 4}" y="${r.y + y * r.h - 4}" width="8" height="8"/>`).join("")}
+    </g>`;
   return `
     <svg viewBox="0 0 ${W} 670" class="mapping-svg">
       <polygon points="${beam.map((p) => p.join(",")).join(" ")}" class="beam"/>
@@ -1053,17 +1070,72 @@ function mappingDiagram() {
       <image href="assets/devices/${model().tablet}.png" x="${img.x}" y="${img.y}" width="${img.w}" height="${img.h}" transform="rotate(${turns * 90} ${img.x + img.w / 2} ${img.y + img.h / 2})"/>
       ${area.w !== full.w || area.h !== full.h ? `<rect x="${full.x}" y="${full.y}" width="${full.w}" height="${full.h}" rx="3" class="area-unused"/>` : ""}
       <rect x="${area.x}" y="${area.y}" width="${area.w}" height="${area.h}" rx="3" class="area"/>
+      ${editor("screen", screenFull, target)}
+      ${editor("tablet", full, tabletSelection)}
     </svg>`;
 }
 
 function mountMapping() {
-  document.querySelectorAll(".mapping-svg .pick").forEach((el) =>
-    el.addEventListener("click", () => {
-      config.mapping.display = config.mapping.display === el.dataset.display ? null : el.dataset.display;
+  document.querySelectorAll('input[name$="_area"]').forEach((el) =>
+    el.addEventListener("change", () => {
+      const key = el.name.replace("_area", "_portion");
+      config.mapping[key] = el.value === "portion" ? { x: .1, y: .1, w: .8, h: .8 } : null;
       save();
       render();
     }),
   );
+  const figure = document.querySelector(".mapping-figure");
+  figure.addEventListener("pointerdown", (e) => {
+    const editor = e.target.closest("[data-portion]");
+    if (!editor || e.button !== 0) return;
+    e.preventDefault();
+    const svg = editor.ownerSVGElement;
+    const matrix = svg.getScreenCTM().inverse();
+    const point = (event) => new DOMPoint(event.clientX, event.clientY).matrixTransform(matrix);
+    const start = point(e);
+    const [,, width, height] = editor.dataset.bounds.split(",").map(Number);
+    const key = `${editor.dataset.portion}_portion`;
+    const initial = { ...config.mapping[key] };
+    const handle = e.target.dataset.handle;
+    figure.setPointerCapture(e.pointerId);
+    const move = (event) => {
+      if (event.pointerId !== e.pointerId) return;
+      const p = point(event);
+      const dx = (p.x - start.x) / width, dy = (p.y - start.y) / height;
+      const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+      let { x, y, w, h } = initial;
+      if (!handle) {
+        x = clamp(x + dx, 0, 1 - w);
+        y = clamp(y + dy, 0, 1 - h);
+      } else {
+        if (handle.includes("w")) { x = clamp(x + dx, 0, initial.x + w - .05); w = initial.x + initial.w - x; }
+        if (handle.includes("e")) w = clamp(w + dx, .05, 1 - x);
+        if (handle.includes("n")) { y = clamp(y + dy, 0, initial.y + h - .05); h = initial.y + initial.h - y; }
+        if (handle.includes("s")) h = clamp(h + dy, .05, 1 - y);
+      }
+      config.mapping[key] = { x, y, w, h };
+      figure.innerHTML = mappingDiagram();
+    };
+    const finish = (event) => {
+      if (event.pointerId !== e.pointerId) return;
+      if (event.type === "pointercancel") config.mapping[key] = initial;
+      else { move(event); save(); }
+      figure.removeEventListener("pointermove", move);
+      figure.removeEventListener("pointerup", finish);
+      figure.removeEventListener("pointercancel", finish);
+      render();
+    };
+    figure.addEventListener("pointermove", move);
+    figure.addEventListener("pointerup", finish);
+    figure.addEventListener("pointercancel", finish);
+  });
+  figure.addEventListener("click", (e) => {
+    const el = e.target.closest(".pick");
+    if (!el) return;
+    config.mapping.display = config.mapping.display === el.dataset.display ? null : el.dataset.display;
+    save();
+    render();
+  });
   document.querySelectorAll('input[name="display"]').forEach((el) =>
     el.addEventListener("change", () => {
       config.mapping.display = el.value || null;

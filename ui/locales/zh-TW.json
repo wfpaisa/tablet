@@ -202,5 +202,8 @@
   "Show desktop": "顯示桌面",
   "Show overlay": "顯示疊加層",
   "Super": "Super",
-  "Switch application": "切換應用程式"
+  "Switch application": "切換應用程式",
+  "Screen area": "螢幕區域",
+  "Full screen": "整個螢幕",
+  "Portion": "部分區域"
 }

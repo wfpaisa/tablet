@@ -660,3 +660,11 @@ html.overlay, body.overlay { background: transparent; }
 .callout.held button { color: var(--accent); }
 .callout.held .ring { border-color: var(--accent); background: rgba(53, 132, 228, .35); }
 .card p.hint { margin: 8px 0 0; max-width: 720px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+
+.mapping-svg .portion-editor { touch-action: none; }
+.mapping-svg .portion-body { fill: rgba(53, 132, 228, .18); stroke: var(--accent); stroke-width: 2; cursor: move; }
+.mapping-svg .portion-handle { fill: #fff; stroke: var(--accent); stroke-width: 1.5; }
+.mapping-svg [data-handle="n"], .mapping-svg [data-handle="s"] { cursor: ns-resize; }
+.mapping-svg [data-handle="e"], .mapping-svg [data-handle="w"] { cursor: ew-resize; }
+.mapping-svg [data-handle="nw"], .mapping-svg [data-handle="se"] { cursor: nwse-resize; }
+.mapping-svg [data-handle="ne"], .mapping-svg [data-handle="sw"] { cursor: nesw-resize; }

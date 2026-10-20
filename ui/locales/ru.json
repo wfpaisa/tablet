@@ -202,5 +202,8 @@
   "Show desktop": "Показать рабочий стол",
   "Show overlay": "Показать наложение",
   "Super": "Super",
-  "Switch application": "Переключить приложение"
+  "Switch application": "Переключить приложение",
+  "Screen area": "Область экрана",
+  "Full screen": "Весь экран",
+  "Portion": "Часть"
 }

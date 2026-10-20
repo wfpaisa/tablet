@@ -202,5 +202,8 @@
   "Show desktop": "デスクトップを表示",
   "Show overlay": "オーバーレイを表示",
   "Super": "Super",
-  "Switch application": "アプリケーションの切り替え"
+  "Switch application": "アプリケーションの切り替え",
+  "Screen area": "画面領域",
+  "Full screen": "画面全体",
+  "Portion": "一部"
 }

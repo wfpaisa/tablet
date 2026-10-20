@@ -16,9 +16,9 @@ Cintiq Workflows).
 - [ ] **Precision mode**: while the button is held, the tablet covers only a
   small area around the cursor for fine work. A coordinate change in
   `mapping.rs` and a new button action.
-- [ ] **Portion of tablet / portion of screen**: use part of the tablet, or
-  map it to part of a screen (only "Use full area" exists today). A
-  draggable rectangle on the Mapping page.
+- [x] **Portion of tablet / portion of screen**: use part of the tablet, or
+  map it to part of a screen with draggable, resizable rectangles on the
+  Mapping page.
 
 ## Medium priority: new actions for pen buttons and ExpressKeys
 

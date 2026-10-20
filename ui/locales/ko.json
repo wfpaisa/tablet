@@ -202,5 +202,8 @@
   "Show desktop": "바탕 화면 표시",
   "Show overlay": "오버레이 표시",
   "Super": "Super",
-  "Switch application": "애플리케이션 전환"
+  "Switch application": "애플리케이션 전환",
+  "Screen area": "화면 영역",
+  "Full screen": "전체 화면",
+  "Portion": "일부 영역"
 }

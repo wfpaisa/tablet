@@ -2,7 +2,7 @@
 //! virtual pen to the whole desktop, so choosing one monitor (or trimming the
 //! tablet area) remaps the rotated absolute coordinates on each output axis.
 
-use tablet_config::{Display, MappingSettings, Orientation};
+use tablet_config::{Display, MappingSettings, Orientation, Rect};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct Axis {
@@ -50,12 +50,20 @@ impl Mapping {
             x: Axis::full(tablet.x_range.0, tablet.x_range.1),
             y: Axis::full(tablet.y_range.0, tablet.y_range.1),
         };
+        let full = Rect { x: 0.0, y: 0.0, w: 1.0, h: 1.0 };
+        let input = settings.tablet_portion.unwrap_or(full).clamped();
+        map.x.from = (input.x, input.x + input.w);
+        map.y.from = (input.y, input.y + input.h);
         let Some(desktop) = bounds(displays) else { return map };
         let target = settings
             .display
             .as_deref()
             .and_then(|id| displays.iter().find(|d| d.id == id))
             .map_or(desktop, |d| (d.x, d.y, d.width, d.height));
+
+        let portion = settings.screen_portion.unwrap_or(full).clamped();
+        let target = (target.0 + portion.x * target.2, target.1 + portion.y * target.3,
+            target.2 * portion.w, target.3 * portion.h);
 
         map.x.to = ((target.0 - desktop.0) / desktop.2, (target.0 + target.2 - desktop.0) / desktop.2);
         map.y.to = ((target.1 - desktop.1) / desktop.3, (target.1 + target.3 - desktop.1) / desktop.3);
@@ -66,11 +74,12 @@ impl Mapping {
             } else {
                 tablet.width_mm / tablet.height_mm
             };
+            let tablet_aspect = tablet_aspect * input.w / input.h;
             let screen_aspect = target.2 / target.3;
             if tablet_aspect > screen_aspect {
-                map.x.from.1 = screen_aspect / tablet_aspect;
+                map.x.from.1 = input.x + input.w * screen_aspect / tablet_aspect;
             } else {
-                map.y.from.1 = tablet_aspect / screen_aspect;
+                map.y.from.1 = input.y + input.h * tablet_aspect / screen_aspect;
             }
         }
         map
@@ -124,6 +133,65 @@ mod tests {
 
     fn display(id: &str, x: f64, w: f64, h: f64) -> Display {
         Display { id: id.into(), x, y: 0.0, width: w, height: h, ..Default::default() }
+    }
+
+    #[test]
+    fn portions_map_corners_and_clamp_outside_on_each_target() {
+        for (display, left, right) in [(None, 3800, 11400), (Some("right".into()), 9500, 13300)] {
+            let settings = MappingSettings {
+                display,
+                tablet_portion: Some(Rect { x: 0.25, y: 0.2, w: 0.5, h: 0.6 }),
+                screen_portion: Some(Rect { x: 0.25, y: 0.1, w: 0.5, h: 0.8 }),
+                ..Default::default()
+            };
+            let m = Mapping::new(&settings, &two_monitors(), TABLET);
+            for (x, y, expected) in [
+                (3800, 1900, (left, 950)), (11400, 1900, (right, 950)),
+                (3800, 7600, (left, 8550)), (11400, 7600, (right, 8550)),
+                (0, 0, (left, 950)), (15200, 9500, (right, 8550)),
+            ] {
+                assert_eq!(m.map(x, y), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn portions_follow_rotation_before_clamping() {
+        let settings = MappingSettings {
+            orientation: Orientation::Portrait,
+            tablet_portion: Some(Rect { x: 0.2, y: 0.25, w: 0.6, h: 0.5 }),
+            screen_portion: Some(Rect { x: 0.25, y: 0.1, w: 0.5, h: 0.8 }),
+            ..Default::default()
+        };
+        let m = Mapping::new(&settings, &two_monitors(), TABLET);
+        assert_eq!(m.map(3800, 7600), (3800, 950));
+        assert_eq!(m.map(11400, 1900), (11400, 8550));
+        assert_eq!(m.map(0, 9500), (3800, 950));
+        assert_eq!(m.map(15200, 0), (11400, 8550));
+    }
+
+    #[test]
+    fn proportions_trim_inside_portions_using_their_aspects() {
+        for orientation in [Orientation::Landscape, Orientation::Portrait] {
+            let settings = MappingSettings {
+                orientation,
+                force_proportions: true,
+                tablet_portion: Some(Rect { x: 0.2, y: 0.1, w: 0.5, h: 0.8 }),
+                screen_portion: Some(Rect { x: 0.1, y: 0.2, w: 0.8, h: 0.5 }),
+                ..Default::default()
+            };
+            let m = Mapping::new(&settings, &two_monitors(), TABLET);
+            let physical = if orientation.is_portrait() { 95.0 / 152.0 } else { 152.0 / 95.0 };
+            let used_aspect = physical * (m.x.from.1 - m.x.from.0) / (m.y.from.1 - m.y.from.0);
+            assert!((used_aspect - (3840.0 * 0.8) / (1080.0 * 0.5)).abs() < 1e-10);
+            assert_eq!(m.x.from, (0.2, 0.7));
+            assert_eq!(m.y.from.0, 0.1);
+            assert!(m.y.from.1 < 0.9);
+            assert_eq!(m.x.apply(m.x.from.0), 1520);
+            assert_eq!(m.x.apply(m.x.from.1), 13680);
+            assert_eq!(m.y.apply(m.y.from.0), 1900);
+            assert_eq!(m.y.apply(m.y.from.1), 6650);
+        }
     }
 
     #[test]
