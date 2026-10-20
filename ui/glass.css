@@ -23,6 +23,15 @@
   font-size: 14px;
   color: var(--text);
 }
+/* GNOME 51+ blurs what is behind the window (tablet-center adds the
+   class), so the window and its cards let more of it through. Popovers
+   and dialogs stay opaque: they sit over the page, not the desktop. */
+html.blur-behind {
+  --wf-surface: rgba(28, 28, 30, 0.68);
+}
+html.blur-behind .card {
+  background: rgba(37, 37, 39, 0.72);
+}
 * {
   box-sizing: border-box;
 }
