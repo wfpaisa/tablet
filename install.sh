@@ -50,10 +50,19 @@ if [ -n "$webkit" ] || $need_rule || $need_group; then
 	$need_group && sudo usermod -aG input "$USER"
 fi
 
-if [ -t 0 ]; then
-	printf 'Move the pen away from the tablet, then press Enter. '
-	read -r _
-fi
+# Stopping tabletd removes its virtual pen, which can crash GNOME Shell while
+# the real pen hovers. tabletd waits for the pen to leave on its own; an older
+# build without that option falls back to asking.
+wait_pen_away() {
+	# Older builds lack the option and would start a second daemon instead.
+	if grep -qa 'Move the pen away from the tablet' "$1" 2>/dev/null; then
+		"$1" --wait-pen-away
+	elif [ -t 0 ]; then
+		printf 'Move the pen away from the tablet, then press Enter. '
+		read -r _
+	fi
+}
+wait_pen_away "$bin/tabletd"
 
 mkdir -p "$HOME/.local/bin" "$HOME/.config/systemd/user"
 install -m 755 "$bin/tabletd" "$HOME/.local/bin/tabletd"

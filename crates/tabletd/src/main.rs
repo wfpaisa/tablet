@@ -115,6 +115,10 @@ fn effective_config(shared: &Shared) -> Config {
 }
 
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("--wait-pen-away") {
+        wait_pen_away();
+        return;
+    }
     let shared = Arc::new(Shared {
         config: RwLock::new(tablet_config::load()),
         double_click_ms: AtomicU64::new(devices::double_click_time().as_millis() as u64),
@@ -185,6 +189,43 @@ fn main() {
             None => {}
         }
         wait_for_hotplug();
+    }
+}
+
+/// Used by the install scripts before they stop the running daemon: removing
+/// its virtual pen while the real one hovers can crash GNOME Shell. Returns
+/// once the pen has stayed away for a moment, or at once if no daemon runs.
+fn wait_pen_away() {
+    let Ok(stream) = UnixStream::connect(tablet_config::socket_path()) else { return };
+    let _ = stream.set_read_timeout(Some(Duration::from_secs(1)));
+    let mut conn = BufReader::new(stream);
+    let near = |conn: &mut BufReader<UnixStream>| -> Option<bool> {
+        let mut line = serde_json::to_vec(&Request::Status).ok()?;
+        line.push(b'\n');
+        conn.get_mut().write_all(&line).ok()?;
+        let mut reply = String::new();
+        if conn.read_line(&mut reply).ok()? == 0 {
+            return None;
+        }
+        let response: Response = serde_json::from_str(&reply).ok()?;
+        Some(response.pen.is_some_and(|pen| pen.in_proximity))
+    };
+    let mut told = false;
+    let mut away_since = Instant::now();
+    loop {
+        match near(&mut conn) {
+            None => return,
+            Some(true) => {
+                if !told {
+                    eprintln!("Move the pen away from the tablet…");
+                    told = true;
+                }
+                away_since = Instant::now();
+            }
+            Some(false) if away_since.elapsed() >= Duration::from_millis(800) => return,
+            Some(false) => {}
+        }
+        thread::sleep(Duration::from_millis(100));
     }
 }
 
