@@ -383,7 +383,7 @@ function orientationSelector() {
         aria-pressed="${turns === orientationTurns()}">
         <svg viewBox="0 0 48 48" aria-hidden="true"><g transform="rotate(${turns * 90} 24 24)">
           <rect x="7" y="12" width="34" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
-          <path d="M11 13H37" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          <path d="M7 15a3 3 0 0 1 3-3h28a3 3 0 0 1 3 3v5H7z" fill="currentColor"/>
         </g></svg>
       </button>`).join("")}
   </div>`;
