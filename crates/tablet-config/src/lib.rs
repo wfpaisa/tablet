@@ -550,11 +550,19 @@ pub fn joystick_mm(speed: u8) -> f64 {
     MM[usize::from(speed.clamp(1, 5)) - 1]
 }
 
-/// USB and Bluetooth ids from Linux drivers/hid/wacom_wac.c (v6.12).
-/// Generic HID Intuos USB ids 0374/0376/0378 use the four-key fallback.
+/// Wacom's USB vendor ids: 056a, and 0531 for the Wacom One pen tablets
+/// (CTC4110WL / CTC6110WL, from libwacom).
+pub fn wacom_vendor(vendor: u16) -> bool {
+    matches!(vendor, 0x056a | 0x0531)
+}
+
+/// USB and Bluetooth ids from Linux drivers/hid/wacom_wac.c (v6.12) and
+/// libwacom. Generic HID Intuos USB ids 0374/0376/0378 use the four-key
+/// fallback. The Wacom One ids (0531:0100..=0105, 056a:03cb, 056a:03ce)
+/// do not collide with any 056a id listed here.
 pub fn express_key_count(product: u16) -> usize {
     match product {
-        0x037a | 0x037b => 0,
+        0x0100..=0x0105 | 0x03cb | 0x03ce => 0,
         0x0392 | 0x0393 | 0x03dd => 6,
         0x0357 | 0x0358 | 0x0360 | 0x0361 => 8,
         _ => 4,
@@ -563,7 +571,8 @@ pub fn express_key_count(product: u16) -> usize {
 
 pub fn wireless_model(product: u16) -> bool {
     matches!(product, 0x0376 | 0x0377 | 0x0378 | 0x0379 | 0x03c6 | 0x03c8
-        | 0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0358 | 0x0360 | 0x0361)
+        | 0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0358 | 0x0360 | 0x0361
+        | 0x0100..=0x0105)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -803,6 +812,15 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wacom_one_models_are_recognised_without_express_keys() {
+        assert!(wacom_vendor(0x0531) && wacom_vendor(0x056a) && !wacom_vendor(0x256c));
+        for product in [0x0100, 0x0103, 0x03cb, 0x03ce] {
+            assert_eq!(express_key_count(product), 0);
+        }
+        assert!(wireless_model(0x0101) && !wireless_model(0x03ce));
+    }
 
     #[test]
     fn old_profiles_keep_defaults_and_grow_without_losing_actions() {

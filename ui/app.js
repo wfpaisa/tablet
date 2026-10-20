@@ -57,8 +57,9 @@ function defaultShortcuts() {
   };
 }
 
-// Product ids: Linux drivers/hid/wacom_wac.c (v6.12); generic HID ids
-// absent from its explicit table are marked below.
+// Product ids: Linux drivers/hid/wacom_wac.c (v6.12) and libwacom; generic
+// HID ids absent from the kernel's explicit table are marked below. The
+// Wacom One pen tablets use vendor 0531, the rest 056a.
 const MODELS = {
   0x0374: { name: "Intuos S", model: "CTL-4100", tablet: "intuos-s", keys: 4, layout: "row" },
   0x0375: { name: "Intuos M", model: "CTL-6100", keys: 4, layout: "row" }, // Uncertain non-wireless M id.
@@ -66,8 +67,14 @@ const MODELS = {
   0x0377: { name: "Intuos S", model: "CTL-4100WL", tablet: "intuos-s", keys: 4, layout: "row" },
   0x0378: { name: "Intuos M", model: "CTL-6100WL", keys: 4, layout: "row" }, // Generic HID USB id.
   0x0379: { name: "Intuos M", model: "CTL-6100WL", keys: 4, layout: "row" },
-  0x037a: { name: "One by Wacom S", model: "CTL-472", keys: 0, layout: "none" },
-  0x037b: { name: "One by Wacom M", model: "CTL-672", keys: 0, layout: "none" },
+  0x0100: { name: "Wacom One S", model: "CTC4110WL", keys: 0, layout: "none" },
+  0x0101: { name: "Wacom One S", model: "CTC4110WL", keys: 0, layout: "none" }, // Bluetooth.
+  0x0104: { name: "Wacom One S", model: "CTC4110WL", keys: 0, layout: "none" },
+  0x0102: { name: "Wacom One M", model: "CTC6110WL", keys: 0, layout: "none" },
+  0x0103: { name: "Wacom One M", model: "CTC6110WL", keys: 0, layout: "none" }, // Bluetooth.
+  0x0105: { name: "Wacom One M", model: "CTC6110WL", keys: 0, layout: "none" },
+  0x03ce: { name: "Wacom One 12", model: "DTC121", keys: 0, layout: "none", display: true },
+  0x03cb: { name: "Wacom One 13 touch", model: "DTH134", keys: 0, layout: "none", display: true },
   0x0392: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
   0x0393: { name: "Intuos Pro S", model: "PTH-460", keys: 6, layout: "column" },
   0x0357: { name: "Intuos Pro M", model: "PTH-660", keys: 8, layout: "column" },
@@ -1891,10 +1898,10 @@ async function loadLanguage() {
 }
 
 // The classic interface carries no Wacom branding: every "Wacom" in its
-// text reads "Tablet".
+// text reads "Tablet", except in the "Wacom One" model names.
 function debrand(root) {
   const swap = (text) =>
-    text.replace(/\bwacom\b/gi, (w) => (w === "WACOM" ? "TABLET" : w[0] === "W" ? "Tablet" : "tablet"));
+    text.replace(/\bwacom\b(?! one\b)/gi, (w) => (w === "WACOM" ? "TABLET" : w[0] === "W" ? "Tablet" : "tablet"));
   if (root.nodeType === Node.TEXT_NODE) root = root.parentNode;
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let node; (node = walker.nextNode()); ) {

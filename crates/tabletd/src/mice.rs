@@ -13,8 +13,6 @@ use std::{
 
 use crate::devices::{input_nodes, VIRTUAL_SUFFIX};
 
-const WACOM_VENDOR: u16 = 0x056a;
-
 /// Calls `on_move` from a background thread whenever a mouse or touchpad
 /// moves the pointer. Picks up devices plugged in later.
 pub fn watch(on_move: impl Fn() + Send + Sync + 'static) {
@@ -39,7 +37,7 @@ pub fn watch(on_move: impl Fn() + Send + Sync + 'static) {
 
 fn is_pointer(dev: &Device) -> bool {
     let name = dev.name().unwrap_or_default();
-    if dev.input_id().vendor() == WACOM_VENDOR || name.ends_with(VIRTUAL_SUFFIX) {
+    if tablet_config::wacom_vendor(dev.input_id().vendor()) || name.ends_with(VIRTUAL_SUFFIX) {
         return false;
     }
     let mouse = dev

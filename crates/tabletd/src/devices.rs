@@ -8,14 +8,13 @@ use std::io;
 
 use crate::{mapping::Tablet, pen::Geometry};
 
-const WACOM_VENDOR: u16 = 0x056a;
 /// Marks our own uinput devices so discovery never grabs them.
 pub const VIRTUAL_SUFFIX: &str = "(tabletd)";
 
 /// First Wacom pen interface (has BTN_TOOL_PEN) that is not one of ours.
 pub fn find_pen() -> Option<Device> {
     evdev::enumerate().map(|(_, dev)| dev).find(|dev| {
-        dev.input_id().vendor() == WACOM_VENDOR
+        tablet_config::wacom_vendor(dev.input_id().vendor())
             && !dev.name().unwrap_or_default().ends_with(VIRTUAL_SUFFIX)
             && dev.supported_keys().is_some_and(|k| k.contains(KeyCode::BTN_TOOL_PEN))
     })
@@ -24,7 +23,7 @@ pub fn find_pen() -> Option<Device> {
 /// The ExpressKeys interface of a Wacom tablet: has BTN_0 but no pen tool.
 pub fn find_pad() -> Option<Device> {
     evdev::enumerate().map(|(_, dev)| dev).find(|dev| {
-        dev.input_id().vendor() == WACOM_VENDOR
+        tablet_config::wacom_vendor(dev.input_id().vendor())
             && !dev.name().unwrap_or_default().ends_with(VIRTUAL_SUFFIX)
             && dev.supported_keys().is_some_and(|k| {
                 k.contains(KeyCode::BTN_0) && !k.contains(KeyCode::BTN_TOOL_PEN)
@@ -198,8 +197,9 @@ fn read_battery(root: &std::path::Path, tablet: Option<&std::path::Path>) -> Opt
     let matched = tablet.and_then(|tablet| candidates.iter().find(|battery| {
         let Ok(device) = battery.join("device").canonicalize().or_else(|_| battery.canonicalize()) else { return false; };
         tablet.ancestors().any(|ancestor| {
-            let hid = ancestor.file_name().is_some_and(|n| n.to_string_lossy().to_uppercase().contains(":056A:"));
-            let usb = std::fs::read_to_string(ancestor.join("idVendor")).is_ok_and(|v| v.trim() == "056a");
+            let name = ancestor.file_name().map(|n| n.to_string_lossy().to_uppercase()).unwrap_or_default();
+            let hid = name.contains(":056A:") || name.contains(":0531:");
+            let usb = std::fs::read_to_string(ancestor.join("idVendor")).is_ok_and(|v| matches!(v.trim(), "056a" | "0531"));
             (hid || usb) && device.starts_with(ancestor)
         })
     }));

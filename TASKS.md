@@ -48,5 +48,7 @@ Cintiq Workflows).
 - [x] **Battery**: charge level for the Intuos S Bluetooth (CTL-4100WL).
 - [x] **Device info**: firmware, serial number, live tilt and pressure, for
   diagnostics.
-- [x] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro and
-  One by Wacom.
+- [x] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro,
+  Wacom One S/M and the Wacom One 12 / 13 touch pen displays.
+- [ ] **Pen displays**: map the Wacom One 12 / 13 touch to their own screen
+  by default, and support the 13 touch's finger input.
