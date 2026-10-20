@@ -9,7 +9,10 @@ use std::{
     path::PathBuf,
     os::unix::net::UnixStream,
     process::Command,
-    sync::Mutex,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Mutex,
+    },
     thread,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
@@ -429,6 +432,11 @@ fn show_shortcut(app: &tauri::AppHandle, request: &ShowRequest) -> tauri::Result
 /// UI_STYLES in app.js.
 const UI_STYLES: [(&str, &str, bool); 2] = [("classic", "index.html", false), ("glass", "glass.html", true)];
 
+/// Whether the main window was created without the system frame. GTK
+/// decides then whether it draws a frame itself; asked for one later, it
+/// leaves it to GNOME, which draws none for Wayland apps.
+static STARTED_FRAMELESS: AtomicBool = AtomicBool::new(false);
+
 fn ui_style_path() -> PathBuf {
     tablet_config::config_path().with_file_name("interface")
 }
@@ -443,7 +451,13 @@ fn set_ui_style(app: tauri::AppHandle, style: String) -> Result<(), String> {
     // Before the page puts the system frame back: its shadow must not blur.
     let frameless = *frameless;
     app.run_on_main_thread(move || blur::Blur::set_enabled(frameless)).map_err(|e| e.to_string())?;
-    fs::write(ui_style_path(), style).map_err(|e| e.to_string())
+    fs::write(ui_style_path(), style).map_err(|e| e.to_string())?;
+    // A window made without a frame cannot get GTK's back: start again
+    // with the new interface.
+    if !frameless && STARTED_FRAMELESS.load(Ordering::Relaxed) {
+        app.restart();
+    }
+    Ok(())
 }
 
 fn main_window(app: &tauri::App) -> tauri::Result<()> {
@@ -455,6 +469,7 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     let mut config = config;
     config.url = tauri::WebviewUrl::App((*page).into());
     config.decorations = !frameless;
+    STARTED_FRAMELESS.store(*frameless, Ordering::Relaxed);
     // Glass draws its own see-through frame, so it can blur what is behind.
     // Set up for every interface, since the window can switch to Glass.
     let blur = blur::Blur::new();

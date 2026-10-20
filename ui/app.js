@@ -259,22 +259,16 @@ const UI_STYLES = [
   ["glass", "Glass", "glass.html", true],
 ];
 
-// The stored choice, or else the interface of the page being shown.
+// The interface of the page being shown. tablet-center opens the chosen
+// one (see set_ui_style), so the page is the truth.
 function uiStyle() {
-  try {
-    const stored = localStorage.getItem("ui");
-    if (UI_STYLES.some(([id]) => id === stored)) return stored;
-  } catch {}
   const page = location.pathname.split("/").pop() || "index.html";
   return UI_STYLES.find(([, , file]) => file === page)?.[0] ?? "classic";
 }
 
-// Remembers the choice (also for the next start, see set_ui_style) and
+// Saves the choice for the next start (set_ui_style) and
 // opens that interface, with or without the system title bar.
 async function setUiStyle(id) {
-  try {
-    localStorage.setItem("ui", id);
-  } catch {}
   const [, , page, frameless] = UI_STYLES.find(([s]) => s === id) ?? UI_STYLES[0];
   await invoke("set_ui_style", { style: id }).catch(() => {});
   await appWindow()?.setDecorations(!frameless).catch(() => {});
@@ -2305,8 +2299,7 @@ document.addEventListener("scroll", (e) => e.target !== dropdown.menu && closeDr
 
 // The other interfaces and shortcut.html reuse this file for its helpers
 // and run their own start-up.
-if (view && uiStyle() !== "classic") setUiStyle(uiStyle());
-else if (view) init();
+if (view) init();
 
 
 function toolProfile() {
