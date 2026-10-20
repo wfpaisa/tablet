@@ -2192,6 +2192,12 @@ function openDropdown(select) {
 
   const rect = select.getBoundingClientRect();
   menu.style.minWidth = `${rect.width}px`;
+  // Measured at the left edge, where nothing limits it, and then fixed:
+  // near the right edge a fixed box would shrink and cut the labels.
+  menu.style.left = menu.style.top = "0px";
+  menu.style.width = `${Math.ceil(menu.getBoundingClientRect().width)}px`;
+  const cut = Math.max(0, ...[...menu.querySelectorAll(".dd-option span")].map((s) => s.scrollWidth - s.clientWidth));
+  if (cut) menu.style.width = `${menu.offsetWidth + cut + 1}px`;
   const below = innerHeight - rect.bottom - 8;
   const above = rect.top - 8;
   const height = Math.min(menu.offsetHeight, Math.max(below, above));
