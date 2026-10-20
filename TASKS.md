@@ -13,7 +13,7 @@ Cintiq Workflows).
   profile. The largest task.
 - [x] **Tablet orientation**: landscape, portrait, landscape flipped and
   portrait flipped, with rotated pen coordinates, gestures and tablet diagrams.
-- [ ] **Precision mode**: while the button is held, the tablet covers only a
+- [x] **Precision mode**: while the button is held, the tablet covers only a
   small area around the cursor for fine work. A coordinate change in
   `mapping.rs` and a new button action.
 - [x] **Portion of tablet / portion of screen**: use part of the tablet, or
