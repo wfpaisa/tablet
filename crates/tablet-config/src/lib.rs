@@ -230,7 +230,8 @@ impl Rect {
 #[serde(default)]
 pub struct MappingSettings {
     pub orientation: Orientation,
-    /// [`Display::id`] of one monitor, or `None` for all of them.
+    /// [`Display::id`] of one monitor, or `None` for all of them (for a pen
+    /// display, its own screen when GNOME reports it; see [`own_screen`]).
     pub display: Option<String>,
     /// Trim the tablet area so its aspect ratio matches the target, keeping
     /// circles round. Trims from the bottom or right, like Wacom's driver.
@@ -569,6 +570,16 @@ pub fn express_key_count(product: u16) -> usize {
     }
 }
 
+/// Wacom One 12 / 13 touch: the pen draws on the tablet's own screen.
+pub fn pen_display(product: u16) -> bool {
+    matches!(product, 0x03cb | 0x03ce)
+}
+
+/// The screen of a Wacom pen display, whose EDID vendor is "WAC".
+pub fn own_screen(displays: &[Display]) -> Option<&Display> {
+    displays.iter().find(|d| d.id.starts_with("WAC|"))
+}
+
 pub fn wireless_model(product: u16) -> bool {
     matches!(product, 0x0376 | 0x0377 | 0x0378 | 0x0379 | 0x03c6 | 0x03c8
         | 0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0358 | 0x0360 | 0x0361
@@ -820,6 +831,11 @@ mod tests {
             assert_eq!(express_key_count(product), 0);
         }
         assert!(wireless_model(0x0101) && !wireless_model(0x03ce));
+        assert!(pen_display(0x03cb) && pen_display(0x03ce) && !pen_display(0x0100));
+        let screen = |id: &str| Display { id: id.into(), ..Default::default() };
+        let displays = [screen("DEL|DELL S2721QS|1"), screen("WAC|Wacom One 12|2")];
+        assert_eq!(own_screen(&displays).map(|d| d.id.as_str()), Some("WAC|Wacom One 12|2"));
+        assert!(own_screen(&displays[..1]).is_none());
     }
 
     #[test]

@@ -227,5 +227,6 @@
   "Serial number:": "일련번호:",
   "Pen tool ID:": "펜 도구 ID:",
   "Tilt": "기울기",
-  "Pressure:": "필압:"
+  "Pressure:": "필압:",
+  "Map to its own screen": "자체 화면에 매핑"
 }

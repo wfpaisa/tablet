@@ -50,5 +50,6 @@ Cintiq Workflows).
   diagnostics.
 - [x] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro,
   Wacom One S/M and the Wacom One 12 / 13 touch pen displays.
-- [ ] **Pen displays**: map the Wacom One 12 / 13 touch to their own screen
-  by default, and support the 13 touch's finger input.
+- [x] **Pen displays**: the Wacom One 12 / 13 touch map to their own screen
+  (EDID vendor "WAC") unless another monitor is chosen.
+- [ ] **Touch**: finger input on the Wacom One 13 touch.

@@ -311,6 +311,7 @@ fn pump(
     *shared.tablet.lock().unwrap() = Some(tablet);
     eprintln!("tabletd: using {} ({:04x}:{:04x})", info.name, info.vendor, info.product);
     shared.config.write().unwrap().grow_express_keys(tablet_config::express_key_count(info.product));
+    let pen_display = tablet_config::pen_display(info.product);
     *shared.device.lock().unwrap() = Some(info);
 
     let mut generation = shared.generation.load(Ordering::Acquire);
@@ -318,10 +319,14 @@ fn pump(
     processor.set_double_click_time(Duration::from_millis(shared.double_click_ms.load(Ordering::Acquire)));
     let new_mapping = || {
         let mut settings = shared.config.read().unwrap().mapping.clone();
+        let displays = shared.displays.lock().unwrap();
         if let Some(display) = shared.display_override.lock().unwrap().clone() {
             settings.display = display;
+        } else if pen_display && settings.display.is_none() {
+            // A pen display draws on its own screen unless told otherwise.
+            settings.display = tablet_config::own_screen(&displays).map(|d| d.id.clone());
         }
-        mapping::Mapping::new(&settings, &shared.displays.lock().unwrap(), tablet)
+        mapping::Mapping::new(&settings, &displays, tablet)
     };
     let mut map = new_mapping();
     let mut frame = Vec::new();

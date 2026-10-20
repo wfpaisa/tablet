@@ -227,5 +227,6 @@
   "Serial number:": "Numéro de série :",
   "Pen tool ID:": "ID de l’outil du stylet :",
   "Tilt": "Inclinaison",
-  "Pressure:": "Pression :"
+  "Pressure:": "Pression :",
+  "Map to its own screen": "Associer à son propre écran"
 }

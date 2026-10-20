@@ -14,6 +14,9 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
   if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: Number(new URLSearchParams(location.search).get("product")) || 0x0374 }, pen: { pressure: 0 }, displays: [
     { id: "DEL|DELL S2721QS|HH2HM43", name: "Dell Inc. 27\"", x: 0, y: 0, width: 2560, height: 1440, primary: true },
     { id: "DEL|DELL U2412M|YMYH12BL49CL", name: "Dell Inc. 24\"", x: 2560, y: 97, width: 1920, height: 1200 },
+    // A pen display's own screen, when previewing one with ?product=.
+    ...([0x03cb, 0x03ce].includes(Number(new URLSearchParams(location.search).get("product")))
+      ? [{ id: "WAC|Wacom One 12|0", name: "Wacom One 12", x: 4480, y: 400, width: 1920, height: 1080 }] : []),
   ] };
   return true;
 });
@@ -1056,7 +1059,7 @@ function mappingPage() {
         <div class="mapping-figure">${mappingDiagram()}</div>
         <div class="mapping-options">
           <p class="label">${esc(t("Display mapping"))}</p>
-          ${option("", t(displays.length > 1 ? "Map to all displays" : "Map to full display"))}
+          ${option("", t(ownScreen() ? "Map to its own screen" : displays.length > 1 ? "Map to all displays" : "Map to full display"))}
           ${displayOptions}
           ${portionOptions("screen", "Full screen")}
           <p class="label" style="margin-top:34px">${esc(t("Force proportions"))}
@@ -1090,7 +1093,7 @@ function mappingDiagram() {
   const oy = 16;
   const box = (d) => ({ x: ox + (d.x - x0) * scale, y: oy + (d.y - y0) * scale, w: d.width * scale, h: d.height * scale });
 
-  const selected = displays.find((d) => d.id === config.mapping.display);
+  const selected = displays.find((d) => d.id === mappedDisplay());
   let target = selected ? box(selected) : { x: ox, y: oy, w: dw * scale, h: dh * scale };
 
   const screenFull = { ...target };
@@ -1263,10 +1266,20 @@ function mountMapping() {
   });
 }
 
+// A pen display with no monitor chosen draws on its own screen, the one
+// whose EDID vendor is "WAC" (same rule as tablet_config::own_screen).
+function ownScreen() {
+  return model().display ? (status.displays ?? []).find((d) => d.id.startsWith("WAC|")) : undefined;
+}
+
+function mappedDisplay() {
+  return config.mapping.display ?? ownScreen()?.id ?? null;
+}
+
 function displayTogglePage() {
   const displays = status.displays ?? [];
   const toggled = status.toggled_display;
-  const current = toggled !== undefined && toggled !== null ? toggled : config.mapping.display;
+  const current = toggled !== undefined && toggled !== null ? toggled : mappedDisplay();
   const index = displays.findIndex((d) => d.id === current);
   const active = index >= 0 ? `${t("Display %s").replace("%s", index + 1)} · ${displays[index].name}` : t("Map to all displays");
   return `
