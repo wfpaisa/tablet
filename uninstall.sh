@@ -18,6 +18,7 @@ rm -f "$HOME/.local/bin/tabletd" "$HOME/.local/bin/tablet-center" \
 for size in 48 64 128 256 512; do
 	rm -f "$HOME/.local/share/icons/hicolor/${size}x$size/apps/tablet-center.png"
 done
+rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/tablet-center.svg"
 gtk-update-icon-cache -q -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 
 ext=tablet-center@tabletcenter.dev

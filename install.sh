@@ -71,6 +71,8 @@ for size in 48 64 128 256 512; do
 	mkdir -p "$dir"
 	install -m 644 "packaging/icons/tablet-center-$size.png" "$dir/tablet-center.png"
 done
+# Early builds also installed a scalable icon; GNOME prefers it over the PNGs.
+rm -f "$HOME/.local/share/icons/hicolor/scalable/apps/tablet-center.svg"
 gtk-update-icon-cache -q -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 update-desktop-database -q "$apps" 2>/dev/null || true
 
