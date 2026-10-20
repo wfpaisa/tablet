@@ -237,5 +237,9 @@
   "No applications found": "Geen toepassingen gevonden",
   "Loading…": "Laden…",
   "Running apps": "Geopend",
-  "Installed apps": "Geïnstalleerd"
+  "Installed apps": "Geïnstalleerd",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Hoe hard u moet drukken om de volle druk te bereiken. Zacht geeft met een lichte aanraking dikke, donkere lijnen; Stevig vraagt meer kracht voor dezelfde lijn.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Hoe ver twee snelle tikken uit elkaar mogen liggen om nog als dubbelklik te tellen. Een grotere afstand maakt dubbelklikken makkelijker met een onvaste hand; Uit schakelt deze hulp uit.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Hoeveel druk de punt nodig heeft voordat een klik wordt geregistreerd. Licht klikt bij de kleinste aanraking; Stevig vraagt een bewuste druk en voorkomt onbedoelde klikken als u zweeft of de pen laat rusten.",
+  "More information": "Meer informatie"
 }

@@ -720,3 +720,11 @@ html.overlay, body.overlay { background: transparent; }
 .keys-figure:has(.column-keys) { padding-top: 40px; padding-left: 150px; }
 .touch-options { margin: 32px 60px; max-width: 480px; }
 .touch-options .toggle-row { width: auto; margin: 0 0 10px; }
+
+.help-label { display:flex; align-items:center; gap:8px; }
+.help { position:relative; display:inline-flex; }
+.help-button { display:grid; place-items:center; width:18px; height:18px; padding:0; border:1px solid var(--faint); border-radius:50%; background:transparent; color:var(--muted); font:600 11px/1 inherit; cursor:help; }
+.help-button:hover, .help-button:focus-visible, .help.open .help-button { border-color:var(--accent); color:var(--text); outline:none; }
+.help-popup { position:absolute; top:calc(100% + 8px); left:-110px; z-index:15; width:260px; padding:10px 12px; border:1px solid var(--line); border-radius:var(--radius); background:var(--raised); box-shadow:0 10px 30px rgba(0, 0, 0, .45); color:var(--text); font-size:13px; font-weight:400; line-height:1.45; opacity:0; visibility:hidden; transform:translateY(-4px); transition:opacity .12s, transform .12s, visibility .12s; pointer-events:none; }
+.help-popup::before { content:""; position:absolute; top:-6px; left:114px; width:10px; height:10px; border-left:1px solid var(--line); border-top:1px solid var(--line); background:var(--raised); transform:rotate(45deg); }
+.help:hover .help-popup, .help-button:focus-visible + .help-popup, .help.open .help-popup { opacity:1; visibility:visible; transform:none; }

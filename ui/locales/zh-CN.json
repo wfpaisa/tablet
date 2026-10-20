@@ -237,5 +237,9 @@
   "No applications found": "未找到应用程序",
   "Loading…": "正在加载…",
   "Running apps": "正在运行",
-  "Installed apps": "已安装"
+  "Installed apps": "已安装",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "达到最大压力所需的力度。“软”轻触即可画出粗而深的笔画；“硬”需要更大的力度才能画出同样的笔画。",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "两次快速点击之间可以相隔多远仍被视为双击。距离越大，手不稳时越容易双击；“关闭”则停用此辅助。",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "笔尖注册为点击前所需的压力。“轻”只需轻轻一碰即点击；“硬”需要刻意按压，可避免悬停或放置笔时误点击。",
+  "More information": "更多信息"
 }

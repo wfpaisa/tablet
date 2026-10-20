@@ -237,5 +237,9 @@
   "No applications found": "Uygulama bulunamadı",
   "Loading…": "Yükleniyor…",
   "Running apps": "Açık",
-  "Installed apps": "Yüklü"
+  "Installed apps": "Yüklü",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Tam basınca ulaşmak için ne kadar bastırmanız gerektiği. Yumuşak, hafif dokunuşla kalın ve koyu çizgiler verir; Sert aynı çizgi için daha fazla güç ister.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "İki hızlı dokunuşun çift tıklama sayılması için birbirinden ne kadar uzak olabileceği. Daha büyük mesafe titreyen elle çift tıklamayı kolaylaştırır; Kapalı bu yardımı kapatır.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Ucun tıklama algılaması için gereken basınç. Hafif en küçük dokunuşta tıklar; Sert bilinçli bir basış ister, böylece kalemi havada tutarken veya bırakırken yanlışlıkla tıklamayı önler.",
+  "More information": "Daha fazla bilgi"
 }

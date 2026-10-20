@@ -237,5 +237,9 @@
   "No applications found": "Aucune application trouvée",
   "Loading…": "Chargement…",
   "Running apps": "Ouvertes",
-  "Installed apps": "Installées"
+  "Installed apps": "Installées",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "La force nécessaire pour atteindre la pression maximale. Doux donne des traits épais et foncés d'un toucher léger ; Ferme demande d'appuyer davantage pour le même trait.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "L'écart possible entre deux tapotements rapides pour qu'ils comptent encore comme un double-clic. Un écart plus grand facilite le double-clic avec une main tremblante ; Désactivé supprime cette aide.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "La pression dont la pointe a besoin pour enregistrer un clic. Léger clique au moindre contact ; Ferme demande un appui franc, ce qui évite les clics involontaires en survol ou en posant le stylet.",
+  "More information": "Plus d'informations"
 }

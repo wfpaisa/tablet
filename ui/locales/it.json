@@ -237,5 +237,9 @@
   "No applications found": "Nessuna applicazione trovata",
   "Loading…": "Caricamento…",
   "Running apps": "Aperte",
-  "Installed apps": "Installate"
+  "Installed apps": "Installate",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Quanta forza serve per raggiungere la pressione massima. Morbido dà tratti spessi e scuri con un tocco leggero; Rigido richiede più forza per lo stesso tratto.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Quanto possono essere distanti due tocchi rapidi per contare ancora come doppio clic. Una distanza maggiore facilita il doppio clic con una mano incerta; Disattivato elimina questo aiuto.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Quanta pressione serve alla punta per registrare un clic. Leggero fa clic al minimo tocco; Rigido richiede una pressione decisa ed evita clic accidentali mentre la penna è sospesa o appoggiata.",
+  "More information": "Altre informazioni"
 }

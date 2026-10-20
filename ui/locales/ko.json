@@ -237,5 +237,9 @@
   "No applications found": "응용 프로그램을 찾을 수 없음",
   "Loading…": "불러오는 중…",
   "Running apps": "실행 중",
-  "Installed apps": "설치됨"
+  "Installed apps": "설치됨",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "최대 필압에 도달하는 데 필요한 힘입니다. 부드럽게는 가벼운 터치로 굵고 진한 선을 만들고, 단단하게는 같은 선에 더 큰 힘이 필요합니다.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "빠른 두 번의 탭이 얼마나 떨어져도 더블 클릭으로 인식할지 설정합니다. 거리가 클수록 손이 떨려도 더블 클릭이 쉬워지며, 끔은 이 기능을 사용하지 않습니다.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "펜 팁이 클릭으로 인식되기 전에 필요한 압력입니다. 가볍게는 아주 살짝 닿아도 클릭하고, 단단하게는 의도적으로 눌러야 하므로 호버 중이거나 펜을 올려 둘 때 실수로 클릭되는 것을 막습니다.",
+  "More information": "자세한 정보"
 }

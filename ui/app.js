@@ -377,6 +377,30 @@ const ORIENTATIONS = [
   ["portrait_flipped", "Portrait flipped"],
 ];
 
+const TIP_SENSITIVITY_HELP = "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.";
+const DOUBLE_CLICK_HELP = "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.";
+const TIP_FEEL_HELP = "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.";
+
+let helpId = 0;
+function helpLabel(label, help) {
+  const id = `help-${++helpId}`;
+  return `<div class="label help-label">${esc(t(label))}
+    <span class="help">
+      <button type="button" class="help-button" aria-label="${esc(t("More information"))}" aria-describedby="${id}">?</button>
+      <span class="help-popup" role="tooltip" id="${id}">${esc(t(help))}</span>
+    </span></div>`;
+}
+
+// Hover shows the help on a mouse; a tap or click pins it open for pen and touch.
+document.addEventListener("click", (e) => {
+  const help = e.target.closest?.(".help-button")?.parentElement;
+  document.querySelectorAll(".help.open").forEach(item => item !== help && item.classList.remove("open"));
+  help?.classList.toggle("open");
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") document.querySelectorAll(".help.open").forEach(item => item.classList.remove("open"));
+});
+
 function orientationTurns() {
   return Math.max(0, ORIENTATIONS.findIndex(([value]) => value === config.mapping.orientation));
 }
@@ -501,15 +525,15 @@ function penPage() {
           <div class="pressure"><span id="pressure-fill" style="width:0"></span></div>
           <div class="scale"><span>${esc(t("Click"))}</span><span>${esc(t("Maximum"))}</span></div>
           <div class="slider">
-            <p class="label">${esc(t("Tip sensitivity"))}</p>
+            ${helpLabel("Tip sensitivity", TIP_SENSITIVITY_HELP)}
             ${slider("tip", toolProfile().pen.tip_sensitivity, 1, 7, "Soft", "Firm")}
           </div>
           <div class="slider">
-            <p class="label">${esc(t("Double-click distance"))}</p>
+            ${helpLabel("Double-click distance", DOUBLE_CLICK_HELP)}
             ${slider("double-click", DOUBLE_CLICK_MM.indexOf(toolProfile().pen.double_click_mm ?? 2), 0, 5, "Off", "Large")}
           </div>
           <div class="slider">
-            <p class="label">${esc(t("Tip feel"))}</p>
+            ${helpLabel("Tip feel", TIP_FEEL_HELP)}
             ${slider("click-threshold", toolProfile().pen.click_threshold ?? 1, 1, 7, "Light", "Firm")}
           </div>
           <select id="pen-mode" aria-label="${esc(t("Pen mode"))}">

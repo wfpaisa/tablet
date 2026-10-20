@@ -237,5 +237,9 @@
   "No applications found": "Приложения не найдены",
   "Loading…": "Загрузка…",
   "Running apps": "Запущенные",
-  "Installed apps": "Установленные"
+  "Installed apps": "Установленные",
+  "How hard you need to press to reach full pressure. Soft gives thick, dark strokes with a light touch; Firm needs a heavier hand for the same stroke.": "Насколько сильно нужно нажимать для достижения полного нажима. Мягко даёт толстые тёмные линии при лёгком касании; Жёстко требует большего усилия для той же линии.",
+  "How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.": "Насколько далеко друг от друга могут быть два быстрых касания, чтобы считаться двойным щелчком. Большее расстояние облегчает двойной щелчок при дрожащей руке; Выкл. отключает эту помощь.",
+  "How much pressure the tip needs before it registers a click. Light clicks at the slightest touch; Firm needs a deliberate press, which avoids accidental clicks while you hover or rest the pen.": "Какое давление нужно наконечнику, чтобы зарегистрировать щелчок. Легко — щелчок при малейшем касании; Жёстко — нужно осознанное нажатие, что предотвращает случайные щелчки при наведении или опоре пера.",
+  "More information": "Подробнее"
 }
