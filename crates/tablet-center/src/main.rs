@@ -453,7 +453,7 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     config.url = tauri::WebviewUrl::App((*page).into());
     config.decorations = !frameless;
     // Glass draws its own see-through frame, so it can blur what is behind.
-    let blur = if *frameless && std::env::var_os("TC_NO_BLUR").is_none() { blur::Blur::new() } else { None };
+    let blur = if *frameless { blur::Blur::new() } else { None };
     let mut builder = WebviewWindowBuilder::from_config(app.handle(), &config)?;
     if blur.is_some() {
         builder = builder.initialization_script(blur::Blur::class_script());
