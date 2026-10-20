@@ -231,5 +231,11 @@
   "Map to its own screen": "Сопоставить с собственным экраном",
   "Touch": "Сенсорный ввод",
   "Enable touch": "Включить сенсорный ввод",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Управляйте экраном пальцами. Отключите сенсорный ввод, чтобы опирать руку на экран во время рисования."
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Управляйте экраном пальцами. Отключите сенсорный ввод, чтобы опирать руку на экран во время рисования.",
+  "Choose the application whose tool settings you want to customize.": "Выберите приложение, для которого нужно настроить параметры инструмента.",
+  "Search applications": "Поиск приложений",
+  "No applications found": "Приложения не найдены",
+  "Loading…": "Загрузка…",
+  "Running apps": "Запущенные",
+  "Installed apps": "Установленные"
 }

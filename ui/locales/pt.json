@@ -231,5 +231,11 @@
   "Map to its own screen": "Mapear para a própria tela",
   "Touch": "Toque",
   "Enable touch": "Ativar toque",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Use os dedos na tela. Desative o toque para apoiar a mão na tela enquanto desenha."
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Use os dedos na tela. Desative o toque para apoiar a mão na tela enquanto desenha.",
+  "Choose the application whose tool settings you want to customize.": "Escolha o aplicativo cujas configurações de ferramenta deseja personalizar.",
+  "Search applications": "Pesquisar aplicativos",
+  "No applications found": "Nenhum aplicativo encontrado",
+  "Loading…": "Carregando…",
+  "Running apps": "Em execução",
+  "Installed apps": "Instalados"
 }

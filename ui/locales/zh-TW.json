@@ -231,5 +231,11 @@
   "Map to its own screen": "對應到自身螢幕",
   "Touch": "觸控",
   "Enable touch": "啟用觸控",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "可用手指操作螢幕。若要在繪圖時將手放在螢幕上，請關閉觸控。"
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "可用手指操作螢幕。若要在繪圖時將手放在螢幕上，請關閉觸控。",
+  "Choose the application whose tool settings you want to customize.": "選擇要自訂工具設定的應用程式。",
+  "Search applications": "搜尋應用程式",
+  "No applications found": "找不到應用程式",
+  "Loading…": "載入中…",
+  "Running apps": "執行中",
+  "Installed apps": "已安裝"
 }

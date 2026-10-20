@@ -9,6 +9,11 @@ const invoke = window.__TAURI__?.core?.invoke ?? (async (cmd) => {
     { id: "org.gnome.TextEditor", name: "Text Editor", icon: "org.gnome.TextEditor" },
     { id: "org.inkscape.Inkscape", name: "Inkscape", icon: "org.inkscape.Inkscape" },
     { id: "krita", name: "Krita", icon: "krita" },
+    ...(cmd === "installed_apps" ? [
+      { id: "org.gimp.GIMP", name: "GNU Image Manipulation Program", icon: "org.gimp.GIMP" },
+      { id: "org.blender.Blender", name: "Blender", icon: "org.blender.Blender" },
+      { id: "org.mozilla.firefox", name: "Firefox", icon: "org.mozilla.firefox" },
+    ] : []),
   ];
   if (cmd === "get_config") return structuredClone(DEFAULTS);
   if (cmd === "status") return { ok: true, device: { name: "Wacom Intuos S Pen", vendor: 0x056a, product: Number(new URLSearchParams(location.search).get("product")) || 0x0374 }, pen: { pressure: 0 }, displays: [
@@ -2263,36 +2268,80 @@ function mountAppStrip() {
 async function selectApplication() {
   const backdrop = document.createElement("div");
   backdrop.className = "dialog-backdrop";
-  backdrop.innerHTML = `<form class="dialog app-dialog" role="dialog" aria-modal="true"><h3>${esc(t("Select an application"))}</h3>
-    <p>${esc(t("Select the application for which you want to customize tool settings. Choose an application from the list below, or click the Browse button to select any application installed on your computer."))}</p>
-    <label>${esc(t("Currently running applications:"))}</label><input type="search" aria-label="${esc(t("Select an application"))}" hidden><div class="application-list"></div>
-    <div class="dialog-buttons"><button type="button" class="button" data-browse>${esc(t("Browse..."))}</button><button type="submit" class="button primary" disabled>${esc(t("OK"))}</button><button type="button" class="button" data-cancel>${esc(t("Cancel"))}</button></div></form>`;
+  const searchIcon = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM15.5 15.5 20 20"/></svg>`;
+  backdrop.innerHTML = `<form class="dialog app-dialog" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
+    <h3 id="app-dialog-title">${esc(t("Select an application"))}</h3>
+    <p class="dialog-hint">${esc(t("Choose the application whose tool settings you want to customize."))}</p>
+    <div class="app-picker-bar">
+      <div class="segmented" role="tablist">
+        <button type="button" role="tab" data-source="running" aria-selected="true">${esc(t("Running apps"))}</button>
+        <button type="button" role="tab" data-source="installed" aria-selected="false">${esc(t("Installed apps"))}</button>
+      </div>
+      <label class="search-field">${searchIcon}<input type="search" placeholder="${esc(t("Search applications"))}" aria-label="${esc(t("Search applications"))}" autocomplete="off" spellcheck="false"></label>
+    </div>
+    <div class="application-list" role="listbox" aria-label="${esc(t("Select an application"))}"></div>
+    <div class="dialog-buttons"><button type="button" class="button" data-cancel>${esc(t("Cancel"))}</button><button type="submit" class="button primary" disabled>${esc(t("OK"))}</button></div></form>`;
   const previous = document.activeElement;
   const close = () => { backdrop.remove(); previous?.focus(); };
   let choice = null;
-  let apps = [];
+  let source = "running";
+  let running = null;
+  const list = $(".application-list", backdrop);
   const search = $("input", backdrop);
-  const show = () => {
-    const list = $(".application-list", backdrop);
-    list.innerHTML = apps.filter(app => app.name.toLowerCase().includes(search.value.toLowerCase())).map(app =>
-      `<button type="button" data-id="${esc(app.id)}" class="application-row ${choice?.id === app.id ? "selected" : ""}">${appImage(app)}${esc(app.name)}</button>`).join("");
-    list.querySelectorAll("button").forEach(button => button.onclick = () => {
-      choice = apps.find(app => app.id === button.dataset.id); $("[type=submit]", backdrop).disabled = false; show();
+  const ok = $("[type=submit]", backdrop);
+  const pool = () => source === "running" ? running : installedAppCache;
+  const visible = () => {
+    const query = search.value.trim().toLowerCase();
+    return (pool() ?? []).filter(app => !query || app.name.toLowerCase().includes(query) || app.id.toLowerCase().includes(query))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  };
+  const pick = (app) => {
+    choice = app; ok.disabled = !app;
+    list.querySelectorAll(".application-row").forEach(row => {
+      const on = row.dataset.id === app?.id;
+      row.classList.toggle("selected", on); row.setAttribute("aria-selected", on);
+      if (on) row.scrollIntoView({ block: "nearest" });
     });
   };
+  const show = () => {
+    if (!pool()) { list.innerHTML = `<p class="application-empty">${esc(t("Loading…"))}</p>`; return; }
+    const apps = visible();
+    list.innerHTML = apps.length ? apps.map(app =>
+      `<button type="button" role="option" tabindex="-1" data-id="${esc(app.id)}" class="application-row" aria-selected="false">
+        <span class="application-icon">${appImage(app)}</span>
+        <span class="application-text"><span>${esc(app.name)}</span><small>${esc(app.id)}</small></span></button>`).join("")
+      : `<p class="application-empty">${esc(t("No applications found"))}</p>`;
+    list.querySelectorAll(".application-row").forEach(row => {
+      const app = apps.find(item => item.id === row.dataset.id);
+      row.onclick = () => pick(app);
+      row.ondblclick = () => { pick(app); $("form", backdrop).requestSubmit(); };
+    });
+    pick(apps.find(app => app.id === choice?.id) ?? null);
+  };
+  const setSource = async (next) => {
+    source = next;
+    backdrop.querySelectorAll("[data-source]").forEach(tab => tab.setAttribute("aria-selected", tab.dataset.source === next));
+    show();
+    if (next === "installed" && !installedAppCache) { installedAppCache = await invoke("installed_apps").catch(() => []); show(); }
+  };
+  backdrop.querySelectorAll("[data-source]").forEach(tab => tab.onclick = () => setSource(tab.dataset.source));
   $("[data-cancel]", backdrop).onclick = close;
+  backdrop.onmousedown = e => { if (e.target === backdrop) close(); };
+  search.oninput = show;
+  search.onkeydown = e => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const apps = visible();
+    const index = apps.findIndex(app => app.id === choice?.id);
+    pick(apps[Math.min(apps.length - 1, Math.max(0, index + (e.key === "ArrowDown" ? 1 : -1)))] ?? null);
+  };
   backdrop.onkeydown = e => {
     if (e.key === "Escape") close();
     if (e.key === "Tab") {
-      const items = [...backdrop.querySelectorAll("input, button")].filter(item => !item.disabled && !item.hidden);
+      const items = [...backdrop.querySelectorAll("input, button:not([role=option])")].filter(item => !item.disabled);
       const index = items.indexOf(document.activeElement);
       e.preventDefault(); items[(index + (e.shiftKey ? -1 : 1) + items.length) % items.length]?.focus();
     }
-  };
-  search.oninput = show;
-  $("[data-browse]", backdrop).onclick = async () => {
-    installedAppCache ??= await invoke("installed_apps").catch(() => []);
-    apps = installedAppCache; search.hidden = false; search.focus(); show();
   };
   $("form", backdrop).onsubmit = e => {
     e.preventDefault(); if (!choice) return;
@@ -2306,9 +2355,10 @@ async function selectApplication() {
     selected = null; save(); close(); render();
   };
   document.body.append(backdrop);
-  $("[data-cancel]", backdrop).focus();
-  const running = await invoke("running_apps").catch(() => []);
-  installedAppCache ??= await invoke("installed_apps").catch(() => []);
-  apps = running.map(app => ({ ...app, icon_data: installedAppCache.find(item => item.id.toLowerCase() === app.id.toLowerCase())?.icon_data }));
   show();
+  search.focus();
+  const found = await invoke("running_apps").catch(() => []);
+  installedAppCache ??= await invoke("installed_apps").catch(() => []);
+  running = found.map(app => ({ ...app, icon_data: installedAppCache.find(item => item.id.toLowerCase() === app.id.toLowerCase())?.icon_data }));
+  if (!running.length && source === "running") await setSource("installed"); else show();
 }

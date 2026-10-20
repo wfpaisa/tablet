@@ -231,5 +231,11 @@
   "Map to its own screen": "Mappa sul proprio schermo",
   "Touch": "Tocco",
   "Enable touch": "Attiva tocco",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Usa le dita sullo schermo. Disattiva il tocco per appoggiare la mano sullo schermo mentre disegni."
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Usa le dita sullo schermo. Disattiva il tocco per appoggiare la mano sullo schermo mentre disegni.",
+  "Choose the application whose tool settings you want to customize.": "Scegli l'applicazione di cui vuoi personalizzare le impostazioni dello strumento.",
+  "Search applications": "Cerca applicazioni",
+  "No applications found": "Nessuna applicazione trovata",
+  "Loading…": "Caricamento…",
+  "Running apps": "Aperte",
+  "Installed apps": "Installate"
 }

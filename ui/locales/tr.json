@@ -231,5 +231,11 @@
   "Map to its own screen": "Kendi ekranına eşle",
   "Touch": "Dokunma",
   "Enable touch": "Dokunmayı etkinleştir",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Ekranda parmaklarınızı kullanın. Çizerken elinizi ekrana dayamak için dokunmayı kapatın."
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Ekranda parmaklarınızı kullanın. Çizerken elinizi ekrana dayamak için dokunmayı kapatın.",
+  "Choose the application whose tool settings you want to customize.": "Araç ayarlarını özelleştirmek istediğiniz uygulamayı seçin.",
+  "Search applications": "Uygulama ara",
+  "No applications found": "Uygulama bulunamadı",
+  "Loading…": "Yükleniyor…",
+  "Running apps": "Açık",
+  "Installed apps": "Yüklü"
 }

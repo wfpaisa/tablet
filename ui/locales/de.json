@@ -231,5 +231,11 @@
   "Map to its own screen": "Dem eigenen Bildschirm zuordnen",
   "Touch": "Touch",
   "Enable touch": "Touch aktivieren",
-  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Bedienen Sie den Bildschirm mit den Fingern. Schalten Sie Touch aus, um beim Zeichnen die Hand auf dem Bildschirm abzulegen."
+  "Use your fingers on the screen. Turn touch off to rest your hand on the screen while you draw.": "Bedienen Sie den Bildschirm mit den Fingern. Schalten Sie Touch aus, um beim Zeichnen die Hand auf dem Bildschirm abzulegen.",
+  "Choose the application whose tool settings you want to customize.": "Wählen Sie die Anwendung, deren Werkzeugeinstellungen Sie anpassen möchten.",
+  "Search applications": "Anwendungen suchen",
+  "No applications found": "Keine Anwendungen gefunden",
+  "Loading…": "Wird geladen…",
+  "Running apps": "Geöffnet",
+  "Installed apps": "Installiert"
 }
