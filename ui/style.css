@@ -83,7 +83,7 @@ button { font: inherit; color: inherit; }
 }
 .toolbar-group { display: flex; gap: 4px; }
 .toolbar-group + .toolbar-group { margin-left: auto; }
-.toolbar .wf-buttons { margin-left: 14px; }
+.window-frame { background: var(--bar); }
 .tool {
   display: flex;
   flex-direction: column;
