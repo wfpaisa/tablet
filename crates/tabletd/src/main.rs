@@ -584,12 +584,16 @@ fn emit_pen(shared: &Shared, out: &pen::Output) -> io::Result<bool> {
     if !out.pen.is_empty() {
         outputs.pen.emit(&out.pen)?;
     }
+    // Relative motion goes to the relative mouse; buttons and wheels always
+    // to the pointer, so a press sent with motion and its release sent
+    // without reach the same device (otherwise the button stays down).
     for batch in &out.mouse {
-        let relative = batch.iter().any(|e| {
+        let (motion, rest): (Vec<InputEvent>, Vec<InputEvent>) = batch.iter().partition(|e| {
             e.event_type() == EventType::RELATIVE
                 && (e.code() == evdev::RelativeAxisCode::REL_X.0 || e.code() == evdev::RelativeAxisCode::REL_Y.0)
         });
-        if relative { outputs.relative.emit(batch)? } else { outputs.pointer.emit(batch)? }
+        if !motion.is_empty() { outputs.relative.emit(&motion)?; }
+        if !rest.is_empty() { outputs.pointer.emit(&rest)?; }
     }
     if !out.mouse.is_empty() {
         *shared.pointer_used.lock().unwrap() = Some(Instant::now());
