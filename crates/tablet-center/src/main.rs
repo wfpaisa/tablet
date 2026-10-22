@@ -40,6 +40,12 @@ fn ask(request: &Request) -> Result<Response, String> {
         }
         match exchange(daemon.as_mut().unwrap(), request) {
             Ok(response) => return Ok(response),
+            // A slow answer may still be carried out: asking again could
+            // run an action twice.
+            Err(e) if matches!(e.kind(), io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut) => {
+                *daemon = None;
+                return Err("tabletd is not responding".into());
+            }
             Err(_) => *daemon = None,
         }
     }
