@@ -949,7 +949,7 @@ function mountTestArea() {
   });
   canvas.addEventListener("pointerup", () => {
     last = null;
-    clearTimer = setTimeout(clear, 4000);
+    clearTimer = setTimeout(clear, 2000);
   });
   canvas.addEventListener("dblclick", fit);
 }
