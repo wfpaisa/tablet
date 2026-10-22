@@ -195,9 +195,21 @@ pub fn firmware(path: &std::path::Path) -> Option<String> {
     })
 }
 
+/// The tablet's battery, read again at most every few seconds: live views
+/// ask for status about 25 times a second.
 pub fn battery(path: Option<&std::path::Path>, product: u16) -> Option<tablet_config::Battery> {
+    use std::sync::Mutex;
+    use std::time::{Duration, Instant};
+    type Cached = (Instant, Option<std::path::PathBuf>, Option<tablet_config::Battery>);
+    static CACHE: Mutex<Option<Cached>> = Mutex::new(None);
     if !tablet_config::wireless_model(product) { return None; }
-    read_battery(std::path::Path::new("/sys/class/power_supply"), path)
+    let mut cache = CACHE.lock().unwrap();
+    if let Some((at, cached_path, battery)) = cache.as_ref() {
+        if at.elapsed() < Duration::from_secs(5) && cached_path.as_deref() == path { return battery.clone(); }
+    }
+    let battery = read_battery(std::path::Path::new("/sys/class/power_supply"), path);
+    *cache = Some((Instant::now(), path.map(|p| p.to_path_buf()), battery.clone()));
+    battery
 }
 
 fn read_battery(root: &std::path::Path, tablet: Option<&std::path::Path>) -> Option<tablet_config::Battery> {

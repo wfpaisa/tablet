@@ -1228,7 +1228,7 @@ fn client(stream: UnixStream, shared: &Shared) -> io::Result<()> {
                 focused_app: shared.focused_app.lock().unwrap().clone(),
                 touch: shared.touch.load(Ordering::Acquire),
                 ok: true,
-                device: shared.device.lock().unwrap().clone().map(|mut device| {
+                device: { let device = shared.device.lock().unwrap().clone(); device }.map(|mut device| {
                     device.battery = devices::battery(device.sysfs_path.as_deref(), device.product);
                     device
                 }),
