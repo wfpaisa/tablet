@@ -1351,8 +1351,14 @@ function mountMapping() {
         if (handle.includes("s")) h = clamp(h + dy, .05, 1 - y);
       }
       config.mapping[key] = { x, y, w, h };
-      figure.innerHTML = mappingDiagram();
+      // The pen sends more events than the screen shows frames: rebuild
+      // the diagram at most once per frame.
+      frame ||= requestAnimationFrame(() => {
+        frame = 0;
+        figure.innerHTML = mappingDiagram();
+      });
     };
+    let frame = 0;
     const finish = (event) => {
       if (event.pointerId !== e.pointerId) return;
       if (event.type === "pointercancel") config.mapping[key] = initial;
@@ -1360,6 +1366,7 @@ function mountMapping() {
       figure.removeEventListener("pointermove", move);
       figure.removeEventListener("pointerup", finish);
       figure.removeEventListener("pointercancel", finish);
+      cancelAnimationFrame(frame);
       render();
     };
     figure.addEventListener("pointermove", move);
@@ -1991,22 +1998,35 @@ function mountSettings(tab) {
 
 // Asks again only after the previous answer arrived, and not at all while
 // the window is hidden, so a slow daemon never piles requests up.
+// The poll that a hidden window paused, resumed when it shows again.
+let resumePoll = null;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !resumePoll) return;
+  const resume = resumePoll;
+  resumePoll = null;
+  resume();
+});
+
 function startPolling(ms, onTick) {
   stopPolling();
   const run = pollTimer;
   const tick = async () => {
-    if (document.visibilityState === "visible") {
-      status = await invoke("status");
-      if (run !== pollTimer) return;
-      const active = $(".active-app");
-      if (active) {
-        const id = status.focused_app?.replace(/\.desktop$/i, "").toLowerCase();
-        active.textContent = config.apps?.find(app => app.id.replace(/\.desktop$/i, "").toLowerCase() === id
-          || app.id.replace(/\.desktop$/i, "").split(".").at(-1).toLowerCase() === id)?.name ?? t("All other");
-        active.title = `${t("Application in use now")}: ${status.focused_app ?? t("All other")}`;
-      }
-      onTick?.();
+    if (run !== pollTimer) return;
+    // Hidden: stop until visibilitychange instead of waking every few ms.
+    if (document.visibilityState !== "visible") {
+      resumePoll = tick;
+      return;
     }
+    status = await invoke("status");
+    if (run !== pollTimer) return;
+    const active = $(".active-app");
+    if (active) {
+      const id = status.focused_app?.replace(/\.desktop$/i, "").toLowerCase();
+      active.textContent = config.apps?.find(app => app.id.replace(/\.desktop$/i, "").toLowerCase() === id
+        || app.id.replace(/\.desktop$/i, "").split(".").at(-1).toLowerCase() === id)?.name ?? t("All other");
+      active.title = `${t("Application in use now")}: ${status.focused_app ?? t("All other")}`;
+    }
+    onTick?.();
     if (run === pollTimer) setTimeout(tick, ms);
   };
   setTimeout(tick, ms);
@@ -2014,6 +2034,7 @@ function startPolling(ms, onTick) {
 
 function stopPolling() {
   pollTimer++;
+  resumePoll = null;
 }
 
 let lastRoute = "";
