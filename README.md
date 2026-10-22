@@ -40,7 +40,7 @@ your settings too).
 | ![Pan/Scroll](docs/screenshots/pan-scroll.png) | ![Mapping](docs/screenshots/mapping.png) |
 | Pan/Scroll, the macOS-style pen gesture | Mapping to all displays or one |
 | ![Glass interface](docs/screenshots/glass.png) | |
-| The alternative Glass interface | |
+| The alternative Glass interface, dark theme | |
 
 ## Features
 
