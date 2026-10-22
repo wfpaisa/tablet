@@ -46,8 +46,7 @@ pub struct Blur {
     effect: Option<(*mut c_void, ExtBackgroundEffectSurfaceV1)>,
     /// The size the region was made for; None while there is no region.
     size: Option<(i32, i32)>,
-    /// Only Glass is blurred; Tablet has the system frame, whose shadow is
-    /// part of the surface.
+    /// Only Glass is blurred; Tablet's window is opaque.
     enabled: bool,
 }
 

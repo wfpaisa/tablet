@@ -43,6 +43,10 @@
   --chip-text: #1e1e1e;
   --sidebar: #2e2e2e;
   --radius: 8px;
+  /* Window surface and title-bar buttons (frame.css). */
+  --wf-surface: var(--bg);
+  --wf-text: var(--text);
+  --wf-hover: rgba(255, 255, 255, 0.12);
   color-scheme: dark;
 }
 
@@ -71,13 +75,15 @@ button { font: inherit; color: inherit; }
 /* Toolbar */
 .toolbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   padding: 8px 10px 6px;
   background: var(--bar);
   border-bottom: 1px solid var(--line);
 }
 .toolbar-group { display: flex; gap: 4px; }
+.toolbar-group + .toolbar-group { margin-left: auto; }
+.toolbar .wf-buttons { margin-left: 14px; }
 .tool {
   display: flex;
   flex-direction: column;

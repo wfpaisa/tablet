@@ -255,7 +255,7 @@ const LANGUAGES = [
 // The last field: draws its own title bar (no system frame). Keep in step
 // with UI_STYLES in tablet-center's main.rs.
 const UI_STYLES = [
-  ["classic", "Tablet", "index.html", false],
+  ["classic", "Tablet", "index.html", true],
   ["glass", "Glass", "glass.html", true],
 ];
 
@@ -282,20 +282,30 @@ const appWindow = () => window.__TAURI__?.window?.getCurrentWindow();
 // Title bar with a drag area and window buttons; pages without the system
 // frame put it at the top of their layout and call mountWindowFrame().
 function windowFrame(title = "Tablet Center") {
-  const button = (act, label, glyph) =>
-    `<button class="wf-button" data-window="${act}" aria-label="${esc(t(label))}">${glyph}</button>`;
   return `
     <header class="window-frame" data-tauri-drag-region>
       <span class="wf-title" data-tauri-drag-region><img src="app-icon.png" alt="" data-tauri-drag-region>${esc(title)}</span>
-      <div class="wf-buttons">
-        ${button("minimize", "Minimize", '<svg viewBox="0 0 10 10"><path d="M2 5h6"/></svg>')}
-        ${button("maximize", "Maximize", '<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="1"/></svg>')}
-        ${button("close", "Close", '<svg viewBox="0 0 10 10"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg>')}
-      </div>
+      ${windowButtons()}
     </header>
-    ${["North", "South", "East", "West", "NorthEast", "NorthWest", "SouthEast", "SouthWest"]
-      .map((edge) => `<div class="wf-edge wf-${edge}" data-resize="${edge}"></div>`)
-      .join("")}`;
+    ${resizeEdges()}`;
+}
+
+// Minimize, maximize and close, for a frame or a toolbar that is one.
+function windowButtons() {
+  const button = (act, label, glyph) =>
+    `<button class="wf-button" data-window="${act}" aria-label="${esc(t(label))}">${glyph}</button>`;
+  return `
+    <div class="wf-buttons">
+      ${button("minimize", "Minimize", '<svg viewBox="0 0 10 10"><path d="M2 5h6"/></svg>')}
+      ${button("maximize", "Maximize", '<svg viewBox="0 0 10 10"><rect x="2" y="2" width="6" height="6" rx="1"/></svg>')}
+      ${button("close", "Close", '<svg viewBox="0 0 10 10"><path d="M2.5 2.5l5 5M7.5 2.5l-5 5"/></svg>')}
+    </div>`;
+}
+
+function resizeEdges() {
+  return ["North", "South", "East", "West", "NorthEast", "NorthWest", "SouthEast", "SouthWest"]
+    .map((edge) => `<div class="wf-edge wf-${edge}" data-resize="${edge}"></div>`)
+    .join("");
 }
 
 function mountWindowFrame() {
@@ -316,6 +326,11 @@ function mountWindowFrame() {
   );
   // A page opened before the choice was stored may still have a frame.
   win?.setDecorations(false).catch(() => {});
+  // Maximized, the window has no rounded corners or border to show.
+  const maximized = async () =>
+    document.documentElement.classList.toggle("wf-maximized", Boolean(await win?.isMaximized().catch(() => false)));
+  maximized();
+  win?.onResized(maximized).catch(() => {});
 }
 
 // Settings control shared by all interfaces.
@@ -2198,6 +2213,10 @@ async function init() {
   });
   await loadLanguage();
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
+  // The toolbar is the title bar: it drags the window and holds its buttons.
+  $(".toolbar").insertAdjacentHTML("beforeend", windowButtons());
+  document.body.insertAdjacentHTML("beforeend", resizeEdges());
+  mountWindowFrame();
   await loadConfig();
   // Reading every icon takes a moment: fill the app strip in when it arrives.
   invoke("installed_apps").then((apps) => {

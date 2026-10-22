@@ -25,6 +25,15 @@ body {
   }
 }
 
+.wf-maximized .wf-window {
+  border: 0;
+  border-radius: 0;
+}
+
+.wf-maximized .wf-edge {
+  display: none;
+}
+
 .window-frame {
   flex: none;
   display: flex;

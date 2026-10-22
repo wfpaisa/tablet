@@ -434,9 +434,10 @@ fn show_shortcut(app: &tauri::AppHandle, request: &ShowRequest) -> tauri::Result
     Ok(())
 }
 
-/// Interfaces: (id, page, draws its own title bar). Keep in step with
-/// UI_STYLES in app.js.
-const UI_STYLES: [(&str, &str, bool); 2] = [("classic", "index.html", false), ("glass", "glass.html", true)];
+/// Interfaces: (id, page, draws its own title bar, blurs what is behind).
+/// Keep in step with UI_STYLES in app.js.
+const UI_STYLES: [(&str, &str, bool, bool); 2] =
+    [("classic", "index.html", true, false), ("glass", "glass.html", true, true)];
 
 /// Whether the main window was created without the system frame. GTK
 /// decides then whether it draws a frame itself; asked for one later, it
@@ -451,12 +452,11 @@ fn ui_style_path() -> PathBuf {
 /// without the system title bar) instead of redirecting after loading.
 #[tauri::command(async)]
 fn set_ui_style(app: tauri::AppHandle, style: String) -> Result<(), String> {
-    let Some((_, _, frameless)) = UI_STYLES.iter().find(|(id, ..)| *id == style) else {
+    let Some(&(_, _, frameless, blur)) = UI_STYLES.iter().find(|(id, ..)| *id == style) else {
         return Err(format!("unknown interface {style}"));
     };
-    // Before the page puts the system frame back: its shadow must not blur.
-    let frameless = *frameless;
-    app.run_on_main_thread(move || blur::Blur::set_enabled(frameless)).map_err(|e| e.to_string())?;
+    // Before the page changes: an opaque interface must not blur.
+    app.run_on_main_thread(move || blur::Blur::set_enabled(blur)).map_err(|e| e.to_string())?;
     fs::write(ui_style_path(), style).map_err(|e| e.to_string())?;
     // A window made without a frame cannot get GTK's back: start again
     // with the new interface.
@@ -471,7 +471,7 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
         return Ok(());
     };
     let chosen = fs::read_to_string(ui_style_path()).unwrap_or_default();
-    let (_, page, frameless) = UI_STYLES.iter().find(|(id, ..)| *id == chosen.trim()).unwrap_or(&UI_STYLES[0]);
+    let (_, page, frameless, blurred) = UI_STYLES.iter().find(|(id, ..)| *id == chosen.trim()).unwrap_or(&UI_STYLES[0]);
     let mut config = config;
     config.url = tauri::WebviewUrl::App((*page).into());
     config.decorations = !frameless;
@@ -485,7 +485,7 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
     }
     let window = builder.build()?;
     if let Some(blur) = blur {
-        blur.attach(&window, *frameless);
+        blur.attach(&window, *blurred);
     }
     Ok(())
 }
