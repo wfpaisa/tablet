@@ -65,9 +65,9 @@ your settings too).
 - **Display toggle**: cycle the pen between all displays and each monitor.
 - **Settings**: autostart, and backups of your settings to restore later.
 - **Two interfaces**, switchable in Settings: *Tablet* (the macOS layout)
-  and *Glass*, which draws its own slightly see-through window without the
-  system title bar. Both show which pen button or ExpressKey is being
-  pressed.
+  and *Glass*, with a slightly see-through, blurred window that follows the
+  light or dark theme. Both draw their own title bar instead of the system
+  one, and both show which pen button or ExpressKey is being pressed.
 - **Right click, hold for middle**: one pen button gives a right click on a
   tap and a held middle button (to drag, e.g. Super+drag resizes) when held
   or moved. A small GNOME Shell extension, installed by `install.sh`, draws
