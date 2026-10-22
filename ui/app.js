@@ -910,7 +910,11 @@ function mountTestArea() {
     const pressure = e.pointerType === "pen" && e.pressure ? e.pressure : status.pen?.pressure || 0.5;
     return STROKE_MIN + pressure * (STROKE_MAX - STROKE_MIN);
   };
+  // The board clears itself once the pen has been lifted for a while.
+  let clearTimer = 0;
+  const clear = () => ctx.clearRect(0, 0, canvas.width, canvas.height);
   canvas.addEventListener("pointerdown", (e) => {
+    clearTimeout(clearTimer);
     canvas.setPointerCapture(e.pointerId);
     last = mid = [e.offsetX, e.offsetY];
     width = widthOf(e);
@@ -938,7 +942,10 @@ function mountTestArea() {
     mid = next;
     last = point;
   });
-  canvas.addEventListener("pointerup", () => (last = null));
+  canvas.addEventListener("pointerup", () => {
+    last = null;
+    clearTimer = setTimeout(clear, 4000);
+  });
   canvas.addEventListener("dblclick", fit);
 }
 
