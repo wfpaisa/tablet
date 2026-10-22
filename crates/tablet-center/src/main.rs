@@ -492,6 +492,15 @@ fn main_window(app: &tauri::App) -> tauri::Result<()> {
 
 fn main() {
     let host = std::env::args().any(|a| a == "--shortcut-host");
+    // With the monitors on NVIDIA's proprietary driver, its explicit sync
+    // makes mutter drop WebKitGTK's connection (Gdk "Error 71 (Protocol
+    // error)"). Disabling WebKit's DMA-BUF renderer instead avoids that but
+    // leaves the page unpainted (transparent) after navigating. Set before
+    // GTK or WebKit start; other drivers ignore it.
+    if std::env::var_os("__NV_DISABLE_EXPLICIT_SYNC").is_none() {
+        // SAFETY: no other threads exist yet.
+        unsafe { std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1") };
+    }
     // GTK uses this as the Wayland app_id, which GNOME matches to
     // tablet-center.desktop for the window's icon and name.
     gtk::glib::set_prgname(Some("tablet-center"));
