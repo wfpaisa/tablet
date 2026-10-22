@@ -8,7 +8,7 @@ it works on macOS.
 > Intuos and ExpressKeys are trademarks of Wacom Co., Ltd., used here only
 > to say which hardware this works with.
 
-![Pen settings](docs/screenshots/pen.png)
+![Pen settings](docs/screenshots/pen-settings.png)
 
 ## Install
 
@@ -35,11 +35,11 @@ your settings too).
 
 | | |
 |---|---|
-| ![ExpressKeys](docs/screenshots/expresskeys.png) | ![Express menu](docs/screenshots/express-menu.png) |
+| ![ExpressKeys](docs/screenshots/expresskeys-settings.png) | ![Express menu](docs/screenshots/express-menu-settings.png) |
 | ExpressKeys | Express menu, one of the on-screen shortcuts |
-| ![Pan/Scroll](docs/screenshots/pan-scroll.png) | ![Mapping](docs/screenshots/mapping.png) |
+| ![Pan/Scroll](docs/screenshots/pan-scroll-settings.png) | ![Mapping](docs/screenshots/mapping-settings.png) |
 | Pan/Scroll, the macOS-style pen gesture | Mapping to all displays or one |
-| ![Glass interface](docs/screenshots/glass.png) | |
+| ![Glass interface](docs/screenshots/glass-dark.png) | |
 | The alternative Glass interface, dark theme | |
 
 ## Features
