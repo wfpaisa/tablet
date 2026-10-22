@@ -14,14 +14,30 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(0, 0, 0, 0.7);
   border-radius: 12px;
   background: var(--wf-surface);
 }
 
+/* The inner highlight, macOS style: drawn on top of the content so the
+   title bar and toolbar backgrounds don't cover it. */
+.wf-window::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  border-radius: 11px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+
 @media (prefers-color-scheme: light) {
   .wf-window {
-    border-color: rgba(0, 0, 0, 0.24);
+    border-color: rgba(0, 0, 0, 0.3);
+  }
+
+  .wf-window::after {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
   }
 }
 
@@ -30,6 +46,7 @@ body {
   border-radius: 0;
 }
 
+.wf-maximized .wf-window::after,
 .wf-maximized .wf-edge {
   display: none;
 }
