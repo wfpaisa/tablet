@@ -620,8 +620,8 @@ fn precision_feedback(shared: &Shared, active: bool) {
     let config = shared.config.read().unwrap();
     let feedback = if active && config.precision.overlay {
         let pos = *shared.pen_pos.lock().unwrap();
-        let displays = shared.displays.lock().unwrap();
         let Some(tablet) = *shared.tablet.lock().unwrap() else { return };
+        let displays = shared.displays.lock().unwrap();
         let Some((x, y)) = mapping::desktop_point(&displays, tablet, pos) else { return };
         let Some(display) = displays.iter().find(|d| x >= d.x && x < d.x + d.width && y >= d.y && y < d.y + d.height) else { return };
         let scale = f64::from(config.precision.scale.max(2));
@@ -652,11 +652,7 @@ fn toggle_display(shared: &Shared) {
 fn hold_ring(shared: &Shared, show: bool, wait: Duration) {
     let feedback = if show {
         let pos = *shared.pen_pos.lock().unwrap();
-        let Some((x, y)) = shared
-            .tablet
-            .lock()
-            .unwrap()
-            .and_then(|tablet| mapping::desktop_point(&shared.displays.lock().unwrap(), tablet, pos))
+        let Some((x, y)) = pen_desktop_point(shared, pos)
         else {
             return;
         };
@@ -677,11 +673,7 @@ const SHELL_MENU_WAIT: Duration = Duration::from_millis(150);
 /// Asks the GNOME Shell extension to draw the menu; false if it did not.
 fn shell_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) -> bool {
     let pos = *shared.pen_pos.lock().unwrap();
-    let at = shared
-        .tablet
-        .lock()
-        .unwrap()
-        .and_then(|tablet| mapping::desktop_point(&shared.displays.lock().unwrap(), tablet, pos))
+    let at = pen_desktop_point(shared, pos)
         .map(|(x, y)| (x.round() as i32, y.round() as i32));
     let (tx, rx) = std::sync::mpsc::channel();
     let feedback = shell::Feedback::Menu { name: shortcut.name(), at, centered, shown: tx };
@@ -714,11 +706,7 @@ fn show_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) {
         let _ = outputs.pointer.emit(&[abs(evdev::AbsoluteAxisCode::ABS_X, pos.0), abs(evdev::AbsoluteAxisCode::ABS_Y, pos.1)]);
         *shared.pointer_used.lock().unwrap() = Some(Instant::now());
     }
-    let point = shared
-        .tablet
-        .lock()
-        .unwrap()
-        .and_then(|tablet| mapping::desktop_point(&shared.displays.lock().unwrap(), tablet, pos));
+    let point = pen_desktop_point(shared, pos);
     let request = serde_json::json!({
         "name": shortcut.name(),
         "at": point.map(|(x, y)| (x.round() as i32, y.round() as i32)),
@@ -891,6 +879,14 @@ const EDGE_RELEASE_MARGIN: f64 = 48.0;
 /// Dash to Dock's reveal, hot corners and other edge triggers only follow
 /// the mouse pointer, never a tablet tool, so near a screen edge the pen
 /// gives way to the pointer as for a click (see [`pen_gives_way`]).
+/// Where a tablet position lands on the desktop. Takes the tablet and
+/// displays locks one after the other, never both: holding them in opposite
+/// orders on two threads deadlocks the daemon.
+fn pen_desktop_point(shared: &Shared, pos: (i32, i32)) -> Option<(f64, f64)> {
+    let tablet = (*shared.tablet.lock().unwrap())?;
+    mapping::desktop_point(&shared.displays.lock().unwrap(), tablet, pos)
+}
+
 fn pen_at_screen_edge(shared: &Shared, margin: f64) -> bool {
     let pos = *shared.pen_pos.lock().unwrap();
     let Some(tablet) = *shared.tablet.lock().unwrap() else { return false };
