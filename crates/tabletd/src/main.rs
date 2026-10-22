@@ -401,7 +401,11 @@ fn pump(
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         };
-        let readable = wait_readable(pen, Some(timeout.unwrap_or(TICK).min(TICK)))?;
+        // Pen events wake the loop at once; the cap only bounds how late it
+        // sees changes from other threads (pad, mode toggles, config), which
+        // can wait while the pen is away.
+        let cap = if processor.state().in_proximity || ticking { TICK } else { IDLE_TICK };
+        let readable = wait_readable(pen, Some(timeout.unwrap_or(cap).min(cap)))?;
         if hide_in.is_some() {
             // Mouse mode has no tablet cursor to give way to.
             let pen_cursor = !processor.mouse_mode() && !shared.mouse_owns_cursor.load(Ordering::Acquire);
@@ -479,6 +483,9 @@ fn pump(
 
 /// How often joystick gestures emit while active.
 const TICK: Duration = Duration::from_millis(8);
+
+/// Longest wait with the pen out of proximity and nothing pending.
+const IDLE_TICK: Duration = Duration::from_millis(100);
 
 /// Mutter hides the mouse pointer on tablet events, but only once 300 ms
 /// have passed since the last pointer event (HIDDEN_POINTER_TIMEOUT in
