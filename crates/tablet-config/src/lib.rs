@@ -700,10 +700,16 @@ impl PenSettings {
         [0, 8, 13, 19, 26, 34, 42][usize::from(self.click_threshold.clamp(1, 7)) - 1]
     }
 
-    /// Exponent applied to normalised pressure; below 1 is softer.
-    pub fn pressure_gamma(&self) -> f64 {
-        const GAMMA: [f64; 7] = [0.4, 0.55, 0.75, 1.0, 1.35, 1.8, 2.4];
-        GAMMA[usize::from(self.tip_sensitivity.clamp(1, 7)) - 1]
+    /// Maps normalised pen pressure (0..1) through the tip sensitivity
+    /// curve. Like Wacom's, the soft steps reach full pressure before the
+    /// pen is pressed all the way; the firm ones need a heavier hand to
+    /// leave the low end.
+    pub fn curve_pressure(&self, p: f64) -> f64 {
+        // (pressure that already gives 100%, exponent; below 1 is softer)
+        const CURVE: [(f64, f64); 7] =
+            [(0.4, 0.6), (0.55, 0.7), (0.75, 0.85), (1.0, 1.0), (1.0, 1.4), (1.0, 1.9), (1.0, 2.6)];
+        let (full_at, gamma) = CURVE[usize::from(self.tip_sensitivity.clamp(1, 7)) - 1];
+        (p / full_at).clamp(0.0, 1.0).powf(gamma)
     }
 }
 

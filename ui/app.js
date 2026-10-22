@@ -888,6 +888,8 @@ async function configureAction(type, current) {
 }
 
 // Draw with the pen to try the sensitivity curve; width follows pressure.
+const STROKE_MIN = 1.5;
+const STROKE_MAX = 28;
 function mountTestArea() {
   const canvas = $("#test");
   const ctx = canvas.getContext("2d");
@@ -900,20 +902,41 @@ function mountTestArea() {
     ctx.strokeStyle = "#e8e8e8";
   };
   fit();
+  // Last point, the midpoint the drawn stroke ends at, and its width.
   let last = null;
+  let mid = null;
+  let width = 0;
+  const widthOf = (e) => {
+    const pressure = e.pointerType === "pen" && e.pressure ? e.pressure : status.pen?.pressure || 0.5;
+    return STROKE_MIN + pressure * (STROKE_MAX - STROKE_MIN);
+  };
   canvas.addEventListener("pointerdown", (e) => {
     canvas.setPointerCapture(e.pointerId);
-    last = [e.offsetX, e.offsetY];
+    last = mid = [e.offsetX, e.offsetY];
+    width = widthOf(e);
   });
+  // A curve from midpoint to midpoint through each sample, in short steps
+  // whose width eases toward the new pressure: no corners, no jumps.
   canvas.addEventListener("pointermove", (e) => {
     if (!last) return;
-    const pressure = e.pointerType === "pen" && e.pressure ? e.pressure : status.pen?.pressure || 0.5;
-    ctx.lineWidth = 1 + pressure * 9;
-    ctx.beginPath();
-    ctx.moveTo(...last);
-    ctx.lineTo(e.offsetX, e.offsetY);
-    ctx.stroke();
-    last = [e.offsetX, e.offsetY];
+    const point = [e.offsetX, e.offsetY];
+    const next = [(last[0] + point[0]) / 2, (last[1] + point[1]) / 2];
+    const target = width + (widthOf(e) - width) * 0.6;
+    const steps = Math.max(1, Math.ceil(Math.hypot(next[0] - mid[0], next[1] - mid[1]) / 1.5));
+    let from = mid;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const at = [0, 1].map((k) => (1 - t) ** 2 * mid[k] + 2 * (1 - t) * t * last[k] + t ** 2 * next[k]);
+      ctx.lineWidth = width + (target - width) * t;
+      ctx.beginPath();
+      ctx.moveTo(...from);
+      ctx.lineTo(...at);
+      ctx.stroke();
+      from = at;
+    }
+    width = target;
+    mid = next;
+    last = point;
   });
   canvas.addEventListener("pointerup", () => (last = null));
   canvas.addEventListener("dblclick", fit);

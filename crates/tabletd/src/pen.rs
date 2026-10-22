@@ -849,7 +849,7 @@ impl PenProcessor {
     fn curved_pressure(&self) -> i32 {
         let max = f64::from(self.geometry.pressure_max.max(1));
         let p = (f64::from(self.pressure) / max).clamp(0.0, 1.0);
-        (p.powf(self.config.pen.pressure_gamma()) * max).round() as i32
+        (self.config.pen.curve_pressure(p) * max).round() as i32
     }
 }
 
@@ -1235,6 +1235,23 @@ mod tests {
         let out = p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 1000)], None);
         let sent = has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0).unwrap();
         assert!(sent > 1000, "soft curve should increase pressure, got {sent}");
+    }
+
+    #[test]
+    fn soft_reaches_full_pressure_early_and_firm_holds_back() {
+        let sent = |level| {
+            let mut config = Config::default();
+            config.pen.tip_sensitivity = level;
+            let mut p = PenProcessor::new(config, GEO);
+            let out = p.process_frame(&[key(KeyCode::BTN_TOUCH, true), abs(Abs::ABS_PRESSURE, 2048)], None);
+            has(&out.pen, EventType::ABSOLUTE, Abs::ABS_PRESSURE.0).unwrap()
+        };
+        // Half pressure on the 4095 scale.
+        assert_eq!(sent(1), 4095);
+        assert_eq!(sent(4), 2048);
+        assert!(sent(7) < 700, "firm should stay low at half pressure, got {}", sent(7));
+        let levels: Vec<i32> = (1..=7).map(sent).collect();
+        assert!(levels.windows(2).all(|w| w[0] >= w[1]), "{levels:?}");
     }
 
     #[test]
