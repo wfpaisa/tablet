@@ -490,8 +490,15 @@ const POINTER_HIDE_DELAY: Duration = Duration::from_millis(350);
 /// mouse has been idle for [`POINTER_HIDE_DELAY`], so mutter hides the
 /// mouse pointer and only the pen's cursor stays on screen.
 fn hide_pointer(shared: &Shared, in_proximity: bool, nudge: &mut i32) -> io::Result<()> {
+    // Near an edge the pointer keeps the cursor until the pen moves well
+    // away; otherwise any tremor after a rest hands it back and forth.
+    let near_edge = shared.following.load(Ordering::Acquire) && pen_at_screen_edge(shared, EDGE_RELEASE_MARGIN);
     let mut used = shared.pointer_used.lock().unwrap();
     if !used.is_some_and(|t| t.elapsed() >= POINTER_HIDE_DELAY) {
+        return Ok(());
+    }
+    if near_edge {
+        *used = Some(Instant::now());
         return Ok(());
     }
     // Never while the tip, a side button or an ExpressKey holds a click on
@@ -830,7 +837,7 @@ fn mouse_moved(shared: &Shared) {
 /// pen back. Meanwhile the tip clicks through the pointer, so picking from a
 /// context menu shows one cursor too.
 fn pen_gives_way(shared: &Shared, out: &mut pen::Output, hovering: bool, touching: bool) {
-    let at_edge = hovering && !touching && moves(&out.pen) && pen_at_screen_edge(shared);
+    let at_edge = hovering && !touching && moves(&out.pen) && pen_at_screen_edge(shared, EDGE_MARGIN);
     let following = shared.following.load(Ordering::Acquire);
     let pad_clicked = shared.pad_clicked.swap(false, Ordering::AcqRel);
     if !hovering || shared.mouse_owns_cursor.load(Ordering::Acquire) {
@@ -878,14 +885,17 @@ fn pen_gives_way(shared: &Shared, out: &mut pen::Output, hovering: bool, touchin
 /// the pointer.
 const EDGE_MARGIN: f64 = 24.0;
 
+/// How far from the edge the pen must move to get its cursor back.
+const EDGE_RELEASE_MARGIN: f64 = 48.0;
+
 /// Dash to Dock's reveal, hot corners and other edge triggers only follow
 /// the mouse pointer, never a tablet tool, so near a screen edge the pen
 /// gives way to the pointer as for a click (see [`pen_gives_way`]).
-fn pen_at_screen_edge(shared: &Shared) -> bool {
+fn pen_at_screen_edge(shared: &Shared, margin: f64) -> bool {
     let pos = *shared.pen_pos.lock().unwrap();
     let Some(tablet) = *shared.tablet.lock().unwrap() else { return false };
     let displays = shared.displays.lock().unwrap();
-    mapping::desktop_point(&displays, tablet, pos).is_some_and(|p| mapping::near_screen_edge(&displays, p, EDGE_MARGIN))
+    mapping::desktop_point(&displays, tablet, pos).is_some_and(|p| mapping::near_screen_edge(&displays, p, margin))
 }
 
 fn moves(events: &[InputEvent]) -> bool {
