@@ -437,3 +437,25 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   RMSE 0,090 y 0,089. Las referencias HTML conservan la distribución anterior
   de navegación y tarjetas; esas diferencias de diseño quedan pendientes y
   fuera de esta corrección de traducciones. No se modificaron medidas ni colores.
+
+### Ayuda del modo mouse sin traducir
+
+- Corregida la clave de traducción de la ayuda del modo mouse: usaba el texto
+  inglés revisado en vez de la clave que ya existe en los locales. Se recuperan
+  las traducciones existentes para todos los idiomas.
+- Añadida una prueba de regresión que comprueba la ayuda en español e inglés y
+  una captura en español con modo mouse a 1100×1600 para incluir la tarjeta
+  completa, que quedaba fuera de las capturas habituales de 720 px.
+- Verificación de la ayuda: `just fix`, `just check` y `just screens` en
+  verde; revisada la nueva captura del modo mouse en español. La comparación
+  con la referencia HTML conserva las diferencias de diseño ya documentadas.
+
+### README más breve y claro
+
+- README en inglés reducido de 1205 a 750 palabras: presentación directa,
+  funciones agrupadas y pasos de instalación más fáciles de seguir.
+- Eliminadas repeticiones y afirmaciones desactualizadas sobre las imágenes de
+  dispositivos y el umbral visual. Conservadas las instrucciones de instalación,
+  desinstalación, acceso a dispositivos y precauciones al modificar el daemon.
+- Comprobados los enlaces locales y `git diff --check`. Cambios sin commit,
+  por indicación del usuario.

@@ -9,6 +9,7 @@ use crate::{
 };
 use egui::{pos2, Align2, Stroke, Ui};
 use tablet_config::{PenMode, PenSettings};
+pub const MOUSE_MODE_HINT: &str = "One cursor that changes over text and borders, like the mouse. The tip clicks; drawing apps get no pressure.";
 pub const MODE_HINT:&str="The pen point is the cursor: each spot on the tablet is a spot on the screen. Drawing apps get pressure and tilt.";
 #[derive(Default)]
 pub struct State {
@@ -294,7 +295,7 @@ pub fn show(
         .unwrap_or(2) as u8;
     if widgets::slider(ui,locale,rect(side_x+layout::CARD_INSET,tip_y+layout::THIRD_SLIDER_TOP,layout::CARD_INNER_WIDTH,layout::SLIDER_HEIGHT),"Double-click distance","How far apart two quick taps can land and still count as a double-click. A larger distance makes double-clicking easier with a shaky hand; Off turns this help off.",&mut distance,0..=5,("Off","Large")){pen.double_click_mm=distances[usize::from(distance)];changed=true;}
     let mode_y = tip_y + layout::MODE_TOP;
-    let hint=match pen.mode {PenMode::Pen=>MODE_HINT,PenMode::Mouse=>"Move the pointer with the pen and tap to click. In mouse mode, strokes do not respond to pressure.",PenMode::Relative=>"Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens."};
+    let hint=match pen.mode {PenMode::Pen=>MODE_HINT,PenMode::Mouse=>MOUSE_MODE_HINT,PenMode::Relative=>"Moves the cursor like a mouse: lift the pen and set it down again to keep going. Handy on large screens."};
     let galley = ui.fonts_mut(|f| {
         let mut job = egui::text::LayoutJob::simple(
             locale.t(hint),

@@ -95,6 +95,18 @@ impl ClassicText for &str {
 mod tests {
     use super::*;
     #[test]
+    fn mouse_mode_hint_uses_the_existing_locale_key() {
+        let key = crate::classic::pen::MOUSE_MODE_HINT;
+        assert_eq!(
+            Locale::new("es").t(key),
+            "Mueve el cursor con el lápiz y toca para hacer clic. En modo mouse, los trazos no responden a la presión."
+        );
+        assert_eq!(
+            Locale::new("en").t(key),
+            "Move the pointer with the pen and tap to click. In mouse mode, strokes do not respond to pressure."
+        );
+    }
+    #[test]
     fn fallback_and_debrand() {
         let l = Locale::new("en");
         assert_eq!(l.t("Wacom Pen"), "Tablet Pen");

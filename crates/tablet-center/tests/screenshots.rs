@@ -360,6 +360,20 @@ fn spanish_screenshots() {
             .save(out.join(format!("classic-dark-es-{suffix}.png")))
             .unwrap();
     }
+    // Mouse mode hint uses a translated key, including below the fold.
+    let mut app = tablet_center::App::simulated();
+    app.locale = tablet_center::i18n::Locale::new("es");
+    app.settings.language = "es".into();
+    app.config.pen.mode = tablet_config::PenMode::Mouse;
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1100., 1600.))
+        .wgpu()
+        .build_ui_state(|ui, app: &mut tablet_center::App| app.show(ui), app);
+    h.run_steps(8);
+    h.render()
+        .unwrap()
+        .save(out.join("classic-dark-es-devices-pen-mouse-tall.png"))
+        .unwrap();
     // Pen actions panel with names long enough to wrap to two lines.
     let mut app = tablet_center::App::simulated();
     app.locale = tablet_center::i18n::Locale::new("es");
