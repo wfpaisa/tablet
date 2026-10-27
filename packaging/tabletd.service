@@ -1,0 +1,16 @@
+[Unit]
+Description=Tablet Center tablet daemon
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/tabletd
+Restart=on-failure
+RestartSec=3
+# tabletd releases its virtual devices on SIGTERM before exiting; give it time.
+KillSignal=SIGTERM
+TimeoutStopSec=5
+
+[Install]
+WantedBy=graphical-session.target

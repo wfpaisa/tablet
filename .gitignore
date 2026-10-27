@@ -1,0 +1,7 @@
+/target/
+/dist/
+*.dmg
+*.pkg
+.idea/
+.vscode/
+*.swp

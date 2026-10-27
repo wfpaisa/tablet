@@ -1,0 +1,23 @@
+[package]
+name = "tablet-center"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+[dependencies]
+eframe = { version = "0.36", default-features = false, features = ["wgpu", "wayland", "x11", "default_fonts"] }
+egui = "0.36"
+egui_extras = { version = "0.36", features = ["svg", "image"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+serde_json.workspace = true
+serde.workspace = true
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+tablet-config.workspace = true
+raw-window-handle = "0.6"
+wayland-client = "0.31"
+# Same winit as eframe, for the Wayland toplevel the pen moves.
+winit = { version = "0.30", default-features = false }
+wayland-backend = { version = "0.3", features = ["client_system", "dlopen"] }
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+[dev-dependencies]
+egui_kittest = { version = "0.36", features = ["wgpu"] }
+tempfile = "3"

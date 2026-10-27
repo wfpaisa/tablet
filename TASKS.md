@@ -1,0 +1,56 @@
+# Tasks
+
+Features of the Wacom driver for macOS (Wacom Center 6.4.15) that Tablet
+Center does not have yet, limited to what applies to a pen tablet like the
+Intuos S (no touch, eraser, dials, Touch Ring, pen display calibration or
+Cintiq Workflows).
+
+## High priority
+
+- [x] **Per-application settings**: different pen buttons and ExpressKeys
+  for each program (Krita, GIMP, Blender…). The GNOME Shell extension
+  reports the focused window to `tabletd`, which switches to that app's
+  profile. The largest task.
+- [x] **Tablet orientation**: landscape, portrait, landscape flipped and
+  portrait flipped, with rotated pen coordinates, gestures and tablet diagrams.
+- [x] **Precision mode**: while the button is held, the tablet covers only a
+  small area around the cursor for fine work. A coordinate change in
+  `mapping.rs` and a new button action.
+- [x] **Portion of tablet / portion of screen**: use part of the tablet, or
+  map it to part of a screen with draggable, resizable rectangles on the
+  Mapping page.
+
+## Medium priority: new actions for pen buttons and ExpressKeys
+
+- [x] **Keyboard modifier**: hold Ctrl, Shift or Alt while the button is held.
+- [x] **Open application**: launch a program or file.
+- [x] **Mode toggle**: switch between pen mode and mouse mode.
+- [x] **Relative mouse mode**: the pen moves the cursor like a mouse, with a
+  speed setting, instead of jumping to the position. The current "Use the
+  pen as a mouse" is absolute.
+- [x] **Pressure hold**: freeze the current pressure while the button is held.
+- [x] **Click lock**: keep the click pressed until the next click, to drag
+  without holding the tip down.
+- [x] **System actions**: show desktop, Activities overview, switch
+  application, notification center, on-screen keyboard.
+
+- [x] **Pen tip action**: assign the same actions as pen buttons, replacing
+  drawing while the tip is touching.
+- [x] **Precision mode**: hold to reduce pen motion, with a configurable
+  scale and an optional GNOME Shell overlay.
+
+## Low priority
+
+- [x] **Double-click distance**: how far the pen may move between the two
+  taps of a double click.
+- [x] **Tip double-click / hover click**: fine control over when a tip or
+  button click counts.
+- [x] **Battery**: charge level for the Intuos S Bluetooth (CTL-4100WL).
+- [x] **Device info**: firmware, serial number, live tilt and pressure, for
+  diagnostics.
+- [x] **More tablets**: artwork and key layouts for Intuos M, Intuos Pro,
+  Wacom One S/M and the Wacom One 12 / 13 touch pen displays.
+- [x] **Pen displays**: the Wacom One 12 / 13 touch map to their own screen
+  (EDID vendor "WAC") unless another monitor is chosen.
+- [x] **Touch**: finger input on the Wacom One 13 touch: on/off switch and
+  touchscreen pinned to its own screen.

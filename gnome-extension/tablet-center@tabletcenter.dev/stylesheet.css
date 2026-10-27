@@ -1,0 +1,63 @@
+/* On-screen shortcuts: neutral greys like the Tablet Center window. */
+.tc-panel {
+  background-color: rgba(36, 36, 36, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.tc-panel-header {
+  padding: 0 0 8px 4px;
+  spacing: 8px;
+}
+.tc-panel-title {
+  color: #a8a8a8;
+  font-size: 13px;
+}
+.tc-close {
+  border-radius: 99px;
+  padding: 5px;
+  color: #d8d8d8;
+}
+.tc-close:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.tc-cell {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  color: #eeeeee;
+}
+.tc-cell:hover {
+  background-color: #3584e4;
+  color: #ffffff;
+}
+.tc-cell.tc-off {
+  color: rgba(255, 255, 255, 0.3);
+}
+.tc-cell-box {
+  spacing: 4px;
+  padding: 0 4px;
+}
+.tc-slice-label {
+  color: #eeeeee;
+  spacing: 3px;
+}
+.tc-slice-label.tc-off {
+  color: rgba(255, 255, 255, 0.3);
+}
+.tc-hub {
+  border-radius: 999px;
+  border-width: 0;
+  box-shadow: none;
+  color: #d8d8d8;
+}
+.tc-hub:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+/* Picked with the pen: no keyboard focus ring. */
+.tc-hub:focus,
+.tc-close:focus,
+.tc-cell:focus {
+  box-shadow: none;
+  outline: none;
+}

@@ -1,0 +1,4 @@
+# Tablet Center: lets the signed-in user create the virtual pen, pointer and
+# keyboard that tabletd drives (uinput). Reading the tablet and the mice
+# still needs the "input" group.
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
