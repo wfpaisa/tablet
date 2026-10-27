@@ -420,3 +420,20 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   anillo de «clic derecho, mantener para central» y coloca los menús «junto al
   cursor» con `global.get_pointer()`, y la ventana de atajos fija el menú en la
   primera posición del puntero que recibe.
+
+### Revisión de textos en español
+
+- Corregidas 19 traducciones de `assets/locales/es.json`: etiquetas pendientes
+  (Perfil, Orientación, Completa, Copias de seguridad y Acerca de), «Inicio»
+  para la página de atajos y «Todas las demás» para el perfil común.
+- Unificados «Añadir» y «mouse»; aclaradas las ayudas de presión, doble clic,
+  modo del lápiz, cambio de pantalla y extensión de GNOME Shell, además de la
+  confirmación de restauración de copias.
+- Verificación: `just fix`, `just check` y `just screens` completados.
+  Las pruebas de sockets temporales requieren ejecutarse fuera del aislamiento.
+  Revisadas visualmente las capturas en español de Lápiz, Ajustes (normal y
+  alta), Inicio de atajos y cambio de pantalla; los textos revisados caben.
+- `just compare classic-dark-devices-pen classic-dark-devices-display-toggle`:
+  RMSE 0,090 y 0,089. Las referencias HTML conservan la distribución anterior
+  de navegación y tarjetas; esas diferencias de diseño quedan pendientes y
+  fuera de esta corrección de traducciones. No se modificaron medidas ni colores.
