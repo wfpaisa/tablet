@@ -2899,7 +2899,7 @@ dependencies = [
 
 [[package]]
 name = "tablet-center"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "chrono",
  "eframe",
@@ -2920,7 +2920,7 @@ dependencies = [
 
 [[package]]
 name = "tablet-config"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -2928,7 +2928,7 @@ dependencies = [
 
 [[package]]
 name = "tabletd"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "evdev",
  "libc",

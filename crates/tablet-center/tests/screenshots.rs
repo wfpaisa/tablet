@@ -1,5 +1,6 @@
 //! Deterministic wgpu captures, using the browser preview fixtures.
 use egui_kittest::Harness;
+use tablet_center::classic::devices::{PEN_LOWER, PEN_UPPER};
 // Some Vulkan drivers cannot initialize several headless devices concurrently.
 static SCREENSHOT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// RMSE between a reference page and a capture over the page area. The
@@ -89,7 +90,7 @@ fn devices_screenshots() {
             4 => {
                 // Upper pen button, with its actions panel on the right.
                 app.page = 0;
-                app.devices.selected = Some(4);
+                app.devices.selected = Some(PEN_UPPER);
             }
             2 => {
                 app.devices.selected = Some(0);
@@ -399,7 +400,7 @@ fn spanish_screenshots() {
     app.locale = tablet_center::i18n::Locale::new("es");
     app.settings.language = "es".into();
     app.config.pen.lower_button = tablet_config::ButtonAction::RightOrHoldMiddle;
-    app.devices.selected = Some(5);
+    app.devices.selected = Some(PEN_LOWER);
     let mut h = Harness::builder()
         .with_size(egui::vec2(1100., 720.))
         .wgpu()
@@ -443,7 +444,7 @@ fn spanish_screenshots() {
     let mut app = tablet_center::App::simulated();
     app.locale = tablet_center::i18n::Locale::new("es");
     app.settings.language = "es".into();
-    app.devices.selected = Some(5);
+    app.devices.selected = Some(PEN_LOWER);
     app.devices.toggle_help = true;
     let mut h = Harness::builder()
         .with_size(egui::vec2(1100., 720.))

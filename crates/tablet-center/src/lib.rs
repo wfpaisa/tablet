@@ -159,14 +159,19 @@ impl App {
                 } else {
                     &mut self.config.pen
                 };
-                self.pen.selected = self.devices.selected.filter(|i| *i >= 4).map(|i| i - 4);
+                self.pen.selected = self
+                    .devices
+                    .selected
+                    .filter(|i| classic::devices::is_pen(*i))
+                    .map(|i| i - classic::devices::PEN_UPPER);
                 classic::pen::show(ui, &self.locale, pen, &mut self.pen, &live);
                 if let Some(index) = self.pen.action.take() {
-                    self.devices.selected = if self.devices.selected == Some(index + 4) {
-                        None
-                    } else {
-                        Some(index + 4)
-                    };
+                    self.devices.selected =
+                        if self.devices.selected == Some(index + classic::devices::PEN_UPPER) {
+                            None
+                        } else {
+                            Some(index + classic::devices::PEN_UPPER)
+                        };
                 }
                 classic::devices::overlays(
                     ui,

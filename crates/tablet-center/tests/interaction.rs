@@ -1,5 +1,6 @@
 //! User-level checks for editable Pen controls and scrolling.
 use egui_kittest::{kittest::Queryable, Harness};
+use tablet_center::classic::devices::PEN_LOWER;
 fn harness(height: f32) -> Harness<'static, tablet_center::App> {
     let mut h = Harness::builder()
         .with_size(egui::vec2(1100., height))
@@ -111,6 +112,23 @@ fn express_key_actions_and_keyboard_capture_update_only_selected_profile() {
     );
 }
 #[test]
+fn sixth_express_key_action_does_not_change_pen_settings() {
+    let mut h = harness(720.);
+    h.state_mut().status.device.as_mut().unwrap().product = 0x0314;
+    let pen = h.state().config.pen.clone();
+    h.state_mut().page = 1;
+    h.state_mut().devices.selected = Some(5);
+    h.run_steps(3);
+    h.get_all_by_label("Right click").next().unwrap().click();
+    h.run_steps(1);
+    assert_eq!(
+        h.state().config.express_keys[5],
+        tablet_config::KeyAction::RightClick
+    );
+    assert_eq!(h.state().config.pen, pen);
+}
+
+#[test]
 fn action_groups_open_without_closing_the_others() {
     // The on-screen shortcuts panel folds its groups; the device pages list them all.
     let mut h = harness(1600.);
@@ -132,7 +150,7 @@ fn action_groups_open_without_closing_the_others() {
 #[test]
 fn pen_action_menu_changes_the_pen_and_cancel_does_not_apply() {
     let mut h = harness(1600.);
-    h.state_mut().devices.selected = Some(5);
+    h.state_mut().devices.selected = Some(PEN_LOWER);
     h.run_steps(3);
     // Middle click is both recommended and under Clicks; either applies it.
     h.get_all_by_label("Middle click").next().unwrap().click();
@@ -707,7 +725,7 @@ fn running_apps_come_from_systemd_scopes() {
 #[test]
 fn pen_actions_panel_scrolls_to_its_last_item() {
     let mut h = harness(720.);
-    h.state_mut().devices.selected = Some(5);
+    h.state_mut().devices.selected = Some(PEN_LOWER);
     h.run_steps(30);
     h.event(egui::Event::PointerMoved(egui::pos2(920., 500.)));
     for _ in 0..10 {

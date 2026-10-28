@@ -14,6 +14,13 @@ use crate::{
 };
 use egui::{pos2, vec2, Align2, Stroke, StrokeKind, Ui};
 use tablet_config::{Config, Orientation, Response};
+/// `State::selected` for pen controls; ExpressKeys use 0..count (up to 8).
+pub const PEN_UPPER: usize = 100;
+pub const PEN_LOWER: usize = 101;
+pub const PEN_TIP: usize = 102;
+pub fn is_pen(index: usize) -> bool {
+    index >= PEN_UPPER
+}
 /// Icon art loaded in the background, by `Icon=` value.
 type LoadedIcons = Vec<(String, Option<crate::system::IconData>)>;
 #[derive(Default)]
@@ -1519,7 +1526,7 @@ fn apply(c: &mut Config, s: &State, a: tablet_config::KeyAction) {
             }
             return;
         }
-        if i >= 4 {
+        if is_pen(i) {
             let pen = if let Some(i) = s.app {
                 &mut c.apps[i].pen
             } else {
@@ -1537,8 +1544,8 @@ fn apply(c: &mut Config, s: &State, a: tablet_config::KeyAction) {
             };
             if let Ok(action) = serde_json::from_value(v) {
                 match i {
-                    4 => pen.upper_button = action,
-                    5 => pen.lower_button = action,
+                    PEN_UPPER => pen.upper_button = action,
+                    PEN_LOWER => pen.lower_button = action,
                     _ => pen.tip = action,
                 }
             }
@@ -1591,11 +1598,12 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
             } else {
                 let pen = s.app.map_or(&c.pen, |i| &c.apps[i].pen);
                 let action = match index {
-                    4 => &pen.upper_button,
-                    5 => &pen.lower_button,
+                    PEN_UPPER => &pen.upper_button,
+                    PEN_LOWER => &pen.lower_button,
                     _ => &pen.tip,
                 };
-                let name = ["Upper button", "Lower button", "Tip"][index.saturating_sub(4).min(2)];
+                let name =
+                    ["Upper button", "Lower button", "Tip"][index.saturating_sub(PEN_UPPER).min(2)];
                 (l.t(name), pen_label(action))
             };
             text(
@@ -1681,9 +1689,9 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
         &mut c.pen
     };
     let action = match s.selected.filter(|_| s.menu.is_none()) {
-        Some(4) => Some(&pen.upper_button),
-        Some(5) => Some(&pen.lower_button),
-        Some(6) => Some(&pen.tip),
+        Some(PEN_UPPER) => Some(&pen.upper_button),
+        Some(PEN_LOWER) => Some(&pen.lower_button),
+        Some(PEN_TIP) => Some(&pen.tip),
         _ => None,
     };
     if action == Some(&tablet_config::ButtonAction::RightOrHoldMiddle) {
@@ -1737,7 +1745,7 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
 
     let current = current_action(c, s);
     let mut groups = GROUPS.to_vec();
-    if s.menu.is_none() && s.selected.is_some_and(|i| i >= 4) {
+    if s.menu.is_none() && s.selected.is_some_and(is_pen) {
         groups[0] = (
             "Recommended",
             &[
@@ -1903,8 +1911,8 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
                             tablet_config::ButtonAction::RightOrHoldMiddle
                         };
                         match s.selected {
-                            Some(4) => pen.upper_button = a,
-                            Some(5) => pen.lower_button = a,
+                            Some(PEN_UPPER) => pen.upper_button = a,
+                            Some(PEN_LOWER) => pen.lower_button = a,
                             _ => pen.tip = a,
                         }
                     } else if ["run", "modifier", "mode_toggle", "precision_mode"].contains(id) {
@@ -3162,7 +3170,7 @@ fn current_action(c: &Config, s: &State) -> serde_json::Value {
             .and_then(|item| serde_json::to_value(&item.action).ok())
             .unwrap_or_default();
     }
-    if index < 4 {
+    if !is_pen(index) {
         let keys = if let Some(i) = s.app {
             &c.apps[i].express_keys
         } else {
@@ -3178,8 +3186,8 @@ fn current_action(c: &Config, s: &State) -> serde_json::Value {
             &c.pen
         };
         let a = match index {
-            4 => &pen.upper_button,
-            5 => &pen.lower_button,
+            PEN_UPPER => &pen.upper_button,
+            PEN_LOWER => &pen.lower_button,
             _ => &pen.tip,
         };
         let v = serde_json::to_value(a).unwrap_or_default();
