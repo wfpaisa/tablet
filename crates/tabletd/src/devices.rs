@@ -4,7 +4,7 @@ use evdev::{
     uinput::VirtualDevice, AbsoluteAxisCode, AttributeSet, BusType, Device, InputId, KeyCode,
     RelativeAxisCode, UinputAbsSetup,
 };
-use std::io;
+use std::{io, path::PathBuf};
 
 use crate::{mapping::Tablet, pen::Geometry};
 
@@ -21,8 +21,8 @@ pub fn find_pen() -> Option<Device> {
 }
 
 /// The ExpressKeys interface of a Wacom tablet: has BTN_0 but no pen tool.
-pub fn find_pad() -> Option<Device> {
-    evdev::enumerate().map(|(_, dev)| dev).find(|dev| {
+pub fn find_pad() -> Option<(PathBuf, Device)> {
+    evdev::enumerate().find(|(_, dev)| {
         tablet_config::wacom_vendor(dev.input_id().vendor())
             && !dev.name().unwrap_or_default().ends_with(VIRTUAL_SUFFIX)
             && dev.supported_keys().is_some_and(|k| {

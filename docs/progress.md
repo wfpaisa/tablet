@@ -459,3 +459,17 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   desinstalación, acceso a dispositivos y precauciones al modificar el daemon.
 - Comprobados los enlaces locales y `git diff --check`. Cambios sin commit,
   por indicación del usuario.
+
+### Página Touch Ring
+
+- Añadida la navegación para Intuos Pro 2013 y la página con cuatro modos,
+  conexiones a los LEDs y selector de las seis acciones. El dibujo comparte
+  el cálculo de tamaño y posición con ExpressKeys; las posiciones de los LEDs
+  están en los tokens del tema. Traducciones nuevas en inglés y español.
+- La prueba de interacción comprueba que cambiar el modo 2 conserva los otros
+  modos y cierra el menú. Añadidas y revisadas las capturas PTH-451 con y sin
+  menú; no existe referencia HTML para estas páginas.
+- `just fix` y clippy pasan. `just check` falla en los dos tests de sockets del
+  cliente del daemon por `Operation not permitted` del sandbox; el resto del
+  workspace pasa al excluir esos dos tests. `just screens` pasa (5 tests).
+  Sin commit, por indicación del usuario.

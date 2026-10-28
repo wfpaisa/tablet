@@ -102,5 +102,17 @@
   "Pen tool ID": "Pen tool ID",
   "Pen input": "Pen input",
   "Tilt X": "Tilt X",
-  "Tilt Y": "Tilt Y"
+  "Tilt Y": "Tilt Y",
+  "Touch Ring": "Touch Ring",
+  "Mode 1": "Mode 1",
+  "Mode 2": "Mode 2",
+  "Mode 3": "Mode 3",
+  "Mode 4": "Mode 4",
+  "Disabled": "Disabled",
+  "Scroll": "Scroll",
+  "Zoom": "Zoom",
+  "Brush size": "Brush size",
+  "Rotate canvas": "Rotate canvas",
+  "Undo / redo": "Undo / redo",
+  "Press the centre button to switch modes. The lit LED shows the active mode.": "Press the centre button to switch modes. The lit LED shows the active mode."
 }

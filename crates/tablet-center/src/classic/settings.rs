@@ -882,7 +882,7 @@ fn paragraph(ui: &Ui, r: egui::Rect, value: &str, size: f32, color: egui::Color3
     let galley = ui.fonts_mut(|f| f.layout_job(job));
     ui.painter().galley(r.min, galley, color);
 }
-fn shadow(ui: &Ui, r: egui::Rect, radius: u8, y: i8, blur: u8, color: egui::Color32) {
+pub(super) fn shadow(ui: &Ui, r: egui::Rect, radius: u8, y: i8, blur: u8, color: egui::Color32) {
     ui.painter().add(
         egui::epaint::Shadow {
             offset: [0, y],

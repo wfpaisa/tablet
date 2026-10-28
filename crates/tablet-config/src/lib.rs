@@ -242,6 +242,19 @@ pub struct MappingSettings {
     pub tablet_portion: Option<Rect>,
 }
 
+/// What sliding a finger around the touch ring does in one mode.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum RingAction {
+    #[default]
+    Disabled,
+    Scroll,
+    Zoom,
+    BrushSize,
+    Rotate,
+    UndoRedo,
+}
+
 /// What an ExpressKey does.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -576,6 +589,11 @@ pub fn intuos_pro_2013(product: u16) -> bool {
     matches!(product, 0x0314 | 0x0315 | 0x0317)
 }
 
+/// Tablets with a touch ring (ABS_WHEEL) and four mode LEDs.
+pub fn has_touch_ring(product: u16) -> bool {
+    intuos_pro_2013(product)
+}
+
 /// Pad button code offset of ExpressKey 1, counted from BTN_0.
 pub fn first_express_key(product: u16) -> u16 {
     u16::from(intuos_pro_2013(product))
@@ -607,6 +625,7 @@ pub struct Config {
     pub pan_scroll: PanScrollSettings,
     pub mapping: MappingSettings,
     pub express_keys: Vec<KeyAction>,
+    pub touch_ring: Vec<RingAction>,
     pub gestures: GestureSettings,
     pub shortcuts: ShortcutSettings,
 }
@@ -685,6 +704,7 @@ impl Default for Config {
             pan_scroll: PanScrollSettings::default(),
             mapping: MappingSettings::default(),
             express_keys: vec![KeyAction::Disabled; express_key_count(0)],
+            touch_ring: vec![RingAction::Scroll, RingAction::Zoom, RingAction::BrushSize, RingAction::Rotate],
             gestures: GestureSettings::default(),
             shortcuts: ShortcutSettings::default(),
         }
@@ -860,6 +880,19 @@ pub struct Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn touch_ring_defaults_and_actions_round_trip() {
+        let mut config: Config = serde_json::from_str(r#"{"pen":{},"express_keys":[]}"#).unwrap();
+        assert_eq!(config.touch_ring, vec![RingAction::Scroll, RingAction::Zoom, RingAction::BrushSize, RingAction::Rotate]);
+        config.touch_ring = vec![RingAction::Disabled, RingAction::Scroll, RingAction::Zoom,
+            RingAction::BrushSize, RingAction::Rotate, RingAction::UndoRedo];
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains(r#"{"type":"brush_size"}"#));
+        assert_eq!(serde_json::from_str::<Config>(&json).unwrap(), config);
+        for product in [0x0314, 0x0315, 0x0317] { assert!(has_touch_ring(product)); }
+        assert!(!has_touch_ring(0x0374));
+    }
 
     #[test]
     fn wacom_one_models_are_recognised_without_express_keys() {

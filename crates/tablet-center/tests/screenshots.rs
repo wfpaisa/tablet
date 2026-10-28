@@ -126,12 +126,20 @@ fn devices_screenshots() {
             .unwrap();
     }
     // Intuos Pro 2013 (no reference capture): ExpressKeys panel art.
-    for (name, product) in [
-        ("classic-dark-devices-expresskeys-pth451", 0x0314),
-        ("classic-dark-devices-expresskeys-pth651", 0x0315),
+    for (name, product, page, ring_open) in [
+        ("classic-dark-devices-expresskeys-pth451", 0x0314, 1, None),
+        ("classic-dark-devices-expresskeys-pth651", 0x0315, 1, None),
+        ("classic-dark-devices-touchring-pth451", 0x0314, 8, None),
+        (
+            "classic-dark-devices-touchring-pth451-menu",
+            0x0314,
+            8,
+            Some(1),
+        ),
     ] {
         let mut app = tablet_center::App::simulated();
-        app.page = 1;
+        app.page = page;
+        app.devices.ring_open = ring_open;
         if let Some(device) = app.status.device.as_mut() {
             device.product = product;
         }

@@ -740,3 +740,21 @@ fn pen_actions_panel_scrolls_to_its_last_item() {
     let scroll = h.state().devices.action_scroll;
     assert!(scroll > 1000., "panel scrolled only {scroll}");
 }
+
+#[test]
+fn touch_ring_changes_only_the_selected_mode() {
+    use tablet_config::RingAction;
+    let mut h = harness(720.);
+    h.state_mut().status.device.as_mut().unwrap().product = 0x0314;
+    h.state_mut().page = 8;
+    let before = h.state().config.touch_ring.clone();
+    h.run_steps(3);
+    h.get_by_label("Mode 2").click();
+    h.run_steps(3);
+    h.get_by_label("Undo / redo").click();
+    h.run_steps(2);
+    let mut expected = before;
+    expected[1] = RingAction::UndoRedo;
+    assert_eq!(h.state().config.touch_ring, expected);
+    assert_eq!(h.state().devices.ring_open, None);
+}

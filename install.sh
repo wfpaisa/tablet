@@ -92,6 +92,7 @@ if $need_rule || $need_group; then
 		sudo -n install -m 644 packaging/70-tablet-center.rules "$rule"
 		sudo -n udevadm control --reload
 		sudo -n udevadm trigger --subsystem-match=misc --sysname-match=uinput
+		sudo -n udevadm trigger --subsystem-match=hid --property-match=DRIVER=wacom --action=bind
 	}
 	$need_rule && step "Allowing access to virtual input devices" install_rule
 	$need_group && step "Adding you to the input group" sudo -n usermod -aG input "$USER"

@@ -1,9 +1,9 @@
-//! ExpressKeys: turns pad button frames into keyboard and pointer frames.
+//! ExpressKeys and touch ring: turn pad frames into keyboard and pointer frames.
 //! No I/O here; `main.rs` owns the devices.
 
-use evdev::{AbsoluteAxisCode as Abs, EventType, InputEvent, KeyCode};
+use evdev::{AbsoluteAxisCode as Abs, EventType, InputEvent, KeyCode, RelativeAxisCode as Rel};
 use std::str::FromStr;
-use tablet_config::{Click, Gesture, KeyAction, Shortcut};
+use tablet_config::{Click, Gesture, KeyAction, RingAction, Shortcut};
 
 #[derive(Debug, Default)]
 pub struct PadOutput {
@@ -17,6 +17,74 @@ pub struct PadOutput {
     pub toggle_display: bool,
     /// A key assigned to an on-screen shortcut was pressed.
     pub shortcut: Option<Shortcut>,
+}
+
+/// Touch ring positions per turn, and positions per emitted step (~15°).
+pub const RING_POSITIONS: i32 = 72;
+pub const RING_STEP: i32 = 3;
+
+/// Turns absolute ring positions into relative steps (+ = clockwise).
+#[derive(Default)]
+pub struct RingTracker {
+    last: Option<i32>,
+    acc: i32,
+}
+
+impl RingTracker {
+    pub fn update(&mut self, frame: &[InputEvent]) -> i32 {
+        if frame.iter().any(|e| e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_MISC.0 && e.value() == 0) {
+            self.last = None;
+            self.acc = 0;
+            return 0;
+        }
+        let mut steps = 0;
+        for ev in frame.iter().filter(|e| e.event_type() == EventType::ABSOLUTE && e.code() == Abs::ABS_WHEEL.0) {
+            let v = ev.value();
+            if let Some(last) = self.last {
+                let delta = (v - last + RING_POSITIONS / 2).rem_euclid(RING_POSITIONS) - RING_POSITIONS / 2;
+                self.acc += delta;
+                let n = self.acc / RING_STEP;
+                self.acc -= n * RING_STEP;
+                steps += n;
+            }
+            self.last = Some(v);
+        }
+        steps
+    }
+}
+
+pub fn centre_pressed(frame: &[InputEvent]) -> bool {
+    frame.iter().any(|e| e.event_type() == EventType::KEY && e.code() == KeyCode::BTN_0.0 && e.value() == 1)
+}
+
+pub fn ring_output(action: RingAction, steps: i32) -> PadOutput {
+    let mut out = PadOutput::default();
+    if steps == 0 || action == RingAction::Disabled { return out; }
+    let clockwise = steps > 0;
+    if matches!(action, RingAction::Scroll | RingAction::Zoom) {
+        let direction = steps.signum() * if action == RingAction::Scroll { -1 } else { 1 };
+        if action == RingAction::Zoom {
+            out.keyboard.push(vec![key(KeyCode::KEY_LEFTCTRL, true)]);
+            out.keyboard_after.push(vec![key(KeyCode::KEY_LEFTCTRL, false)]);
+        }
+        for _ in 0..steps.unsigned_abs() {
+            out.pointer.push(vec![rel(Rel::REL_WHEEL, direction), rel(Rel::REL_WHEEL_HI_RES, direction * 120)]);
+        }
+        return out;
+    }
+    let brace = if clockwise { KeyCode::KEY_RIGHTBRACE } else { KeyCode::KEY_LEFTBRACE };
+    let codes = match action {
+        RingAction::BrushSize => vec![brace],
+        RingAction::Rotate => vec![KeyCode::KEY_LEFTCTRL, brace],
+        RingAction::UndoRedo if clockwise => vec![KeyCode::KEY_LEFTCTRL, KeyCode::KEY_LEFTSHIFT, KeyCode::KEY_Z],
+        RingAction::UndoRedo => vec![KeyCode::KEY_LEFTCTRL, KeyCode::KEY_Z],
+        _ => return out,
+    };
+    for _ in 0..steps.unsigned_abs() {
+        out.keyboard.push(codes.iter().map(|&k| key(k, true)).collect());
+        out.keyboard.push(codes.iter().rev().map(|&k| key(k, false)).collect());
+    }
+    out
 }
 
 /// What a held ExpressKey is doing, so its release undoes exactly that.
@@ -232,6 +300,10 @@ fn abs(code: Abs, value: i32) -> InputEvent {
     InputEvent::new(EventType::ABSOLUTE.0, code.0, value)
 }
 
+fn rel(code: Rel, value: i32) -> InputEvent {
+    InputEvent::new(EventType::RELATIVE.0, code.0, value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -242,6 +314,79 @@ mod tests {
 
     fn undo() -> KeyAction {
         KeyAction::Keystroke { keys: vec!["KEY_LEFTCTRL".into(), "KEY_Z".into()], label: "Ctrl+Z".into() }
+    }
+
+    #[test]
+    fn ring_tracks_wrap_accumulation_and_lift() {
+        let mut tracker = RingTracker::default();
+        let wheel = |v| [abs(Abs::ABS_WHEEL, v)];
+        assert_eq!(tracker.update(&wheel(70)), 0);
+        assert_eq!(tracker.update(&wheel(1)), 3 / RING_STEP);
+        assert_eq!(tracker.update(&wheel(70)), -3 / RING_STEP);
+        assert_eq!(tracker.update(&wheel(71)), 0);
+        assert_eq!(tracker.update(&wheel(0)), 0);
+        assert_eq!(tracker.update(&wheel(1)), 1);
+        assert_eq!(tracker.update(&wheel(0)), 0);
+        assert_eq!(tracker.update(&[abs(Abs::ABS_WHEEL, 0), abs(Abs::ABS_MISC, 0)]), 0);
+        assert_eq!(tracker.last, None);
+        assert_eq!(tracker.acc, 0);
+        assert_eq!(tracker.update(&wheel(40)), 0);
+        assert_eq!(tracker.update(&wheel(39)), 0);
+        assert_eq!(tracker.update(&wheel(38)), 0);
+        assert_eq!(tracker.update(&wheel(37)), -1);
+        assert_eq!(tracker.update(&[]), 0);
+    }
+
+    #[test]
+    fn ring_centre_only_accepts_a_press() {
+        assert!(centre_pressed(&button(0, true)));
+        assert!(!centre_pressed(&button(0, false)));
+        assert!(!centre_pressed(&button(1, true)));
+        assert!(!centre_pressed(&[InputEvent::new(EventType::KEY.0, KeyCode::BTN_0.0, 2)]));
+        assert!(!centre_pressed(&[abs(Abs::ABS_WHEEL, 1)]));
+    }
+
+    #[test]
+    fn ring_scroll_and_zoom_have_opposite_signs_and_ctrl_surrounds_zoom() {
+        for direction in [-1, 1] {
+            for action in [RingAction::Scroll, RingAction::Zoom] {
+                let out = ring_output(action, direction * 2);
+                let sign = direction * if action == RingAction::Scroll { -1 } else { 1 };
+                assert_eq!(out.pointer, vec![vec![rel(Rel::REL_WHEEL, sign), rel(Rel::REL_WHEEL_HI_RES, sign * 120)]; 2]);
+                if action == RingAction::Zoom {
+                    assert_eq!(out.keyboard, vec![vec![key(KeyCode::KEY_LEFTCTRL, true)]]);
+                    assert_eq!(out.keyboard_after, vec![vec![key(KeyCode::KEY_LEFTCTRL, false)]]);
+                } else {
+                    assert!(out.keyboard.is_empty());
+                    assert!(out.keyboard_after.is_empty());
+                }
+            }
+        }
+        for action in [RingAction::Disabled, RingAction::Scroll, RingAction::Zoom, RingAction::BrushSize, RingAction::Rotate, RingAction::UndoRedo] {
+            let out = ring_output(action, 0);
+            assert!(out.pointer.is_empty() && out.keyboard.is_empty() && out.keyboard_after.is_empty());
+        }
+        let out = ring_output(RingAction::Disabled, 3);
+        assert!(out.pointer.is_empty() && out.keyboard.is_empty());
+    }
+
+    #[test]
+    fn ring_shortcuts_press_in_order_and_release_in_reverse() {
+        for direction in [-1, 1] {
+            let brace = if direction > 0 { KeyCode::KEY_RIGHTBRACE } else { KeyCode::KEY_LEFTBRACE };
+            for (action, codes) in [
+                (RingAction::BrushSize, vec![brace]),
+                (RingAction::Rotate, vec![KeyCode::KEY_LEFTCTRL, brace]),
+                (RingAction::UndoRedo, if direction > 0 { vec![KeyCode::KEY_LEFTCTRL, KeyCode::KEY_LEFTSHIFT, KeyCode::KEY_Z] }
+                    else { vec![KeyCode::KEY_LEFTCTRL, KeyCode::KEY_Z] }),
+            ] {
+                let out = ring_output(action, direction * 2);
+                let down: Vec<_> = codes.iter().map(|&k| key(k, true)).collect();
+                let up: Vec<_> = codes.iter().rev().map(|&k| key(k, false)).collect();
+                assert_eq!(out.keyboard, vec![down.clone(), up.clone(), down, up]);
+                assert!(out.pointer.is_empty() && out.keyboard_after.is_empty());
+            }
+        }
     }
 
     #[test]

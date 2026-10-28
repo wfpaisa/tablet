@@ -272,5 +272,14 @@
   "Pen tool ID": "ID del lápiz",
   "Pen input": "Entrada del lápiz",
   "Tilt X": "Inclinación X",
-  "Tilt Y": "Inclinación Y"
+  "Tilt Y": "Inclinación Y",
+  "Touch Ring": "Anillo táctil",
+  "Mode 1": "Modo 1",
+  "Mode 2": "Modo 2",
+  "Mode 3": "Modo 3",
+  "Mode 4": "Modo 4",
+  "Brush size": "Tamaño del pincel",
+  "Rotate canvas": "Rotar lienzo",
+  "Undo / redo": "Deshacer / rehacer",
+  "Press the centre button to switch modes. The lit LED shows the active mode.": "Pulsa el botón central para cambiar de modo. El LED encendido indica el modo activo."
 }

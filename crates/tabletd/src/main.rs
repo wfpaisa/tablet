@@ -986,8 +986,8 @@ fn remember_position(shared: &Shared, events: &[InputEvent]) {
 fn pad_loop(shared: &Shared) {
     let mut last_error = String::new();
     loop {
-        if let Some(pad) = devices::find_pad() {
-            match run_pad(pad, shared) {
+        if let Some((path, pad)) = devices::find_pad() {
+            match run_pad(pad, &path, shared) {
                 Err(e) if e.to_string() != last_error => {
                     eprintln!("tabletd: ExpressKeys stopped: {e}; retrying every second");
                     last_error = e.to_string();
@@ -1060,7 +1060,16 @@ fn map_touchscreen(touch: &evdev::Device, shared: &Shared) {
     }
 }
 
-fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
+/// Lights the LED of touch ring `mode`; warns once if sysfs refuses.
+fn ring_led(path: &std::path::Path, mode: usize, warned: &mut bool) {
+    if *warned { return; }
+    if let Err(e) = fs::write(path, mode.to_string()) {
+        eprintln!("tabletd: cannot set touch ring LED: {e}");
+        *warned = true;
+    }
+}
+
+fn run_pad(mut pad: evdev::Device, path: &std::path::Path, shared: &Shared) -> io::Result<()> {
     pad.grab()?;
     {
         let mut keyboard = shared.keyboard.lock().unwrap();
@@ -1069,7 +1078,16 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
     eprintln!("tabletd: using {}", pad.name().unwrap_or("tablet pad"));
     let first = tablet_config::first_express_key(pad.input_id().product());
     let mut generation = shared.generation.load(Ordering::Acquire);
-    let mut processor = pad::PadProcessor::new(effective_config(shared).express_keys);
+    let config = effective_config(shared);
+    let mut ring_actions = config.touch_ring;
+    let mut processor = pad::PadProcessor::new(config.express_keys);
+    let has_ring = tablet_config::has_touch_ring(pad.input_id().product());
+    let mut mode = 0;
+    let mut tracker = pad::RingTracker::default();
+    let mut warned = false;
+    let led = std::path::Path::new("/sys/class/input").join(path.file_name().unwrap_or_default())
+        .join("device/device/wacom_led/status_led0_select");
+    if has_ring { ring_led(&led, mode, &mut warned); }
     let mut frame = Vec::new();
     let result = (|| loop {
         for ev in pad.fetch_events()? {
@@ -1080,7 +1098,18 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
             let current = shared.generation.load(Ordering::Acquire);
             if current != generation {
                 generation = current;
-                processor.set_actions(effective_config(shared).express_keys);
+                let config = effective_config(shared);
+                processor.set_actions(config.express_keys);
+                ring_actions = config.touch_ring;
+            }
+            if has_ring {
+                if pad::centre_pressed(&frame) {
+                    mode = (mode + 1) % 4;
+                    ring_led(&led, mode, &mut warned);
+                }
+                let steps = tracker.update(&frame);
+                let action = ring_actions.get(mode).copied().unwrap_or_default();
+                emit_pad(shared, &pad::ring_output(action, steps))?;
             }
             let pos = *shared.pen_pos.lock().unwrap();
             pad::renumber(&mut frame, first);

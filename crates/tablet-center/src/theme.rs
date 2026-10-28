@@ -805,6 +805,19 @@ pub mod device_art {
     pub const PRO_2013_S_KEY_Y: [f32; 6] = [0.096, 0.183, 0.267, 0.731, 0.815, 0.9];
     pub const PRO_2013_ML_KEY_Y: [f32; 8] =
         [0.081, 0.156, 0.229, 0.302, 0.696, 0.769, 0.842, 0.915];
+    /// Touch ring mode LEDs (fractions of the panel art), modes 1-4 clockwise from top left.
+    pub const PRO_2013_S_RING_SPOTS: [(f32, f32); 4] = [
+        (0.206, 0.378),
+        (0.794, 0.378),
+        (0.794, 0.622),
+        (0.206, 0.622),
+    ];
+    pub const PRO_2013_ML_RING_SPOTS: [(f32, f32); 4] = [
+        (0.204, 0.394),
+        (0.796, 0.394),
+        (0.796, 0.606),
+        (0.204, 0.606),
+    ];
     /// Height / width of the panel artwork.
     pub const PRO_2013_S_RATIO: f32 = 520. / 218.;
     pub const PRO_2013_ML_RATIO: f32 = 520. / 186.;

@@ -2,3 +2,6 @@
 # keyboard that tabletd drives (uinput). Reading the tablet and the mice
 # still needs the "input" group.
 KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
+
+# Let the input group select the touch ring's mode LED.
+ACTION=="add|bind", SUBSYSTEM=="hid", DRIVER=="wacom", RUN+="/bin/sh -c 'f=/sys%p/wacom_led/status_led0_select; [ -e $$f ] && chgrp input $$f && chmod 0664 $$f || true'"

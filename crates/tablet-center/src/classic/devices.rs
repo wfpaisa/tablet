@@ -26,6 +26,7 @@ type LoadedIcons = Vec<(String, Option<crate::system::IconData>)>;
 #[derive(Default)]
 pub struct State {
     pub selected: Option<usize>,
+    pub ring_open: Option<usize>,
     pub menu: Option<tablet_config::Shortcut>,
     pub app: Option<usize>,
     pub add_app: bool,
@@ -442,32 +443,8 @@ pub fn show(
             let slide = super::pen::panel_progress(ui.ctx(), s.selected.is_some());
             let product = status.device.as_ref().map_or(0x0374, |dev| dev.product);
             let count = tablet_config::express_key_count(product).max(1);
-            let left = t::SIDEBAR + d::PX_1 + t::CONTENT_PAD;
-            let right = w - p::CONTENT_RIGHT - slide * (p::PANEL_WIDTH + p::COLUMN_GAP);
-            // The tablet shrinks so its callouts stay clear of the open panel.
-            let top = p::PAGE_TOP + t::SPACE_14;
-            let mut art_w = (right - left - p::CALLOUT_REACH - p::CALLOUT_WIDTH)
-                .clamp(p::KEYS_ART_MIN_WIDTH, p::KEYS_ART_WIDTH);
-            let ratio = crate::shared::art_ratio(product).unwrap_or(
-                if crate::shared::intuos_art(product) {
-                    p::INTUOS_ART_RATIO
-                } else {
-                    p::KEYS_ART_RATIO
-                },
-            );
-            // Portrait panels shrink to leave room for the Default button.
-            if crate::shared::art_ratio(product).is_some() {
-                let room = h - top - p::KEYS_DEFAULT_GAP - d::PX_32 - t::CONTENT_PAD;
-                art_w = art_w.min(room / ratio);
-            }
-            let art_h = art_w * ratio;
-            let group = art_w + p::CALLOUT_REACH + p::CALLOUT_WIDTH;
-            let art = rect(
-                left + ((right - left - group) / d::PX_2).max(0.),
-                top,
-                art_w,
-                art_h,
-            );
+            let art = keys_art_rect(product, w, h, slide);
+            let top = art.top();
             crate::shared::tablet_art(ui, product, "tablet", art);
             let keys = if let Some(i) = s.app {
                 &mut c.apps[i].express_keys
@@ -525,6 +502,7 @@ pub fn show(
                 *keys = vec![tablet_config::KeyAction::Disabled; keys.len()];
             }
         }
+        8 => touch_ring(ui, l, c, status, s),
         2 => mapping(ui, l, c, status),
         3 => {
             let scale = (h * d::TOGGLE_HEIGHT_VH / d::PX_300).min(1.);
@@ -552,6 +530,212 @@ pub fn show(
     s.panel_keys = false;
     *c != before
 }
+fn touch_ring(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, s: &mut State) {
+    use tablet_config::RingAction;
+    const ACTIONS: [(RingAction, &str); 6] = [
+        (RingAction::Disabled, "Disabled"),
+        (RingAction::Scroll, "Scroll"),
+        (RingAction::Zoom, "Zoom"),
+        (RingAction::BrushSize, "Brush size"),
+        (RingAction::Rotate, "Rotate canvas"),
+        (RingAction::UndoRedo, "Undo / redo"),
+    ];
+    title(ui, l, "Touch Ring");
+    let view = crate::widgets::view(ui);
+    let product = status.device.as_ref().map_or(0x0314, |dev| dev.product);
+    let art = keys_art_rect(product, view.right(), view.bottom(), 0.);
+    crate::shared::tablet_art(ui, product, "ring", art);
+    let fractions = if product == 0x0314 {
+        t::device_art::PRO_2013_S_RING_SPOTS
+    } else {
+        t::device_art::PRO_2013_ML_RING_SPOTS
+    };
+    let spots: Vec<_> = fractions
+        .into_iter()
+        .map(|(x, y)| pos2(art.left() + x * art.width(), art.top() + y * art.height()))
+        .collect();
+    let labels: Vec<_> = (0..4)
+        .map(|i| {
+            let action = c.touch_ring.get(i).copied().unwrap_or(RingAction::Disabled);
+            let name = ACTIONS
+                .iter()
+                .find(|(a, _)| *a == action)
+                .map_or("Disabled", |(_, name)| *name);
+            super::callout::label(ui, &l.t(name))
+        })
+        .collect();
+    let heights: Vec<_> = labels.iter().map(|g| super::callout::height(g)).collect();
+    let block_height = heights.iter().sum::<f32>() + p::CALLOUT_GAP * 3.;
+    let mut next =
+        spots.iter().map(|spot| spot.y).sum::<f32>() / spots.len() as f32 - block_height / 2.;
+    let tops: Vec<_> = heights
+        .iter()
+        .map(|height| {
+            let top = next;
+            next += height + p::CALLOUT_GAP;
+            top
+        })
+        .collect();
+    let mut open_card = None;
+    for i in 0..4 {
+        let r = rect(
+            art.right() + p::CALLOUT_REACH,
+            tops[i],
+            p::CALLOUT_WIDTH,
+            heights[i],
+        );
+        let name = l.t(["Mode 1", "Mode 2", "Mode 3", "Mode 4"][i]);
+        let clicked = super::callout::card(
+            ui,
+            r,
+            spots[i],
+            pos2(art.right() + p::CALLOUT_BEND, r.center().y),
+            &name,
+            "scroll",
+            labels[i].clone(),
+            s.ring_open == Some(i),
+            false,
+        );
+        if clicked {
+            s.ring_open = if s.ring_open == Some(i) {
+                None
+            } else {
+                Some(i)
+            };
+        }
+        if s.ring_open == Some(i) {
+            open_card = Some((i, r));
+        }
+    }
+    if let Some((i, card)) = open_card {
+        use t::settings_layout as menu;
+        let height = ACTIONS.len() as f32 * menu::PX_33_6 + menu::PX_10;
+        let y = if card.bottom() + menu::PX_4 + height <= view.bottom() {
+            card.bottom() + menu::PX_4
+        } else {
+            card.top() - height - menu::PX_4
+        };
+        let r = rect(card.left(), y, p::CALLOUT_WIDTH, height);
+        let window = crate::widgets::window(ui);
+        let layer = crate::widgets::layer(
+            ui,
+            egui::Order::Foreground,
+            egui::Id::new("touch-ring-options"),
+        );
+        egui::Area::new(layer.id)
+            .order(layer.order)
+            .constrain(false)
+            .fixed_pos(r.min)
+            .show(ui.ctx(), |ui| {
+                ui.set_clip_rect(window);
+                crate::widgets::shifted_access(ui);
+                super::settings::shadow(
+                    ui,
+                    r,
+                    menu::MENU_RADIUS,
+                    menu::SELECT_SHADOW_Y,
+                    menu::SELECT_SHADOW_BLUR,
+                    menu::SELECT_SHADOW,
+                );
+                ui.painter().rect(
+                    r,
+                    menu::MENU_RADIUS,
+                    t::PANEL,
+                    Stroke::new(menu::PX_1, t::LINE),
+                    StrokeKind::Inside,
+                );
+                for (index, (action, label)) in ACTIONS.into_iter().enumerate() {
+                    let row = rect(
+                        r.left() + menu::PX_5,
+                        r.top() + menu::PX_5 + index as f32 * menu::PX_33_6,
+                        r.width() - menu::PX_10,
+                        menu::PX_33_6,
+                    );
+                    let label = l.t(label);
+                    let response = click(ui, row, ("ring-action", index), &label);
+                    if response.hovered() {
+                        ui.painter()
+                            .rect_filled(row, t::CONTROL_RADIUS, menu::ACTIVE);
+                    }
+                    text(
+                        ui,
+                        row.left() + menu::PX_12,
+                        row.top() + menu::PX_7,
+                        &label,
+                        menu::PX_14,
+                        t::TEXT,
+                    );
+                    if c.touch_ring.get(i) == Some(&action) {
+                        egui::Image::new(egui::include_image!(
+                            "../../../../assets/icons/select-check.svg"
+                        ))
+                        .paint_at(
+                            ui,
+                            rect(
+                                row.right() - menu::PX_24,
+                                row.center().y - menu::PX_7,
+                                menu::PX_14,
+                                menu::PX_14,
+                            ),
+                        );
+                    }
+                    if response.clicked() {
+                        c.touch_ring.resize(4, RingAction::Disabled);
+                        c.touch_ring[i] = action;
+                        s.ring_open = None;
+                    }
+                }
+            });
+        if ui.input(|input| input.key_pressed(egui::Key::Escape))
+            || ui.input(|input| input.pointer.any_pressed())
+                && crate::widgets::press(ui)
+                    .is_some_and(|pos| !r.contains(pos) && !card.contains(pos))
+        {
+            s.ring_open = None;
+        }
+    }
+    wrapped(
+        ui,
+        rect(
+            art.left(),
+            art.bottom() + p::KEYS_DEFAULT_GAP,
+            view.right() - art.left() - t::CONTENT_PAD,
+            d::PX_70,
+        ),
+        &l.t("Press the centre button to switch modes. The lit LED shows the active mode."),
+        d::PX_15,
+        t::MUTED,
+    );
+}
+
+fn keys_art_rect(product: u16, w: f32, h: f32, slide: f32) -> egui::Rect {
+    let left = t::SIDEBAR + d::PX_1 + t::CONTENT_PAD;
+    let right = w - p::CONTENT_RIGHT - slide * (p::PANEL_WIDTH + p::COLUMN_GAP);
+    // The tablet shrinks so its callouts stay clear of the open panel.
+    let top = p::PAGE_TOP + t::SPACE_14;
+    let mut art_w = (right - left - p::CALLOUT_REACH - p::CALLOUT_WIDTH)
+        .clamp(p::KEYS_ART_MIN_WIDTH, p::KEYS_ART_WIDTH);
+    let ratio =
+        crate::shared::art_ratio(product).unwrap_or(if crate::shared::intuos_art(product) {
+            p::INTUOS_ART_RATIO
+        } else {
+            p::KEYS_ART_RATIO
+        });
+    // Portrait panels shrink to leave room for the Default button.
+    if crate::shared::art_ratio(product).is_some() {
+        let room = h - top - p::KEYS_DEFAULT_GAP - d::PX_32 - t::CONTENT_PAD;
+        art_w = art_w.min(room / ratio);
+    }
+    let art_h = art_w * ratio;
+    let group = art_w + p::CALLOUT_REACH + p::CALLOUT_WIDTH;
+    rect(
+        left + ((right - left - group) / d::PX_2).max(0.),
+        top,
+        art_w,
+        art_h,
+    )
+}
+
 fn wrapped(ui: &Ui, r: egui::Rect, s: &str, size: f32, color: egui::Color32) {
     let mut job = egui::text::LayoutJob::simple(s.into(), t::font(size), color, r.width());
     for section in &mut job.sections {

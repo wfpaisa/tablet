@@ -174,6 +174,9 @@ pub fn sidebar(
     if device.is_none_or(|d| tablet_config::express_key_count(d.product) > 0) {
         items.push((1, 4, "ExpressKeys"));
     }
+    if device.is_some_and(|d| tablet_config::has_touch_ring(d.product)) {
+        items.push((8, 6, "Touch Ring"));
+    }
     if touch {
         items.push((5, 7, "Touch"));
     }
