@@ -5,3 +5,6 @@
 .idea/
 .vscode/
 *.swp
+
+# Local reference material (symlink, not versioned)
+/reference
