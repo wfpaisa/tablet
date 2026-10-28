@@ -114,11 +114,35 @@ for the full workflow.
 ```sh
 just dev          # open the app with the installed service
 just dev-sim      # try simulated data without changing your settings
+just dev-sim 0314 # simulate a specific model (see the table below)
 just check        # check formatting, code quality and tests
 just screens      # generate screenshots (requires a GPU)
 just compare      # compare screenshots with the visual references
 just package      # create a release archive in dist/
 ```
+
+### Simulating a model
+
+`just dev-sim <id>` opens the app as if that tablet were connected, using
+its USB product ID in hex (for example `just dev-sim 0314`). Without an ID
+it simulates an Intuos S (`0374`).
+
+| Model | Product IDs |
+|---|---|
+| Intuos S CTL-4100 | `0374` |
+| Intuos M CTL-6100 | `0375` |
+| Intuos S CTL-4100WL | `0376`, `0377`, `03c6` |
+| Intuos M CTL-6100WL | `0378`, `0379`, `03c8` |
+| Wacom One S CTC4110WL | `0100`, `0101`, `0104` |
+| Wacom One M CTC6110WL | `0102`, `0103`, `0105` |
+| Wacom One 12 DTC121 | `03ce` |
+| Wacom One 13 touch DTH134 | `03cb` |
+| Intuos Pro S PTH-460 | `0392`, `0393`, `03dd` |
+| Intuos Pro M PTH-660 | `0357`, `0360` |
+| Intuos Pro L PTH-860 | `0358`, `0361` |
+| Intuos Pro S PTH-451 (2013) | `0314` |
+| Intuos Pro M PTH-651 (2013) | `0315` |
+| Intuos Pro L PTH-851 (2013) | `0317` |
 
 Review screenshots at 1100×720 and 1100×1600 against `docs/reference/`.
 Check text, layout, colors and icons visually as well as the reported image
