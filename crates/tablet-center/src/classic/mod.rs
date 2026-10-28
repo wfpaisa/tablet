@@ -130,17 +130,20 @@ pub fn sidebar(
         t::RADIUS,
         t::DEVICE,
     );
-    assets::artwork(
-        ui,
-        "tablet",
-        include_bytes!("../../../../assets/devices/intuos-s.png"),
-        rect(
-            layout::DEVICE_IMAGE_LEFT,
-            layout::DEVICE_IMAGE_TOP,
-            layout::DEVICE_IMAGE_WIDTH,
-            layout::DEVICE_IMAGE_HEIGHT,
-        ),
+    let image = rect(
+        layout::DEVICE_IMAGE_LEFT,
+        layout::DEVICE_IMAGE_TOP,
+        layout::DEVICE_IMAGE_WIDTH,
+        layout::DEVICE_IMAGE_HEIGHT,
     );
+    if !device.is_some_and(|d| crate::shared::thumbnail(ui, d.product, image)) {
+        assets::artwork(
+            ui,
+            "tablet",
+            include_bytes!("../../../../assets/devices/intuos-s.png"),
+            image,
+        );
+    }
     if click(
         ui,
         rect(
@@ -157,13 +160,7 @@ pub fn sidebar(
         *page = 6;
     }
     let name = device
-        .map(|d| {
-            if d.product == 0x0374 {
-                "Intuos S"
-            } else {
-                d.name.as_str()
-            }
-        })
+        .map(|d| crate::shared::model_name(d.product).map_or(d.name.as_str(), |(name, _)| name))
         .unwrap_or("Tablet");
     text(
         ui,

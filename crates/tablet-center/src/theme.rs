@@ -800,6 +800,16 @@ pub mod settings_layout {
 pub mod device_art {
     pub const INTUOS_KEY_X: [f32; 4] = [0.189, 0.395, 0.602, 0.808];
     pub const INTUOS_KEY_Y: f32 = 0.15;
+    /// Intuos Pro 2013 ExpressKeys panels (S: 6 keys, M/L: 8), keys centred.
+    pub const PRO_2013_KEY_X: f32 = 0.5;
+    pub const PRO_2013_S_KEY_Y: [f32; 6] = [0.096, 0.183, 0.267, 0.731, 0.815, 0.9];
+    pub const PRO_2013_ML_KEY_Y: [f32; 8] =
+        [0.081, 0.156, 0.229, 0.302, 0.696, 0.769, 0.842, 0.915];
+    /// Height / width of the panel artwork.
+    pub const PRO_2013_S_RATIO: f32 = 520. / 218.;
+    pub const PRO_2013_ML_RATIO: f32 = 520. / 186.;
+    /// Height / width of the whole-tablet thumbnail.
+    pub const PRO_2013_TABLET_RATIO: f32 = 281. / 424.;
 }
 
 /// Interaction values copied from style.css, select.css and frame.css.

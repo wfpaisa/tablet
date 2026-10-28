@@ -210,6 +210,20 @@ pub fn release(held: Held, out: &mut PadOutput) {
     }
 }
 
+/// Drops pad buttons below `first` (e.g. a touch ring's centre button) and
+/// shifts the rest down so ExpressKey 1 always arrives as BTN_0.
+pub fn renumber(frame: &mut Vec<InputEvent>, first: u16) {
+    if first == 0 {
+        return;
+    }
+    frame.retain(|e| e.event_type() != EventType::KEY || !(KeyCode::BTN_0.0..KeyCode::BTN_0.0 + first).contains(&e.code()));
+    for e in frame.iter_mut() {
+        if e.event_type() == EventType::KEY && (KeyCode::BTN_0.0..=KeyCode::BTN_9.0).contains(&e.code()) {
+            *e = InputEvent::new(EventType::KEY.0, e.code() - first, e.value());
+        }
+    }
+}
+
 fn key(code: KeyCode, down: bool) -> InputEvent {
     InputEvent::new(EventType::KEY.0, code.0, i32::from(down))
 }
@@ -228,6 +242,25 @@ mod tests {
 
     fn undo() -> KeyAction {
         KeyAction::Keystroke { keys: vec!["KEY_LEFTCTRL".into(), "KEY_Z".into()], label: "Ctrl+Z".into() }
+    }
+
+    #[test]
+    fn renumber_skips_the_ring_button_and_shifts_express_keys() {
+        let mut frame = [button(0, true), button(1, true), button(6, false)].concat();
+        frame.push(abs(Abs::ABS_WHEEL, 12));
+        renumber(&mut frame, 1);
+        let codes: Vec<_> = frame.iter().map(|e| (e.event_type(), e.code(), e.value())).collect();
+        assert_eq!(
+            codes,
+            [
+                (EventType::KEY, KeyCode::BTN_0.0, 1),
+                (EventType::KEY, KeyCode::BTN_5.0, 0),
+                (EventType::ABSOLUTE, Abs::ABS_WHEEL.0, 12),
+            ]
+        );
+        let mut same = button(0, true);
+        renumber(&mut same, 0);
+        assert_eq!(same[0].code(), KeyCode::BTN_0.0, "other tablets keep their numbering");
     }
 
     #[test]

@@ -2,7 +2,6 @@
 use super::devices::button;
 use crate::theme::settings_layout as s;
 use crate::{
-    assets,
     i18n::Locale,
     system, theme as t,
     widgets::{click, rect, text},
@@ -916,77 +915,15 @@ fn modal_button(ui: &mut Ui, r: egui::Rect, label: &str, primary: bool) -> egui:
 }
 
 fn connected_device(ui: &Ui, device: &tablet_config::DeviceInfo, offset: f32) {
-    let (name, model) = match device.product {
-        0x0374 => ("Intuos S", "CTL-4100"),
-        0x0375 => ("Intuos M", "CTL-6100"),
-        0x0376 | 0x0377 | 0x03c6 => ("Intuos S", "CTL-4100WL"),
-        0x0378 | 0x0379 | 0x03c8 => ("Intuos M", "CTL-6100WL"),
-        0x0100 | 0x0101 | 0x0104 => ("Wacom One S", "CTC4110WL"),
-        0x0102 | 0x0103 | 0x0105 => ("Wacom One M", "CTC6110WL"),
-        0x03ce => ("Wacom One 12", "DTC121"),
-        0x03cb => ("Wacom One 13 touch", "DTH134"),
-        0x0392 | 0x0393 | 0x03dd => ("Intuos Pro S", "PTH-460"),
-        0x0357 | 0x0360 => ("Intuos Pro M", "PTH-660"),
-        0x0358 | 0x0361 => ("Intuos Pro L", "PTH-860"),
-        _ => ("Tablet", ""),
-    };
-    let height = if device.product == 0x0374 {
+    let (name, model) = crate::shared::model_name(device.product).unwrap_or(("Tablet", ""));
+    let height = if crate::shared::intuos_art(device.product) {
         s::PX_77
     } else {
         s::PX_96 * s::PX_360 / s::PX_560
     };
-    if device.product == 0x0374 {
-        crate::assets::glow(ui, rect(s::PX_48, s::PX_244 - offset, s::PX_96, height));
-        assets::artwork(
-            ui,
-            "tablet",
-            include_bytes!("../../../../assets/devices/intuos-s.png"),
-            rect(s::PX_48, s::PX_244 - offset, s::PX_96, height),
-        );
-    } else {
-        let column = matches!(
-            device.product,
-            0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0360 | 0x0358 | 0x0361
-        );
-        let count = tablet_config::express_key_count(device.product);
-        let mut buttons = String::new();
-        for i in 0..count {
-            let (x, y) = if column {
-                (
-                    s::PX_0_1,
-                    s::PX_0_16
-                        + i as f32 * (s::PX_0_68 / (count - 1).max(1) as f32)
-                        + if i < count / 2 {
-                            -s::PX_0_04
-                        } else {
-                            s::PX_0_04
-                        },
-                )
-            } else {
-                (s::PX_0_23 + i as f32 * s::PX_0_18, s::PX_0_13)
-            };
-            buttons += &include_str!("../../../../assets/devices/tablet-generic-button.svg")
-                .replace("{x}", &(x * s::PX_560 - s::PX_13).to_string())
-                .replace("{y}", &(y * s::PX_360 - s::PX_8).to_string());
-        }
-        let source = include_str!("../../../../assets/devices/tablet-generic.svg")
-            .replace("{x}", if column { "110" } else { "55" })
-            .replace("{y}", if column { "42" } else { "73" })
-            .replace("{width}", if column { "400" } else { "450" })
-            .replace(
-                "{ring}",
-                if column {
-                    include_str!("../../../../assets/devices/tablet-generic-ring.svg")
-                } else {
-                    ""
-                },
-            )
-            .replace("{buttons}", &buttons);
-        egui::Image::from_bytes(
-            format!("bytes://settings-device-{}.svg", device.product),
-            source.into_bytes(),
-        )
-        .paint_at(ui, rect(s::PX_48, s::PX_244 - offset, s::PX_96, height));
+    let area = rect(s::PX_48, s::PX_244 - offset, s::PX_96, height);
+    if !crate::shared::thumbnail(ui, device.product, area) {
+        crate::shared::tablet_art(ui, device.product, "tablet", area);
     }
     let y = s::PX_244 - offset + (height - s::PX_19) / s::PX_2;
     text(ui, s::PX_160, y, name, s::PX_15, t::TEXT);

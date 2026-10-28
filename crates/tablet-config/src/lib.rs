@@ -564,10 +564,21 @@ pub fn wacom_vendor(vendor: u16) -> bool {
 pub fn express_key_count(product: u16) -> usize {
     match product {
         0x0100..=0x0105 | 0x03cb | 0x03ce => 0,
-        0x0392 | 0x0393 | 0x03dd => 6,
-        0x0357 | 0x0358 | 0x0360 | 0x0361 => 8,
+        0x0392 | 0x0393 | 0x03dd | 0x0314 => 6,
+        0x0357 | 0x0358 | 0x0360 | 0x0361 | 0x0315 | 0x0317 => 8,
         _ => 4,
     }
+}
+
+/// Intuos Pro 2013 (PTH-451/651/851): BTN_0 is the touch ring's centre
+/// button (libwacom `Ring=A`), so ExpressKey 1 is BTN_1.
+pub fn intuos_pro_2013(product: u16) -> bool {
+    matches!(product, 0x0314 | 0x0315 | 0x0317)
+}
+
+/// Pad button code offset of ExpressKey 1, counted from BTN_0.
+pub fn first_express_key(product: u16) -> u16 {
+    u16::from(intuos_pro_2013(product))
 }
 
 /// Wacom One 12 / 13 touch: the pen draws on the tablet's own screen.

@@ -85,7 +85,12 @@ pub fn artwork(ui: &egui::Ui, name: &str, bytes: &[u8], rect: egui::Rect) {
     artwork_rotated(ui, name, bytes, rect, 0.);
 }
 pub fn artwork_rotated(ui: &egui::Ui, name: &str, bytes: &[u8], rect: egui::Rect, angle: f32) {
-    let size = [rect.width().ceil() as usize, rect.height().ceil() as usize];
+    // Physical pixels, so HiDPI screens get a sharp texture.
+    let ppp = ui.ctx().pixels_per_point();
+    let size = [
+        (rect.width() * ppp).ceil() as usize,
+        (rect.height() * ppp).ceil() as usize,
+    ];
     let id = egui::Id::new((name, size));
     let cached = ui.ctx().data(|d| d.get_temp::<egui::TextureHandle>(id));
     let texture = cached.or_else(|| {

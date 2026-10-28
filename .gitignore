@@ -6,5 +6,5 @@
 .vscode/
 *.swp
 
-# Local reference material (symlink, not versioned)
-/reference
+# Private Wacom reference material (not versioned)
+/referencia

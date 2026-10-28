@@ -12,8 +12,9 @@ dev:
     cargo run -p tablet-center
 
 # Abre Tablet Center con datos simulados: sin daemon ni escritura de configuración.
-dev-sim:
-    cargo run -p tablet-center -- --simulate
+# `just dev-sim 0314` simula otro modelo (id USB en hex, p. ej. 0314 = PTH-451).
+dev-sim product="":
+    cargo run -p tablet-center -- --simulate{{ if product == "" { "" } else { "=" + product } }}
 
 # Corre un tabletd local (detén antes tabletd.service si está activo).
 daemon:

@@ -438,15 +438,22 @@ pub fn show(
             let left = t::SIDEBAR + d::PX_1 + t::CONTENT_PAD;
             let right = w - p::CONTENT_RIGHT - slide * (p::PANEL_WIDTH + p::COLUMN_GAP);
             // The tablet shrinks so its callouts stay clear of the open panel.
-            let art_w = (right - left - p::CALLOUT_REACH - p::CALLOUT_WIDTH)
+            let top = p::PAGE_TOP + t::SPACE_14;
+            let mut art_w = (right - left - p::CALLOUT_REACH - p::CALLOUT_WIDTH)
                 .clamp(p::KEYS_ART_MIN_WIDTH, p::KEYS_ART_WIDTH);
-            let art_h = art_w
-                * if crate::shared::intuos_art(product) {
+            let ratio = crate::shared::art_ratio(product).unwrap_or(
+                if crate::shared::intuos_art(product) {
                     p::INTUOS_ART_RATIO
                 } else {
                     p::KEYS_ART_RATIO
-                };
-            let top = p::PAGE_TOP + t::SPACE_14;
+                },
+            );
+            // Portrait panels shrink to leave room for the Default button.
+            if crate::shared::art_ratio(product).is_some() {
+                let room = h - top - p::KEYS_DEFAULT_GAP - d::PX_32 - t::CONTENT_PAD;
+                art_w = art_w.min(room / ratio);
+            }
+            let art_h = art_w * ratio;
             let group = art_w + p::CALLOUT_REACH + p::CALLOUT_WIDTH;
             let art = rect(
                 left + ((right - left - group) / d::PX_2).max(0.),

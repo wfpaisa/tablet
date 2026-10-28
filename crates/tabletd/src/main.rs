@@ -1067,6 +1067,7 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
         if keyboard.is_none() { *keyboard = Some(devices::virtual_keyboard()?); }
     }
     eprintln!("tabletd: using {}", pad.name().unwrap_or("tablet pad"));
+    let first = tablet_config::first_express_key(pad.input_id().product());
     let mut generation = shared.generation.load(Ordering::Acquire);
     let mut processor = pad::PadProcessor::new(effective_config(shared).express_keys);
     let mut frame = Vec::new();
@@ -1082,6 +1083,7 @@ fn run_pad(mut pad: evdev::Device, shared: &Shared) -> io::Result<()> {
                 processor.set_actions(effective_config(shared).express_keys);
             }
             let pos = *shared.pen_pos.lock().unwrap();
+            pad::renumber(&mut frame, first);
             remember_keys(shared, &frame);
             let out = processor.process_frame(&frame, pos);
             frame.clear();

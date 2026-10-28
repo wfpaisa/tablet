@@ -124,6 +124,26 @@ fn devices_screenshots() {
             .save(out.join(format!("{name}.png")))
             .unwrap();
     }
+    // Intuos Pro 2013 (no reference capture): ExpressKeys panel art.
+    for (name, product) in [
+        ("classic-dark-devices-expresskeys-pth451", 0x0314),
+        ("classic-dark-devices-expresskeys-pth651", 0x0315),
+    ] {
+        let mut app = tablet_center::App::simulated();
+        app.page = 1;
+        if let Some(device) = app.status.device.as_mut() {
+            device.product = product;
+        }
+        let mut h = Harness::builder()
+            .with_size(egui::vec2(1100., 720.))
+            .wgpu()
+            .build_ui_state(|ui, app: &mut tablet_center::App| app.show(ui), app);
+        h.run_steps(8);
+        h.render()
+            .unwrap()
+            .save(out.join(format!("{name}.png")))
+            .unwrap();
+    }
 }
 
 #[test]

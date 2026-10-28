@@ -67,11 +67,9 @@ pub fn apply_action(config: &mut tablet_config::Config, path: &str, value: Value
     }
 }
 
-pub fn device_name(status: &tablet_config::Response) -> String {
-    let Some(device) = &status.device else {
-        return "No tablet connected".into();
-    };
-    let (name, model) = match device.product {
+/// Marketing name and model number for known product ids.
+pub fn model_name(product: u16) -> Option<(&'static str, &'static str)> {
+    Some(match product {
         0x0374 => ("Intuos S", "CTL-4100"),
         0x0375 => ("Intuos M", "CTL-6100"),
         0x0376 | 0x0377 | 0x03c6 => ("Intuos S", "CTL-4100WL"),
@@ -83,18 +81,43 @@ pub fn device_name(status: &tablet_config::Response) -> String {
         0x0392 | 0x0393 | 0x03dd => ("Intuos Pro S", "PTH-460"),
         0x0357 | 0x0360 => ("Intuos Pro M", "PTH-660"),
         0x0358 | 0x0361 => ("Intuos Pro L", "PTH-860"),
-        _ => (device.name.as_str(), ""),
+        0x0314 => ("Intuos Pro S", "PTH-451"),
+        0x0315 => ("Intuos Pro M", "PTH-651"),
+        0x0317 => ("Intuos Pro L", "PTH-851"),
+        _ => return None,
+    })
+}
+pub fn device_name(status: &tablet_config::Response) -> String {
+    let Some(device) = &status.device else {
+        return "No tablet connected".into();
     };
+    let (name, model) = model_name(device.product).unwrap_or((device.name.as_str(), ""));
     format!("{name} {model}").trim().into()
 }
 
 pub fn intuos_art(product: u16) -> bool {
     matches!(product, 0x0374 | 0x0376 | 0x0377 | 0x03c6)
 }
+/// Height / width of the ExpressKeys artwork, `None` for the generic drawing.
+pub fn art_ratio(product: u16) -> Option<f32> {
+    match product {
+        0x0314 => Some(t::PRO_2013_S_RATIO),
+        0x0315 | 0x0317 => Some(t::PRO_2013_ML_RATIO),
+        _ => None,
+    }
+}
 pub fn key_spot(product: u16, index: usize, count: usize) -> (f32, f32) {
     use crate::theme::settings_layout as d;
     if intuos_art(product) {
         return (t::INTUOS_KEY_X[index.min(3)], t::INTUOS_KEY_Y);
+    }
+    if tablet_config::intuos_pro_2013(product) {
+        let ys: &[f32] = if product == 0x0314 {
+            &t::PRO_2013_S_KEY_Y
+        } else {
+            &t::PRO_2013_ML_KEY_Y
+        };
+        return (t::PRO_2013_KEY_X, ys[index.min(ys.len() - 1)]);
     }
     if matches!(
         product,
@@ -123,6 +146,23 @@ pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
             include_bytes!("../../../assets/devices/intuos-s.png"),
             area,
         );
+        return;
+    }
+    // Intuos Pro 2013: the ExpressKeys panel only, as in the macOS driver.
+    if tablet_config::intuos_pro_2013(product) {
+        let (key, bytes): (&str, &[u8]) = if product == 0x0314 {
+            (
+                "pro-2013-s-keys",
+                include_bytes!("../../../assets/devices/intuos-pro-2013-s-keys-wacom.png"),
+            )
+        } else {
+            (
+                "pro-2013-ml-keys",
+                include_bytes!("../../../assets/devices/intuos-pro-2013-ml-keys-wacom.png"),
+            )
+        };
+        crate::assets::glow(ui, area);
+        crate::assets::artwork(ui, &format!("{name}-{key}"), bytes, area);
         return;
     }
     use crate::theme::settings_layout as d;
@@ -156,4 +196,23 @@ pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
         bytes: svg.into_bytes().into(),
     })
     .paint_at(ui, area);
+}
+/// Whole-tablet thumbnail for the device list, when the model has one.
+pub fn thumbnail(ui: &Ui, product: u16, area: Rect) -> bool {
+    if !tablet_config::intuos_pro_2013(product) {
+        return false;
+    }
+    let h = area.width() * t::PRO_2013_TABLET_RATIO;
+    let r = Rect::from_center_size(
+        area.center(),
+        egui::vec2(area.width(), h.min(area.height())),
+    );
+    crate::assets::glow(ui, r);
+    crate::assets::artwork(
+        ui,
+        "pro-2013-tablet",
+        include_bytes!("../../../assets/devices/intuos-pro-2013-wacom.png"),
+        r,
+    );
+    true
 }

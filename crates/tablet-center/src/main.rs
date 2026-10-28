@@ -17,7 +17,12 @@ fn wgpu_options() -> egui_wgpu::WgpuConfiguration {
 
 fn main() -> eframe::Result {
     let host = std::env::args().any(|arg| arg == "--shortcut-host");
-    let simulated = std::env::args().any(|arg| arg == "--simulate");
+    // `--simulate` or `--simulate=0314` (USB product id, hex) to preview a model.
+    let simulated = std::env::args().find_map(|arg| {
+        let rest = arg.strip_prefix("--simulate")?;
+        let id = rest.strip_prefix('=').unwrap_or(rest);
+        Some(u16::from_str_radix(id.trim_start_matches("0x"), 16).ok())
+    });
     let mut options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
             .with_visible(!host)
@@ -51,8 +56,12 @@ fn main() -> eframe::Result {
             if host {
                 return Ok(Box::new(tablet_center::overlay::Host::new(cc)));
             }
-            let mut app = if simulated {
-                tablet_center::App::simulated()
+            let mut app = if let Some(product) = simulated {
+                let mut app = tablet_center::App::simulated();
+                if let (Some(product), Some(device)) = (product, app.status.device.as_mut()) {
+                    device.product = product;
+                }
+                app
             } else {
                 tablet_center::App::native(&cc.egui_ctx)
             };

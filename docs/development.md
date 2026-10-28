@@ -14,7 +14,7 @@ just <tarea>    # ejecuta una
 | Tarea | Qué hace |
 |---|---|
 | `just dev` | Abre Tablet Center (debug) contra el `tabletd` instalado. |
-| `just dev-sim` | Abre la app con datos simulados (Intuos S, dos monitores Dell): sin daemon y sin tocar `~/.config/tablet-center`. |
+| `just dev-sim` | Abre la app con datos simulados (Intuos S, dos monitores Dell): sin daemon y sin tocar `~/.config/tablet-center`. `just dev-sim 0314` simula otro modelo por su id USB (hex): 0314/0315/0317 = Intuos Pro 2013 S/M/L. |
 | `just daemon` | Corre un `tabletd` local. Antes hay que detener `tabletd.service` si está activo. |
 | `just run` | Abre la app en release. |
 
