@@ -250,6 +250,15 @@ pub mod pen_layout {
     pub const LOWER_Y_RATIO: f32 = 0.735;
     pub const TIP_Y_RATIO: f32 = 0.975;
     pub const TIP_X_RATIO: f32 = 0.49;
+    pub const PRO_PEN_BOUNDS: [f32; 4] = [2. / 655., 0., 651. / 655., 6820. / 7995.];
+    pub const ONE_PEN_BOUNDS: [f32; 4] = [49. / 524., 43. / 6396., 426. / 524., 6310. / 6396.];
+    pub const PRO_PEN_SPOTS: [(f32, f32); 3] = [(0.47, 0.594), (0.47, 0.655), (0.50, 0.852)];
+    pub const ONE_PEN_SPOTS: [(f32, f32); 3] = [(0.50, 0.69), (0.50, 0.735), (0.50, 0.991)];
+    pub const GRIP_PEN_BUTTON_X_RATIO: f32 = 57.5 / 131.0;
+    pub const GRIP_PEN_UPPER_Y_RATIO: f32 = 1024.0 / 1599.0;
+    pub const GRIP_PEN_LOWER_Y_RATIO: f32 = 1173.0 / 1599.0;
+    pub const GRIP_PEN_TIP_X_RATIO: f32 = 65.5 / 131.0;
+    pub const GRIP_PEN_TIP_Y_RATIO: f32 = 1590.0 / 1599.0;
     pub const LABEL_RESERVED: f32 = 170.0;
     pub const MIN_LEAD: f32 = 30.0;
     pub const TIP_SPOT_THRESHOLD: f32 = 0.9;
@@ -317,7 +326,8 @@ pub fn if_screen(on: bool) -> Color32 {
     }
 }
 
-pub const GLOW: Color32 = Color32::from_rgba_premultiplied(42, 106, 182, 204);
+/// Soft white halo around the overview tablet, a little fainter than the pen's.
+pub const GLOW: Color32 = Color32::from_rgba_premultiplied(22, 22, 22, 22);
 pub const TOGGLE_OUTLINE: Color32 = Color32::from_rgb(54, 61, 68);
 pub const TOGGLE_BEAM: Color32 = Color32::from_rgb(37, 40, 43);
 pub const TOGGLE_DOT: Color32 = Color32::from_gray(49);
@@ -798,6 +808,44 @@ pub mod settings_layout {
 
 /// ExpressKey spots on the Intuos S artwork, as fractions of the image.
 pub mod device_art {
+    pub const INTUOS_S_WL_RATIO: f32 = 1143. / 1427.;
+    pub const INTUOS_M_RATIO: f32 = 1142. / 1447.;
+    pub const INTUOS_M_WL_RATIO: f32 = 1072. / 1414.;
+    pub const ONE_RATIO: f32 = 1142. / 1500.;
+    pub const ONE_12_RATIO: f32 = 948. / 1396.;
+    pub const ONE_13_RATIO: f32 = 1108. / 1578.;
+    pub const PRO_S_RATIO: f32 = 931. / 1479.;
+    pub const PRO_M_RATIO: f32 = 948. / 1464.;
+    pub const PRO_L_RATIO: f32 = 979. / 1470.;
+    pub const INTUOS_S_RATIO: f32 = 1107. / 1387.;
+    pub const INTUOS_M_KEY_X: [f32; 4] = [0.255, 0.414, 0.572, 0.731];
+    pub const INTUOS_M_KEY_Y: f32 = 0.12;
+    pub const INTUOS_M_WL_KEY_X: [f32; 4] = [0.255, 0.414, 0.572, 0.731];
+    pub const INTUOS_M_WL_KEY_Y: f32 = 0.115;
+    pub const PRO_S_RING: (f32, f32) = (0.098, 0.50);
+    pub const PRO_M_RING: (f32, f32) = (119.5 / 1464., 475. / 948.);
+    pub const PRO_L_RING: (f32, f32) = (0.063, 0.455);
+    pub const RING_HIT_RATIO: f32 = 0.06;
+    pub const INTUOS_M_ACTIVE: [f32; 4] = [0.10, 0.25, 0.80, 0.63];
+    pub const ONE_ACTIVE: [f32; 4] = [0.09, 0.26, 0.82, 0.61];
+    pub const ONE_12_ACTIVE: [f32; 4] = [0.08, 0.14, 0.85, 0.75];
+    pub const ONE_13_ACTIVE: [f32; 4] = [0.08, 0.14, 0.86, 0.74];
+    pub const PRO_S_ACTIVE: [f32; 4] = [0.20, 0.20, 0.58, 0.59];
+    pub const PRO_M_ACTIVE: [f32; 4] = [0.155, 0.17, 0.65, 0.62];
+    pub const PRO_L_ACTIVE: [f32; 4] = [0.13, 0.125, 0.72, 0.73];
+    pub const PRO_S_KEYS_RATIO: f32 = 770. / 290.;
+    pub const PRO_M_KEYS_RATIO: f32 = 720. / 239.;
+    pub const PRO_L_KEYS_RATIO: f32 = 555. / 185.;
+    pub const PRO_S_PANEL_RING: (f32, f32) = (PRO_S_KEY_X, (PRO_S_RING.1 * 931. - 100.) / 770.);
+    pub const PRO_M_PANEL_RING: (f32, f32) = (PRO_M_KEY_X, (PRO_M_RING.1 * 948. - 100.) / 720.);
+    pub const PRO_L_PANEL_RING: (f32, f32) = (PRO_L_KEY_X, (PRO_L_RING.1 * 979. - 175.) / 555.);
+    pub const PRO_S_KEY_X: f32 = 0.098 * 1479. / 290.;
+    pub const PRO_S_KEY_Y: [f32; 6] = [0.064, 0.154, 0.245, 0.729, 0.825, 0.922];
+    pub const PRO_M_KEY_X: f32 = 0.5;
+    pub const PRO_M_KEY_Y: [f32; 8] = [0.073, 0.151, 0.227, 0.305, 0.705, 0.783, 0.861, 0.938];
+    pub const PRO_L_KEY_X: f32 = 0.063 * 1470. / 185.;
+    pub const PRO_L_KEY_Y: [f32; 8] = [0.055, 0.135, 0.214, 0.293, 0.690, 0.769, 0.849, 0.928];
+
     pub const INTUOS_KEY_X: [f32; 4] = [0.189, 0.395, 0.602, 0.808];
     pub const INTUOS_KEY_Y: f32 = 0.15;
     /// Intuos Pro 2013 ExpressKeys panels (S: 6 keys, M/L: 8), keys centred.
@@ -822,6 +870,11 @@ pub mod device_art {
     pub const PRO_2013_S_RATIO: f32 = 520. / 218.;
     pub const PRO_2013_ML_RATIO: f32 = 520. / 186.;
     /// Height / width of the whole-tablet thumbnail.
+    pub const PRO_2013_ACTIVE_X: f32 = 328. / 1696.;
+    pub const PRO_2013_ACTIVE_Y: f32 = 248. / 1124.;
+    pub const PRO_2013_ACTIVE_WIDTH: f32 = 996. / 1696.;
+    pub const PRO_2013_ACTIVE_HEIGHT: f32 = 624. / 1124.;
+    pub const PRO_2013_ACTIVE_CENTER_X: f32 = PRO_2013_ACTIVE_X + PRO_2013_ACTIVE_WIDTH / 2.;
     pub const PRO_2013_TABLET_RATIO: f32 = 281. / 424.;
 }
 
@@ -961,6 +1014,8 @@ pub mod interaction {
     pub const SWITCH_TIME: f32 = 0.15;
     /// Pen actions panel sliding in, and the option cards sliding out.
     pub const PANEL_SLIDE_TIME: f32 = 0.3;
+    /// Quiet period before resizing artwork on the CPU.
+    pub const ART_SETTLE_TIME: f64 = 0.15;
     pub const FAST_SWITCH_TIME: f32 = 0.12;
     pub const MONITOR_TIME: f32 = 0.15;
     pub const PRESSURE_TIME: f32 = 0.05;

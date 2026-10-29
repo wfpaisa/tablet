@@ -28,6 +28,7 @@ pub fn show(
     pen: &mut PenSettings,
     state: &mut State,
     live: &tablet_config::PenState,
+    product: u16,
 ) -> bool {
     // The compositor's pressure arrives with the pen motion; the daemon's lags it.
     let pen_pressure = crate::tablet_input::pressure(ui.ctx());
@@ -89,24 +90,22 @@ pub fn show(
         strip.right() - layout::PANEL_WIDTH - layout::COLUMN_GAP,
     );
     let aspect = layout::ART_SOURCE_WIDTH / layout::ART_SOURCE_HEIGHT;
+    // Fill the useful height while keeping the pen's native proportions.
+    let art_height = if crate::shared::pen_art(product).0 == "pro-pen-2-wacom" {
+        art_height / layout::PRO_PEN_BOUNDS[3]
+    } else {
+        art_height
+    };
     let art_width = art_height * aspect;
     let group = art_width + layout::CALLOUT_REACH + layout::CALLOUT_WIDTH;
     let art_x = column_left + ((column_right - column_left - group) / 2.).max(0.);
     let art_top = y + t::SPACE_14;
     let art = rect(art_x, art_top, art_width, art_height);
-    crate::assets::glow(ui, art);
-    assets::artwork(
-        ui,
-        "pen",
-        include_bytes!("../../../../assets/devices/intuos-pen.png"),
-        art,
-    );
-    let spots = [
-        (layout::BUTTON_X_RATIO, layout::UPPER_Y_RATIO),
-        (layout::BUTTON_X_RATIO, layout::LOWER_Y_RATIO),
-        (layout::TIP_X_RATIO, layout::TIP_Y_RATIO),
-    ]
-    .map(|(fx, fy)| pos2(art.left() + art.width() * fx, art.top() + art.height() * fy));
+    crate::shared::pen_glow(ui, product, art);
+    let (key, bytes) = crate::shared::pen_art(product);
+    assets::artwork(ui, &format!("pen-page-{key}"), bytes, art);
+    let spots = crate::shared::pen_spots(product)
+        .map(|(fx, fy)| pos2(art.left() + art.width() * fx, art.top() + art.height() * fy));
     let held = [live.upper_button, live.lower_button, live.tip_down];
     let names = ["Upper button", "Lower button", "Tip"];
     // Spots run top to bottom, so each card sits at its spot's height unless

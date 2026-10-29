@@ -125,8 +125,56 @@ fn devices_screenshots() {
             .save(out.join(format!("{name}.png")))
             .unwrap();
     }
-    // Intuos Pro 2013 (no reference capture): ExpressKeys panel art.
+    // Intuos Pro 2013 artwork (no reference capture).
     for (name, product, page, ring_open) in [
+        ("classic-dark-devices-mapping-ctl6100", 0x0375, 2, None),
+        (
+            "classic-dark-devices-mapping-ctl6100-portrait",
+            0x0375,
+            2,
+            None,
+        ),
+        ("classic-dark-devices-mapping-ctc4110", 0x0100, 2, None),
+        (
+            "classic-dark-devices-mapping-ctc4110-portrait",
+            0x0100,
+            2,
+            None,
+        ),
+        ("classic-dark-devices-mapping-dtc121", 0x03ce, 2, None),
+        (
+            "classic-dark-devices-mapping-dtc121-portrait",
+            0x03ce,
+            2,
+            None,
+        ),
+        ("classic-dark-devices-mapping-pth660", 0x0357, 2, None),
+        (
+            "classic-dark-devices-mapping-pth660-portrait",
+            0x0357,
+            2,
+            None,
+        ),
+        ("classic-dark-devices-overview-ctl6100", 0x0375, 6, None),
+        ("classic-dark-devices-pen-ctl6100", 0x0375, 0, None),
+        ("classic-dark-devices-expresskeys-ctl6100", 0x0375, 1, None),
+        ("classic-dark-devices-overview-ctc4110", 0x0100, 6, None),
+        ("classic-dark-devices-pen-ctc4110", 0x0100, 0, None),
+        ("classic-dark-devices-overview-dtc121", 0x03ce, 6, None),
+        ("classic-dark-devices-pen-dtc121", 0x03ce, 0, None),
+        ("classic-dark-devices-overview-pth660", 0x0357, 6, None),
+        ("classic-dark-devices-pen-pth660", 0x0357, 0, None),
+        ("classic-dark-devices-expresskeys-pth660", 0x0357, 1, None),
+        ("classic-dark-devices-overview-pth451", 0x0314, 6, None),
+        ("classic-dark-devices-mapping-pth451", 0x0314, 2, None),
+        ("classic-dark-devices-about-pth451", 0x0314, 4, None),
+        (
+            "classic-dark-devices-mapping-pth451-portrait",
+            0x0314,
+            2,
+            None,
+        ),
+        ("classic-dark-devices-pen-pth451", 0x0314, 0, None),
         ("classic-dark-devices-expresskeys-pth451", 0x0314, 1, None),
         ("classic-dark-devices-expresskeys-pth651", 0x0315, 1, None),
         ("classic-dark-devices-touchring-pth451", 0x0314, 8, None),
@@ -139,6 +187,9 @@ fn devices_screenshots() {
     ] {
         let mut app = tablet_center::App::simulated();
         app.page = page;
+        if name.ends_with("-portrait") {
+            app.config.mapping.orientation = tablet_config::Orientation::Portrait;
+        }
         app.devices.ring_open = ring_open;
         if let Some(device) = app.status.device.as_mut() {
             device.product = product;

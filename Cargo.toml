@@ -3,7 +3,7 @@ resolver = "2"
 members = ["crates/tablet-config", "crates/tabletd", "crates/tablet-center"]
 
 [workspace.package]
-version = "1.2.1"
+version = "1.3.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 

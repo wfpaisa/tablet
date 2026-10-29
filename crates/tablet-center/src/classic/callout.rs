@@ -26,6 +26,16 @@ pub fn height(label: &Galley) -> f32 {
 /// sits level with its spot unless the one above pushes it down; a stack that
 /// would pass `bottom` is lifted, but never above `top`.
 pub fn stack(spots: &[Pos2], heights: &[f32], top: f32, bottom: f32) -> Vec<f32> {
+    stack_with_gap(spots, heights, top, bottom, layout::CALLOUT_GAP)
+}
+/// Fit dense key columns without changing the standard callout spacing.
+pub fn stack_with_gap(
+    spots: &[Pos2],
+    heights: &[f32],
+    top: f32,
+    bottom: f32,
+    gap: f32,
+) -> Vec<f32> {
     let mut order: Vec<usize> = (0..spots.len()).collect();
     order.sort_by(|a, b| {
         (spots[*a].y, -spots[*a].x)
@@ -36,10 +46,10 @@ pub fn stack(spots: &[Pos2], heights: &[f32], top: f32, bottom: f32) -> Vec<f32>
     let mut next = top;
     for &i in &order {
         tops[i] = (spots[i].y - heights[i] / 2.).max(next);
-        next = tops[i] + heights[i] + layout::CALLOUT_GAP;
+        next = tops[i] + heights[i] + gap;
     }
     let first = order.first().map_or(top, |&i| tops[i]);
-    let lift = (next - layout::CALLOUT_GAP - bottom).clamp(0., (first - top).max(0.));
+    let lift = (next - gap - bottom).clamp(0., (first - top).max(0.));
     tops.iter().map(|y| y - lift).collect()
 }
 /// One card in `r` for the button at `spot`, its leader bending at `bend`.

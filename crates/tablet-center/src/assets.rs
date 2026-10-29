@@ -1,5 +1,6 @@
 //! Embedded fonts and original device artwork.
 use egui::{FontData, FontDefinitions, FontFamily};
+use std::sync::Arc;
 pub fn install(ctx: &egui::Context) {
     egui_extras::install_image_loaders(ctx);
     let mut fonts = FontDefinitions::default();
@@ -84,6 +85,21 @@ pub fn icon(index: usize) -> egui::ImageSource<'static> {
 pub fn artwork(ui: &egui::Ui, name: &str, bytes: &[u8], rect: egui::Rect) {
     artwork_rotated(ui, name, bytes, rect, 0.);
 }
+#[derive(Clone, Default)]
+struct ArtworkTexture {
+    texture: Option<egui::TextureHandle>,
+    made: Option<[usize; 2]>,
+    last: Option<[usize; 2]>,
+    last_change: f64,
+}
+
+/// Rebuild the texture when there is none yet or the size has settled on a new one.
+fn needs_texture(made: Option<[usize; 2]>, want: [usize; 2], last_change: f64, now: f64) -> bool {
+    made.is_none()
+        || (made != Some(want) && now - last_change >= crate::theme::interaction::ART_SETTLE_TIME)
+}
+
+/// Each name identifies one paint site, including thumbnails shown beside a page.
 pub fn artwork_rotated(ui: &egui::Ui, name: &str, bytes: &[u8], rect: egui::Rect, angle: f32) {
     // Physical pixels, so HiDPI screens get a sharp texture.
     let ppp = ui.ctx().pixels_per_point();
@@ -91,31 +107,55 @@ pub fn artwork_rotated(ui: &egui::Ui, name: &str, bytes: &[u8], rect: egui::Rect
         (rect.width() * ppp).ceil() as usize,
         (rect.height() * ppp).ceil() as usize,
     ];
-    let id = egui::Id::new((name, size));
-    let cached = ui.ctx().data(|d| d.get_temp::<egui::TextureHandle>(id));
-    let texture = cached.or_else(|| {
-        let image = image::load_from_memory(bytes)
-            .ok()?
-            .resize_exact(
+    let id = egui::Id::new((name, "texture"));
+    let mut cached = ui
+        .ctx()
+        .data(|d| d.get_temp::<ArtworkTexture>(id))
+        .unwrap_or_default();
+    let now = ui.input(|i| i.time);
+    if cached.last != Some(size) {
+        cached.last = Some(size);
+        cached.last_change = now;
+    }
+    if needs_texture(cached.made, size, cached.last_change, now) {
+        let decoded_id = egui::Id::new((name, "decoded"));
+        let decoded = ui
+            .ctx()
+            .data(|d| d.get_temp::<Arc<image::RgbaImage>>(decoded_id))
+            .or_else(|| {
+                let decoded = Arc::new(image::load_from_memory(bytes).ok()?.into_rgba8());
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(decoded_id, decoded.clone()));
+                Some(decoded)
+            });
+        if let Some(decoded) = decoded {
+            let image = image::imageops::resize(
+                decoded.as_ref(),
                 size[0] as u32,
                 size[1] as u32,
                 image::imageops::FilterType::Triangle,
-            )
-            .into_rgba8();
-        let texture = ui.ctx().load_texture(
-            name,
-            egui::ColorImage::from_rgba_unmultiplied(size, &image),
-            egui::TextureOptions::LINEAR,
-        );
-        ui.ctx().data_mut(|d| d.insert_temp(id, texture.clone()));
-        Some(texture)
-    });
-    if let Some(texture) = texture {
-        egui::Image::new(&texture)
+            );
+            cached.texture = Some(ui.ctx().load_texture(
+                name,
+                egui::ColorImage::from_rgba_unmultiplied(size, &image),
+                egui::TextureOptions::LINEAR,
+            ));
+            cached.made = Some(size);
+        }
+    } else if cached.made != Some(size) {
+        // Resize on the CPU only after the animation settles.
+        let remaining = crate::theme::interaction::ART_SETTLE_TIME - (now - cached.last_change);
+        ui.ctx()
+            .request_repaint_after(std::time::Duration::from_secs_f64(remaining.max(0.)));
+    }
+    if let Some(texture) = &cached.texture {
+        egui::Image::new(texture)
             .rotate(angle, egui::vec2(0.5, 0.5))
             .paint_at(ui, rect);
     }
+    ui.ctx().data_mut(|d| d.insert_temp(id, cached));
 }
+
 /// Soft light behind dark device art in dark mode, fading out from its center.
 pub fn glow(ui: &egui::Ui, rect: egui::Rect) {
     if !ui.visuals().dark_mode {
@@ -138,4 +178,34 @@ pub fn glow(ui: &egui::Ui, rect: egui::Rect) {
         mesh.add_triangle(0, 1 + i, 1 + (i + 1) % steps);
     }
     ui.painter().add(mesh);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::needs_texture;
+
+    #[test]
+    fn texture_follows_settled_sizes() {
+        let initial = [100, 200];
+        let middle = [90, 180];
+        let final_size = [80, 160];
+        let settle = crate::theme::interaction::ART_SETTLE_TIME;
+        assert!(needs_texture(None, initial, 0., 0.));
+        assert!(!needs_texture(Some(initial), initial, 0., settle));
+        // Continuous changes reset the quiet period, including repeated pixel sizes.
+        for frame in 1..60 {
+            let now = f64::from(frame) / 60.;
+            assert!(!needs_texture(Some(initial), middle, now, now));
+            assert!(!needs_texture(Some(initial), middle, now, now + 1. / 60.));
+        }
+        assert!(!needs_texture(
+            Some(initial),
+            final_size,
+            1.,
+            1. + settle / 2.
+        ));
+        assert!(needs_texture(Some(initial), final_size, 0., settle));
+        assert!(!needs_texture(Some(final_size), final_size, 1., 2.));
+        assert!(!needs_texture(Some(initial), initial, 1., 2.));
+    }
 }

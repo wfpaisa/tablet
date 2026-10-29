@@ -446,6 +446,15 @@ pub fn show(
             let art = keys_art_rect(product, w, h, slide);
             let top = art.top();
             crate::shared::tablet_art(ui, product, "tablet", art);
+            if let Some((x, y)) = crate::shared::ring_spot(product) {
+                let center = pos2(art.left() + x * art.width(), art.top() + y * art.height());
+                let hit = egui::Rect::from_center_size(
+                    center,
+                    vec2(art.width(), art.width()) * t::device_art::RING_HIT_RATIO,
+                );
+                ui.interact(hit, ui.id().with("ring-center"), egui::Sense::hover())
+                    .on_hover_text(l.t("Press the centre button to switch modes. The lit LED shows the active mode."));
+            }
             let keys = if let Some(i) = s.app {
                 &mut c.apps[i].express_keys
             } else {
@@ -462,7 +471,24 @@ pub fn show(
                 .map(|i| super::callout::label(ui, &l.t(&action_label(&keys[i]))))
                 .collect();
             let heights: Vec<f32> = labels.iter().map(|g| super::callout::height(g)).collect();
-            let tops = super::callout::stack(&spots, &heights, top, h - t::CONTENT_PAD);
+            let mut tops = if count > 6 && crate::shared::ring_spot(product).is_some() {
+                super::callout::stack_with_gap(
+                    &spots,
+                    &heights,
+                    top,
+                    h - t::CONTENT_PAD,
+                    t::SPACE_4,
+                )
+            } else {
+                super::callout::stack(&spots, &heights, top, h - t::CONTENT_PAD)
+            };
+            if count > 6 && crate::shared::ring_spot(product).is_some() {
+                let mut bottom = h - t::CONTENT_PAD;
+                for i in (0..count).rev() {
+                    tops[i] = tops[i].min(bottom - heights[i]);
+                    bottom = tops[i] - t::SPACE_4;
+                }
+            }
             for i in 0..count {
                 let r = rect(
                     art.right() + p::CALLOUT_REACH,
@@ -751,6 +777,8 @@ fn wrapped(ui: &Ui, r: egui::Rect, s: &str, size: f32, color: egui::Color32) {
     ui.painter().galley(r.min, g, color);
 }
 fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, s: &mut State) {
+    let product = status.device.as_ref().map_or(0x0374, |d| d.product);
+    let (name, model) = device_model(status);
     let h = crate::widgets::view(ui).bottom();
     let w = crate::widgets::view(ui).right();
     let mut clipped = ui.new_child(egui::UiBuilder::new());
@@ -758,15 +786,15 @@ fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, s: &mut 
     clipped.painter().text(
         pos2(d::PX_207, d::PX_113),
         Align2::LEFT_TOP,
-        "Intuos S",
+        name,
         t::bold(d::PX_150),
         t::WATERMARK,
     );
-    title(ui, l, "Intuos S");
-    text(ui, d::PX_289, d::PX_215, "CTL-4100", d::PX_15, t::MUTED);
+    title(ui, l, name);
+    text(ui, d::PX_289, d::PX_215, model, d::PX_15, t::MUTED);
     // Connection: a green USB plug, or grey and "Disconnected".
     let connected = status.device.is_some();
-    let model_width = crate::widgets::text_width(ui, "CTL-4100", d::PX_15);
+    let model_width = crate::widgets::text_width(ui, model, d::PX_15);
     let x = d::PX_289 + model_width + ov::STATUS_GAP;
     let line = d::PX_215 + d::PX_10;
     egui::Image::new(crate::icons::source("usb"))
@@ -851,6 +879,14 @@ fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, s: &mut 
         d::PX_400,
         d::PX_400 * d::PX_221 / d::PX_277,
     );
+    let ar = tablet_art_rect(ar, product, c.mapping.orientation, true);
+    let shadow = if crate::shared::device_art(product).name != "intuos-s"
+        && c.mapping.orientation.is_portrait()
+    {
+        egui::Rect::from_center_size(ar.center(), vec2(ar.height(), ar.width()))
+    } else {
+        ar
+    };
     ui.painter().add(
         egui::epaint::Shadow {
             offset: [0, 0],
@@ -858,26 +894,36 @@ fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, s: &mut 
             spread: 0,
             color: t::GLOW,
         }
-        .as_shape(ar, 18),
+        .as_shape(shadow, 18),
     );
-    tablet_art(ui, ar, c.mapping.orientation, true);
-    crate::assets::glow(ui, rect(d::PX_892, d::PX_327, d::PX_36, d::PX_440));
+    tablet_art(ui, ar, product, "overview", c.mapping.orientation);
+    crate::shared::pen_glow(ui, product, rect(d::PX_892, d::PX_327, d::PX_36, d::PX_440));
+    let (key, bytes) = crate::shared::pen_art(product);
     assets::artwork(
         ui,
-        "pen",
-        include_bytes!("../../../../assets/devices/intuos-pen.png"),
+        &format!("overview-{key}"),
+        bytes,
         rect(d::PX_892, d::PX_327, d::PX_36, d::PX_440),
     );
+    let has_keys = tablet_config::express_key_count(product) > 0;
     for (i, label) in ["ExpressKeys", "Mapping", "Display toggle", "Pen"]
         .iter()
         .enumerate()
     {
+        if i == 0 && !has_keys {
+            continue;
+        }
         let r = if i == 3 {
             rect(d::PX_845, d::PX_669, d::PX_130, d::PX_31)
         } else {
             rect(
-                d::PX_487,
-                d::PX_492 + i as f32 * d::PX_39,
+                if tablet_config::intuos_pro_2013(product) {
+                    ar.left() + ar.width() * t::device_art::PRO_2013_ACTIVE_CENTER_X
+                        - d::PX_170 / 2.
+                } else {
+                    d::PX_487
+                },
+                d::PX_492 + (i as f32 - if has_keys { 0. } else { 0.5 }) * d::PX_39,
                 d::PX_170,
                 d::PX_31,
             )
@@ -1011,13 +1057,36 @@ fn mapping(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response) {
     }
     let screen_bounds = target;
     target = subrect(target, c.mapping.screen_portion);
-    let image = rr(d::PX_160, d::PX_384, d::PX_277, d::PX_221);
-    let raw = rr(
-        d::PX_160 + d::TABLET_ACTIVE_X * d::PX_277,
-        d::PX_384 + d::TABLET_ACTIVE_Y * d::PX_221,
-        d::TABLET_ACTIVE_WIDTH * d::PX_277,
-        d::TABLET_ACTIVE_HEIGHT * d::PX_221,
+    let product = status.device.as_ref().map_or(0x0374, |d| d.product);
+    let image = tablet_art_rect(
+        rr(d::PX_160, d::PX_384, d::PX_277, d::PX_221),
+        product,
+        c.mapping.orientation,
+        false,
     );
+    let raw = if tablet_config::intuos_pro_2013(product) {
+        rect(
+            image.left() + image.width() * t::device_art::PRO_2013_ACTIVE_X,
+            image.top() + image.height() * t::device_art::PRO_2013_ACTIVE_Y,
+            image.width() * t::device_art::PRO_2013_ACTIVE_WIDTH,
+            image.height() * t::device_art::PRO_2013_ACTIVE_HEIGHT,
+        )
+    } else if crate::shared::device_art(product).name != "intuos-s" {
+        let [x, y, width, height] = crate::shared::active_surface(product);
+        rect(
+            image.left() + image.width() * x,
+            image.top() + image.height() * y,
+            image.width() * width,
+            image.height() * height,
+        )
+    } else {
+        rr(
+            d::PX_160 + d::TABLET_ACTIVE_X * d::PX_277,
+            d::PX_384 + d::TABLET_ACTIVE_Y * d::PX_221,
+            d::TABLET_ACTIVE_WIDTH * d::PX_277,
+            d::TABLET_ACTIVE_HEIGHT * d::PX_221,
+        )
+    };
     let angle = match c.mapping.orientation {
         Orientation::Landscape => 0.,
         Orientation::Portrait => std::f32::consts::FRAC_PI_2,
@@ -1139,12 +1208,7 @@ fn mapping(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response) {
             ));
         }
     }
-    tablet_art(
-        ui,
-        rr(d::PX_160, d::PX_384, d::PX_277, d::PX_221),
-        c.mapping.orientation,
-        false,
-    );
+    tablet_art(ui, image, product, "mapping", c.mapping.orientation);
     if area != full {
         ui.painter().rect(
             full,
@@ -2636,23 +2700,61 @@ fn capture(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State) {
         s.capture = false;
     }
 }
-fn tablet_art(ui: &Ui, r: egui::Rect, o: Orientation, fit: bool) {
+fn device_model(status: &Response) -> (&'static str, &'static str) {
+    status
+        .device
+        .as_ref()
+        .and_then(|d| crate::shared::model_name(d.product))
+        .unwrap_or(("Intuos S", "CTL-4100"))
+}
+fn tablet_art_rect(r: egui::Rect, product: u16, o: Orientation, fit: bool) -> egui::Rect {
+    let portrait = matches!(o, Orientation::Portrait | Orientation::PortraitFlipped);
+    if tablet_config::intuos_pro_2013(product) {
+        let ratio = t::device_art::PRO_2013_TABLET_RATIO;
+        let width = if portrait {
+            r.width().min(r.height()).min(r.width() / ratio)
+        } else {
+            r.width().min(r.height() / ratio)
+        };
+        egui::Rect::from_center_size(r.center(), vec2(width, width * ratio))
+    } else if crate::shared::device_art(product).name != "intuos-s" {
+        let ratio = crate::shared::device_art(product).ratio;
+        let width = if portrait {
+            r.height().min(r.width() / ratio)
+        } else {
+            r.width().min(r.height() / ratio)
+        };
+        egui::Rect::from_center_size(r.center(), vec2(width, width * ratio))
+    } else if fit && portrait {
+        egui::Rect::from_center_size(r.center(), r.size() * d::PORTRAIT_SCALE)
+    } else {
+        r
+    }
+}
+fn tablet_art(ui: &Ui, r: egui::Rect, product: u16, site: &str, o: Orientation) {
     let turns = match o {
         Orientation::Landscape => 0,
         Orientation::Portrait => 1,
         Orientation::LandscapeFlipped => 2,
         Orientation::PortraitFlipped => 3,
     };
-    let r = if fit && turns % 2 == 1 {
-        egui::Rect::from_center_size(r.center(), r.size() * d::PORTRAIT_SCALE)
+    let art = crate::shared::device_art(product);
+    let (key, bytes) = if tablet_config::intuos_pro_2013(product) {
+        ("pro-2013", art.bytes)
     } else {
-        r
+        (art.name, art.bytes)
     };
-    crate::assets::glow(ui, r);
+    let glow =
+        if o.is_portrait() && art.name != "intuos-s" && !tablet_config::intuos_pro_2013(product) {
+            egui::Rect::from_center_size(r.center(), vec2(r.height(), r.width()))
+        } else {
+            r
+        };
+    crate::assets::glow(ui, glow);
     assets::artwork_rotated(
         ui,
-        "tablet",
-        include_bytes!("../../../../assets/devices/intuos-s.png"),
+        &format!("{site}-{key}"),
+        bytes,
         r,
         turns as f32 * std::f32::consts::FRAC_PI_2,
     );
@@ -2910,6 +3012,7 @@ fn card_heading(ui: &Ui, r: egui::Rect, icon: &str, label: &str) {
 /// About page: device details, then live tilt and pressure meters.
 fn about(ui: &Ui, l: &Locale, w: f32, status: &Response) {
     let device = status.device.as_ref();
+    let (name, model) = device_model(status);
     let pen = status.pen.clone().unwrap_or_default();
     // Two columns when both cards fit side by side, else stacked.
     let room = w - ab::LEFT - p::CONTENT_RIGHT;
@@ -2922,7 +3025,7 @@ fn about(ui: &Ui, l: &Locale, w: f32, status: &Response) {
     let dash = || "—".to_string();
     let rows = [
         ("Connection", "USB".to_string()),
-        ("Model", "Intuos S CTL-4100".to_string()),
+        ("Model", format!("{name} {model}")),
         (
             "Product ID",
             device.map_or_else(dash, |d| format!("{:04x}:{:04x}", d.vendor, d.product)),
@@ -2956,7 +3059,7 @@ fn about(ui: &Ui, l: &Locale, w: f32, status: &Response) {
         ui,
         r.left() + ab::PAD,
         r.top() + ab::NAME_TOP,
-        "Intuos S",
+        name,
         d::PX_16,
         t::TEXT,
     );

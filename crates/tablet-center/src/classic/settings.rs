@@ -922,8 +922,8 @@ fn connected_device(ui: &Ui, device: &tablet_config::DeviceInfo, offset: f32) {
         s::PX_96 * s::PX_360 / s::PX_560
     };
     let area = rect(s::PX_48, s::PX_244 - offset, s::PX_96, height);
-    if !crate::shared::thumbnail(ui, device.product, area) {
-        crate::shared::tablet_art(ui, device.product, "tablet", area);
+    if !crate::shared::thumbnail(ui, device.product, "settings", area) {
+        crate::shared::tablet_art(ui, device.product, "settings-tablet", area);
     }
     let y = s::PX_244 - offset + (height - s::PX_19) / s::PX_2;
     text(ui, s::PX_160, y, name, s::PX_15, t::TEXT);

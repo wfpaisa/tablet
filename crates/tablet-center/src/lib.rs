@@ -164,7 +164,8 @@ impl App {
                     .selected
                     .filter(|i| classic::devices::is_pen(*i))
                     .map(|i| i - classic::devices::PEN_UPPER);
-                classic::pen::show(ui, &self.locale, pen, &mut self.pen, &live);
+                let product = self.status.device.as_ref().map_or(0x0374, |d| d.product);
+                classic::pen::show(ui, &self.locale, pen, &mut self.pen, &live, product);
                 if let Some(index) = self.pen.action.take() {
                     self.devices.selected =
                         if self.devices.selected == Some(index + classic::devices::PEN_UPPER) {

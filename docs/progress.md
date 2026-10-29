@@ -473,3 +473,76 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   cliente del daemon por `Operation not permitted` del sandbox; el resto del
   workspace pasa al excluir esos dos tests. `just screens` pasa (5 tests).
   Sin commit, por indicación del usuario.
+
+### Grip Pen de Intuos Pro 2013
+
+- Añadido el KP-501E vectorial: fuente Python y SVG en la carpeta privada
+  `referencia/recursos-ui/intuos-pro-2013`, PNG transparente a 524×6396 en
+  `assets/devices/grip-pen-wacom.png`. Conserva el lienzo lógico 131×1599.
+- La portada y la página Pen eligen el dibujo según el producto; cachés separadas
+  por sitio y lápiz. Los tokens del Grip Pen apuntan a las dos mitades del
+  DuoSwitch y a la punta. La prueba de presión no usa estos ratios.
+- Revisados el dibujo junto al original y la nueva captura
+  `classic-dark-devices-pen-pth451`. Las 113 capturas anteriores conservan todos
+  sus píxeles frente a la ejecución previa con los cambios locales existentes.
+  La comparación con HTML mantiene las diferencias de diseño ya existentes;
+  no hay referencia HTML para el Grip Pen.
+- `just fix` y clippy pasan. `just check` falla en los dos tests de sockets por
+  `Operation not permitted` del sandbox; el resto del workspace pasa al
+  excluirlos. `just screens` pasa (5 tests). Sin commit, por indicación del usuario.
+
+### Modelo y tableta en portada, Mapping y Device info
+
+- La portada y Device info consultan `shared::model_name`; sin dispositivo o
+  producto conocido conservan Intuos S / CTL-4100. El indicador USB sigue al
+  ancho del modelo. La etiqueta accesible de la barra lateral usa su nombre.
+- Portada y Mapping usan la tableta completa Pro 2013 con su proporción original,
+  cachés por página y dibujo, brillo ajustado y botones sobre el área activa.
+  Mapping calcula esa área con tokens del dibujo y ajusta el tamaño en vertical.
+- Añadidas y revisadas cuatro capturas PTH-451: portada, Mapping horizontal y
+  vertical, y Device info. Las 114 capturas anteriores conservan todos sus píxeles
+  frente a la ejecución previa con los cambios locales existentes. Las referencias
+  HTML mantienen las diferencias de diseño previas; no hay referencia PTH-451.
+- `just fix` y clippy pasan. `just check` falla en los dos tests de sockets por
+  `Operation not permitted` del sandbox; el workspace pasa al excluirlos.
+  `just screens` pasa (5 tests). Sin commit, por indicación del usuario.
+
+## Dibujos por modelo soportado (2026-10-28)
+
+- Tabla de producto en `shared`: tableta completa, proporción y lápiz; portada,
+  Mapping, miniaturas, Pen y ExpressKeys comparten la selección y separan sus cachés.
+  Desconocidos conservan Intuos S / dibujo genérico. Se mantienen los assets de
+  CTL-4100 y Pro 2013.
+- Recortadas once PNG. Pro Pen 2 y Wacom One Pen conservan el dibujo sin deformar,
+  centrado en lienzos de proporción exacta 131:1599; puntos y brillo siguen el cuerpo.
+  Las dos mitades del basculante Wacom One tienen llamadas independientes.
+- ExpressKeys usa dibujos reales y puntos por tamaño: Intuos M con cuatro teclas,
+  Pro S 2017 con seis y Pro M/L con ocho, según el protocolo existente. Centro del
+  anillo medido con ayuda al pasar el puntero; no se amplía el soporte del daemon.
+  Las ocho tarjetas Pro 2017 caben a 720 px. Wacom One conserva su página existente.
+- Añadidas y revisadas las diez capturas pedidas y ocho de Mapping horizontal/
+  vertical. README actualizado. Sin cambios en tabletd/tablet-config ni commit.
+- `just fix` y clippy pasan; `just check` solo falla en los dos tests de sockets
+  por `Operation not permitted` del sandbox. Pasa el test nuevo de geometría
+  de los assets y puntos del lápiz para todos los productos soportados.
+- `just screens` pasa (5 tests). Las 118 capturas previas son idénticas píxel
+  a píxel a la copia en `target/screens-before-model-art`; informe en
+  `target/model-art-pixel-comparison.txt`. Sin diferencias visuales nuevas conocidas.
+
+## Correcciones de dibujos por modelo (2026-10-28)
+
+- Pro 2017: paneles ExpressKeys S/M/L recortados de las tabletas completas,
+  ampliados a 2080 px de alto, con proporciones, teclas y anillo en tokens.
+  Las ocho tarjetas caben a 720 px y las líneas no pisan Restore defaults.
+- Pro Pen 2: silueta recortada y centrada sin deformación en lienzo 131:1599.
+  Pen compensa el margen restante para igualar la altura útil; puntos medidos otra vez.
+- Portada omite ExpressKeys cuando express_key_count es cero y centra las
+  dos acciones restantes en el espacio del grupo anterior.
+- Revisadas las capturas CTL-6100, CTC-4110, DTC-121, PTH-660 y PTH-451.
+  Solo cambian cinco de las 136 capturas: ExpressKeys/Pen/portada PTH-660 y
+  portadas CTC-4110/DTC-121. Las otras 131 son idénticas píxel a píxel,
+  incluidas todas las predeterminadas 0x0374. Las diferencias previas respecto
+  de las referencias HTML siguen presentes.
+- just fix y clippy pasan. just check solo falla en los dos tests de sockets
+  por Operation not permitted; el workspace pasa al excluirlos. just screens
+  pasa (5 tests). Sin commit.

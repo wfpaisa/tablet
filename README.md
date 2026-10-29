@@ -125,7 +125,9 @@ just package      # create a release archive in dist/
 
 `just dev-sim <id>` opens the app as if that tablet were connected, using
 its USB product ID in hex (for example `just dev-sim 0314`). Without an ID
-it simulates an Intuos S (`0374`).
+it simulates an Intuos S (`0374`). Each listed model uses its own tablet
+artwork and the corresponding Intuos Pen, Wacom One Pen, Pro Pen 2 or Grip Pen.
+Intuos Pro 2013 uses its ExpressKeys panel on the key configuration page.
 
 | Model | Product IDs |
 |---|---|
