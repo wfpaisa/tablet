@@ -129,23 +129,19 @@ fn sixth_express_key_action_does_not_change_pen_settings() {
 }
 
 #[test]
-fn action_groups_open_without_closing_the_others() {
-    // The on-screen shortcuts panel folds its groups; the device pages list them all.
+fn shortcut_actions_panel_lists_every_group() {
+    // Like the pen and ExpressKeys pages, the right panel shows every group open.
     let mut h = harness(1600.);
     h.state_mut().tab = 1;
-    h.state_mut().shortcuts.page = 1;
+    h.state_mut().shortcuts.page = 3;
     h.state_mut().shortcuts.actions.selected = Some(0);
     h.run_steps(3);
-    h.get_by_label("Clicks").click();
-    h.run_steps(2);
-    h.get_by_label("Keyboard").click();
-    h.run_steps(2);
-    let actions = &h.state().shortcuts.actions;
-    assert!(actions.group_open(0) && actions.group_open(1) && actions.group_open(2));
-    h.get_by_label("Clicks").click();
-    h.run_steps(2);
-    let actions = &h.state().shortcuts.actions;
-    assert!(actions.group_open(0) && !actions.group_open(1) && actions.group_open(2));
+    h.get_by_label("Middle click").click();
+    h.run_steps(1);
+    assert_eq!(
+        h.state().config.shortcuts.app_shortcuts.items[0].action,
+        tablet_config::KeyAction::MiddleClick
+    );
 }
 #[test]
 fn pen_action_menu_changes_the_pen_and_cancel_does_not_apply() {
@@ -413,7 +409,8 @@ fn parameter_dialogs_apply_modifiers_precision_and_application_command() {
 
 #[test]
 fn shortcut_grid_edits_selected_entry_without_changing_device_actions() {
-    let mut h = harness(720.);
+    // Tall enough that the options below the preview need no scrolling.
+    let mut h = harness(1600.);
     h.state_mut().tab = 1;
     h.state_mut().shortcuts.page = 3;
     h.run_steps(3);
@@ -535,7 +532,11 @@ fn shortcut_custom_label_and_keyboard_capture_are_saved_to_the_selected_menu() {
         h.state().config.shortcuts.app_shortcuts.items[0].label,
         "Drawing undo"
     );
-    h.get_by_label("Keyboard shortcut…").click();
+    // Listed under Recommended and Keyboard; either records a shortcut.
+    h.get_all_by_label("Keyboard shortcut…")
+        .next()
+        .unwrap()
+        .click();
     h.run_steps(2);
     h.event(egui::Event::Key {
         key: egui::Key::B,

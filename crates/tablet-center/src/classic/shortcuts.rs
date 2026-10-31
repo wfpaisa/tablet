@@ -1,6 +1,6 @@
 //! Shortcut settings, shared radial/grid rendering and gesture illustrations.
 use super::devices;
-use crate::theme::{devices_layout as d, shortcuts_layout as s};
+use crate::theme::{devices_layout as d, pen_layout as p, shortcuts_layout as s};
 use crate::{
     i18n::Locale,
     theme as t,
@@ -586,19 +586,15 @@ pub fn show(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
         return;
     }
     let bounds = crate::widgets::view(ui);
-    let shift = if state.actions.selected.is_some() {
-        d::PX_230
-    } else {
-        0.
-    };
-    let left = t::SIDEBAR + d::PX_1 + shift;
-    let width = bounds.right() - d::PX_1 - left;
-    let clip = rect(
-        left,
-        t::HEADER,
-        width,
-        bounds.bottom() - t::HEADER - d::PX_1,
-    );
+    // Entry actions open in the right panel, as on the pen and ExpressKeys
+    // pages; the preview and its options move over to make room.
+    state.actions.panel_right = true;
+    state.actions.panel_keys = false;
+    let slide = super::pen::panel_progress(ui.ctx(), state.actions.selected.is_some());
+    let left = t::SIDEBAR + d::PX_1;
+    let full = bounds.right() - d::PX_1 - left;
+    let width = full - slide * (p::PANEL_WIDTH + p::CONTENT_RIGHT);
+    let clip = rect(left, t::HEADER, full, bounds.bottom() - t::HEADER - d::PX_1);
     let mut content = ui.new_child(egui::UiBuilder::new().max_rect(clip));
     content.set_clip_rect(clip);
     let background = click(&mut content, clip, "dismiss-menu-actions", "");
@@ -609,21 +605,14 @@ pub fn show(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
         } else {
             s::PREVIEW_WIDTH
         };
-        let available = width - d::PX_56;
-        let wrap = preview_width + s::GAP + s::OPTIONS_WIDTH > available;
-        let block_width = if wrap {
-            preview_width.max(s::OPTIONS_WIDTH)
-        } else {
-            preview_width + s::GAP + s::OPTIONS_WIDTH
-        };
-        let x = left + (width - block_width) / d::PX_2;
+        // Options always sit below the preview, so opening the actions panel
+        // narrows the page without moving them.
+        let block_width = preview_width.max(s::OPTIONS_WIDTH);
+        let x = left + ((width - block_width) / d::PX_2).max(t::CONTENT_PAD);
         let m = menu(&c.shortcuts, key);
         let size = menu_size(m, key);
-        let content_height = if wrap {
-            size.y + d::PX_500
-        } else {
-            size.y + d::PX_190
-        };
+        let editing = state.actions.selected.is_some() && key != Shortcut::Keypad;
+        let content_height = size.y + if editing { d::PX_600 } else { d::PX_500 };
         let max_scroll = (content_height - (bounds.bottom() - t::HEADER)).max(0.);
         if crate::widgets::contains_pointer(ui_content, clip) {
             state.scroll =
@@ -632,7 +621,7 @@ pub fn show(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
         crate::widgets::scroll_indicator(
             ui_content,
             egui::Id::new("shortcuts-scroll"),
-            crate::widgets::scroll_track(clip),
+            crate::widgets::scroll_track(rect(left, clip.top(), width, clip.height())),
             &mut state.scroll,
             max_scroll,
         );
@@ -663,44 +652,11 @@ pub fn show(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
             true,
         );
         paragraph(ui_content,rect(x,menu_origin.y+size.y+if matches!(key,Shortcut::ExpressMenu|Shortcut::RadialMenu){d::PX_26}else{d::PX_23},preview_width,d::PX_60),&l.t(if key==Shortcut::Keypad{"Each key types once and closes the keypad."}else{"Click an entry to choose its action. Assign this menu to a pen button or ExpressKey to open it."}),d::PX_15,t::MUTED);
-        let ox = if wrap {
-            left + (width - s::OPTIONS_WIDTH) / d::PX_2
-        } else {
-            x + preview_width + s::GAP
-        };
-        let mut oy = if wrap {
-            menu_origin.y + size.y + d::PX_170
-        } else {
-            s::OPTIONS_TOP - dy
-        };
+        // Centered below the preview; with the panel open they lean left,
+        // clear of the Default button.
+        let ox = x + (block_width - s::OPTIONS_WIDTH) / d::PX_2 * (1. - slide);
+        let oy = menu_origin.y + size.y + d::PX_170;
         let m = menu_mut(&mut c.shortcuts, key);
-        if let Some(index) = state.actions.selected.filter(|_| key != Shortcut::Keypad) {
-            if m.items.len() <= index {
-                m.items.resize(index + 1, Default::default());
-            }
-            text(ui_content, ox, oy, &l.t("Label"), d::PX_16, t::TEXT);
-            ui_content.scope_builder(
-                egui::UiBuilder::new().max_rect(rect(
-                    ox,
-                    oy + d::PX_28,
-                    s::OPTIONS_WIDTH,
-                    d::PX_36,
-                )),
-                |ui| {
-                    let response = crate::widgets::text_field(
-                        ui,
-                        rect(ox, oy + d::PX_28, s::OPTIONS_WIDTH, d::PX_36),
-                        &mut m.items[index].label,
-                        "",
-                        usize::MAX,
-                    );
-                    response.widget_info(|| {
-                        egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, l.t("Label"))
-                    });
-                },
-            );
-            oy += d::PX_100;
-        }
         crate::widgets::slider(
             ui_content,
             l,
@@ -728,8 +684,29 @@ pub fn show(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
             &mut m.at_cursor,
             &l.t("Display at cursor"),
         );
+        // The selected entry's name comes last, so nothing above it moves.
+        if let Some(index) = state.actions.selected.filter(|_| editing) {
+            if m.items.len() <= index {
+                m.items.resize(index + 1, Default::default());
+            }
+            let ny = oy + s::NAME_TOP - s::OPTIONS_TOP;
+            text(ui_content, ox, ny, &l.t("Label"), d::PX_16, t::TEXT);
+            let field = rect(ox, ny + d::PX_28, s::OPTIONS_WIDTH, d::PX_36);
+            ui_content.scope_builder(egui::UiBuilder::new().max_rect(field), |ui| {
+                let response = crate::widgets::text_field(
+                    ui,
+                    field,
+                    &mut m.items[index].label,
+                    "",
+                    usize::MAX,
+                );
+                response.widget_info(|| {
+                    egui::WidgetInfo::labeled(egui::WidgetType::TextEdit, true, l.t("Label"))
+                });
+            });
+        }
         let default = rect(
-            bounds.right() - d::PX_176,
+            left + width - d::PX_176 + d::PX_1,
             bounds.bottom() - d::PX_60,
             d::PX_145,
             d::PX_34,

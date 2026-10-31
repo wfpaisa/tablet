@@ -1824,7 +1824,12 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
     // like an inspector, titled with the button and its action.
     let flat = s.panel_right;
     let (left, width, list_top, clip) = if flat {
-        let top = p::PAGE_TOP + t::SPACE_14;
+        // Shortcut pages have no app strip, so the panel starts higher.
+        let top = if s.menu.is_some() {
+            t::HEADER + t::CONTENT_PAD
+        } else {
+            p::PAGE_TOP + t::SPACE_14
+        };
         // Keep the sliding panel inside the window frame.
         ui.set_clip_rect(rect(0., 0., w - d::PX_1, h - d::PX_1));
         let r = rect(
@@ -1835,9 +1840,15 @@ fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, slide: f32) {
         );
         card(ui, r);
         let mut header = p::PANEL_HEADER;
-        if let Some(index) = s.selected.filter(|_| s.menu.is_none()) {
-            // The button and what it does now.
-            let (name, current) = if s.panel_keys {
+        if let Some(index) = s.selected {
+            // The button (or menu entry) and what it does now.
+            let (name, current) = if let Some(menu) = s.menu {
+                let entry = super::shortcuts::items(&c.shortcuts, menu)
+                    .get(index)
+                    .map(|item| super::shortcuts::item_label(l, item))
+                    .unwrap_or_default();
+                (l.t(super::shortcuts::title(menu)), entry)
+            } else if s.panel_keys {
                 let keys = s.app.map_or(&c.express_keys, |i| &c.apps[i].express_keys);
                 (
                     format!("{} {}", l.t("ExpressKey"), index + 1),

@@ -640,6 +640,8 @@ pub mod shortcuts_layout {
     pub const OPTIONS_TOP: f32 = 245.;
     pub const SLIDER_STEP: f32 = 118.;
     pub const TOGGLE_TOP: f32 = 483.;
+    /// Selected entry's name field, below the toggle.
+    pub const NAME_TOP: f32 = 541.;
     pub const GESTURE_TOP: f32 = 213.;
     pub const GESTURE_SIZE: f32 = 260.;
     pub const SPEED_TOP: f32 = 499.;
