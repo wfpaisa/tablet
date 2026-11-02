@@ -546,3 +546,21 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
 - just fix y clippy pasan. just check solo falla en los dos tests de sockets
   por Operation not permitted; el workspace pasa al excluirlos. just screens
   pasa (5 tests). Sin commit.
+
+## Tabla única de modelos y división de devices.rs (2026-11-02)
+
+- Hecho: `tablet-config` tiene `MODELS` (ids, nombre, número, `Family`) y
+  `model`/`family`. `express_key_count`, `wireless_model`, `pen_display`,
+  `intuos_pro_2013`, `has_touch_ring` y `first_express_key` mantienen su API pero
+  consultan la tabla, así que tabletd no cambia. `shared.rs` decide dibujos,
+  teclas, superficie activa y anillo con `match` exhaustivos por `Family`; ya no
+  quedan ids hex fuera de la tabla, salvo el 0x0374 por defecto de la simulación.
+- Quitado el ramal muerto de columna/anillo del dibujo genérico y su
+  `tablet-generic-ring.svg`: solo lo alcanzaban modelos Pro, que tienen panel propio.
+- `classic/devices.rs` (3504 líneas) pasa a `classic/devices/`: `mod.rs` (estado,
+  tira de apps, página principal, bienvenida), `overview.rs`, `mapping.rs`,
+  `actions.rs`, `apps.rs` y `about.rs`. Solo se movió código.
+- Verificado: volcado de todas las funciones por producto para los 65 536 ids,
+  idéntico antes y después; las 107 capturas de `just screens` son idénticas byte
+  a byte a las de HEAD. `just fix` y `just check` en verde.
+- Pendiente: `actions.rs` sigue con unas 1200 líneas.

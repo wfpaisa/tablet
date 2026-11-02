@@ -271,11 +271,9 @@ impl App {
                     &mut self.page,
                     self.status.device.as_ref(),
                     self.status.touch
-                        || self
-                            .status
-                            .device
-                            .as_ref()
-                            .is_some_and(|d| d.product == 0x03ce),
+                        || self.status.device.as_ref().is_some_and(|d| {
+                            tablet_config::family(d.product) == Some(tablet_config::Family::One12)
+                        }),
                 );
             } else if self.tab == 1 {
                 classic::shortcuts::sidebar(ui, &self.locale, &mut self.shortcuts);

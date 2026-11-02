@@ -2,6 +2,7 @@
 use crate::theme::device_art as t;
 use egui::{Rect, Ui};
 use serde_json::Value;
+use tablet_config::{family, Family, Family::*};
 
 pub fn get<'a>(v: &'a Value, path: &str) -> &'a Value {
     let mut v = v;
@@ -69,23 +70,7 @@ pub fn apply_action(config: &mut tablet_config::Config, path: &str, value: Value
 
 /// Marketing name and model number for known product ids.
 pub fn model_name(product: u16) -> Option<(&'static str, &'static str)> {
-    Some(match product {
-        0x0374 => ("Intuos S", "CTL-4100"),
-        0x0375 => ("Intuos M", "CTL-6100"),
-        0x0376 | 0x0377 | 0x03c6 => ("Intuos S", "CTL-4100WL"),
-        0x0378 | 0x0379 | 0x03c8 => ("Intuos M", "CTL-6100WL"),
-        0x0100 | 0x0101 | 0x0104 => ("Wacom One S", "CTC4110WL"),
-        0x0102 | 0x0103 | 0x0105 => ("Wacom One M", "CTC6110WL"),
-        0x03ce => ("Wacom One 12", "DTC121"),
-        0x03cb => ("Wacom One 13 touch", "DTH134"),
-        0x0392 | 0x0393 | 0x03dd => ("Intuos Pro S", "PTH-460"),
-        0x0357 | 0x0360 => ("Intuos Pro M", "PTH-660"),
-        0x0358 | 0x0361 => ("Intuos Pro L", "PTH-860"),
-        0x0314 => ("Intuos Pro S", "PTH-451"),
-        0x0315 => ("Intuos Pro M", "PTH-651"),
-        0x0317 => ("Intuos Pro L", "PTH-851"),
-        _ => return None,
-    })
+    tablet_config::model(product).map(|m| (m.name, m.number))
 }
 pub fn device_name(status: &tablet_config::Response) -> String {
     let Some(device) = &status.device else {
@@ -116,26 +101,26 @@ pub fn device_art(product: u16) -> DeviceArt {
             }
         };
     }
-    match product {
-        0x0376 | 0x0377 | 0x03c6 => art!("intuos-s-wl-wacom", t::INTUOS_S_WL_RATIO, "intuos-pen"),
-        0x0375 => art!("intuos-m-wacom", t::INTUOS_M_RATIO, "intuos-pen"),
-        0x0378 | 0x0379 | 0x03c8 => art!("intuos-m-wl-wacom", t::INTUOS_M_WL_RATIO, "intuos-pen"),
-        0x0100..=0x0105 => art!("wacom-one-wacom", t::ONE_RATIO, "wacom-one-pen-wacom"),
-        0x03ce => art!("wacom-one-12-wacom", t::ONE_12_RATIO, "wacom-one-pen-wacom"),
-        0x03cb => art!(
+    match family(product) {
+        Some(IntuosSWireless) => art!("intuos-s-wl-wacom", t::INTUOS_S_WL_RATIO, "intuos-pen"),
+        Some(IntuosM) => art!("intuos-m-wacom", t::INTUOS_M_RATIO, "intuos-pen"),
+        Some(IntuosMWireless) => art!("intuos-m-wl-wacom", t::INTUOS_M_WL_RATIO, "intuos-pen"),
+        Some(OneS | OneM) => art!("wacom-one-wacom", t::ONE_RATIO, "wacom-one-pen-wacom"),
+        Some(One12) => art!("wacom-one-12-wacom", t::ONE_12_RATIO, "wacom-one-pen-wacom"),
+        Some(One13Touch) => art!(
             "wacom-one-13-touch-wacom",
             t::ONE_13_RATIO,
             "wacom-one-pen-wacom"
         ),
-        0x0392 | 0x0393 | 0x03dd => art!("intuos-pro-s-wacom", t::PRO_S_RATIO, "pro-pen-2-wacom"),
-        0x0357 | 0x0360 => art!("intuos-pro-m-wacom", t::PRO_M_RATIO, "pro-pen-2-wacom"),
-        0x0358 | 0x0361 => art!("intuos-pro-l-wacom", t::PRO_L_RATIO, "pro-pen-2-wacom"),
-        0x0314 | 0x0315 | 0x0317 => art!(
+        Some(ProS) => art!("intuos-pro-s-wacom", t::PRO_S_RATIO, "pro-pen-2-wacom"),
+        Some(ProM) => art!("intuos-pro-m-wacom", t::PRO_M_RATIO, "pro-pen-2-wacom"),
+        Some(ProL) => art!("intuos-pro-l-wacom", t::PRO_L_RATIO, "pro-pen-2-wacom"),
+        Some(Pro2013S | Pro2013M | Pro2013L) => art!(
             "intuos-pro-2013-wacom",
             t::PRO_2013_TABLET_RATIO,
             "grip-pen-wacom"
         ),
-        _ => art!("intuos-s", t::INTUOS_S_RATIO, "intuos-pen"),
+        Some(IntuosS) | None => art!("intuos-s", t::INTUOS_S_RATIO, "intuos-pen"),
     }
 }
 /// Callers add their site to keep texture sizes independent.
@@ -183,71 +168,48 @@ pub fn pen_spots(product: u16) -> [(f32, f32); 3] {
 }
 
 pub fn intuos_art(product: u16) -> bool {
-    matches!(
-        product,
-        0x0374 | 0x0375 | 0x0376 | 0x0377 | 0x03c6 | 0x0378 | 0x0379 | 0x03c8
-    )
+    family(product).is_some_and(Family::intuos)
 }
 /// Height / width of the ExpressKeys artwork, `None` for the generic drawing.
 pub fn art_ratio(product: u16) -> Option<f32> {
-    match product {
-        0x0314 => Some(t::PRO_2013_S_RATIO),
-        0x0315 | 0x0317 => Some(t::PRO_2013_ML_RATIO),
-        0x0392 | 0x0393 | 0x03dd => Some(t::PRO_S_KEYS_RATIO),
-        0x0357 | 0x0360 => Some(t::PRO_M_KEYS_RATIO),
-        0x0358 | 0x0361 => Some(t::PRO_L_KEYS_RATIO),
-        0x0375 | 0x0376 | 0x0377 | 0x03c6 | 0x0378 | 0x0379 | 0x03c8 => {
-            Some(device_art(product).ratio)
-        }
-        _ => None,
+    match family(product)? {
+        Pro2013S => Some(t::PRO_2013_S_RATIO),
+        Pro2013M | Pro2013L => Some(t::PRO_2013_ML_RATIO),
+        ProS => Some(t::PRO_S_KEYS_RATIO),
+        ProM => Some(t::PRO_M_KEYS_RATIO),
+        ProL => Some(t::PRO_L_KEYS_RATIO),
+        IntuosM | IntuosSWireless | IntuosMWireless => Some(device_art(product).ratio),
+        IntuosS | OneS | OneM | One12 | One13Touch => None,
     }
 }
 pub fn key_spot(product: u16, index: usize, _count: usize) -> (f32, f32) {
     use crate::theme::settings_layout as d;
-    if matches!(product, 0x0375 | 0x0378 | 0x0379 | 0x03c8) {
-        let (xs, y) = if product == 0x0375 {
-            (t::INTUOS_M_KEY_X, t::INTUOS_M_KEY_Y)
-        } else {
-            (t::INTUOS_M_WL_KEY_X, t::INTUOS_M_WL_KEY_Y)
-        };
-        return (xs[index.min(3)], y);
-    }
-    if intuos_art(product) {
-        return (t::INTUOS_KEY_X[index.min(3)], t::INTUOS_KEY_Y);
-    }
-    if tablet_config::intuos_pro_2013(product) {
-        let ys: &[f32] = if product == 0x0314 {
-            &t::PRO_2013_S_KEY_Y
-        } else {
-            &t::PRO_2013_ML_KEY_Y
-        };
-        return (t::PRO_2013_KEY_X, ys[index.min(ys.len() - 1)]);
-    }
-    if matches!(
-        product,
-        0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0360 | 0x0358 | 0x0361
-    ) {
-        let (x, ys) = match product {
-            0x0392 | 0x0393 | 0x03dd => (t::PRO_S_KEY_X, t::PRO_S_KEY_Y.as_slice()),
-            0x0358 | 0x0361 => (t::PRO_L_KEY_X, t::PRO_L_KEY_Y.as_slice()),
-            _ => (t::PRO_M_KEY_X, t::PRO_M_KEY_Y.as_slice()),
-        };
-        (x, ys[index.min(ys.len() - 1)])
-    } else {
-        (d::PX_0_23 + index as f32 * d::PX_0_18, d::PX_0_13)
+    let column = |x: f32, ys: &[f32]| (x, ys[index.min(ys.len() - 1)]);
+    match family(product) {
+        Some(IntuosM) => (t::INTUOS_M_KEY_X[index.min(3)], t::INTUOS_M_KEY_Y),
+        Some(IntuosMWireless) => (t::INTUOS_M_WL_KEY_X[index.min(3)], t::INTUOS_M_WL_KEY_Y),
+        Some(IntuosS | IntuosSWireless) => (t::INTUOS_KEY_X[index.min(3)], t::INTUOS_KEY_Y),
+        Some(Pro2013S) => column(t::PRO_2013_KEY_X, &t::PRO_2013_S_KEY_Y),
+        Some(Pro2013M | Pro2013L) => column(t::PRO_2013_KEY_X, &t::PRO_2013_ML_KEY_Y),
+        Some(ProS) => column(t::PRO_S_KEY_X, &t::PRO_S_KEY_Y),
+        Some(ProM) => column(t::PRO_M_KEY_X, &t::PRO_M_KEY_Y),
+        Some(ProL) => column(t::PRO_L_KEY_X, &t::PRO_L_KEY_Y),
+        Some(OneS | OneM | One12 | One13Touch) | None => {
+            (d::PX_0_23 + index as f32 * d::PX_0_18, d::PX_0_13)
+        }
     }
 }
 /// Active surface inside the trimmed whole-tablet image.
 pub fn active_surface(product: u16) -> [f32; 4] {
-    match product {
-        0x0375 | 0x0378 | 0x0379 | 0x03c8 => t::INTUOS_M_ACTIVE,
-        0x0100..=0x0105 => t::ONE_ACTIVE,
-        0x03ce => t::ONE_12_ACTIVE,
-        0x03cb => t::ONE_13_ACTIVE,
-        0x0392 | 0x0393 | 0x03dd => t::PRO_S_ACTIVE,
-        0x0357 | 0x0360 => t::PRO_M_ACTIVE,
-        0x0358 | 0x0361 => t::PRO_L_ACTIVE,
-        _ => {
+    match family(product) {
+        Some(IntuosM | IntuosMWireless) => t::INTUOS_M_ACTIVE,
+        Some(OneS | OneM) => t::ONE_ACTIVE,
+        Some(One12) => t::ONE_12_ACTIVE,
+        Some(One13Touch) => t::ONE_13_ACTIVE,
+        Some(ProS) => t::PRO_S_ACTIVE,
+        Some(ProM) => t::PRO_M_ACTIVE,
+        Some(ProL) => t::PRO_L_ACTIVE,
+        Some(IntuosS | IntuosSWireless | Pro2013S | Pro2013M | Pro2013L) | None => {
             use crate::theme::devices_layout as d;
             [
                 d::TABLET_ACTIVE_X,
@@ -260,30 +222,43 @@ pub fn active_surface(product: u16) -> [f32; 4] {
 }
 /// Centre mode button of the 2017 touch ring.
 pub fn ring_spot(product: u16) -> Option<(f32, f32)> {
-    Some(match product {
-        0x0392 | 0x0393 | 0x03dd => t::PRO_S_PANEL_RING,
-        0x0357 | 0x0360 => t::PRO_M_PANEL_RING,
-        0x0358 | 0x0361 => t::PRO_L_PANEL_RING,
+    match family(product)? {
+        ProS => Some(t::PRO_S_PANEL_RING),
+        ProM => Some(t::PRO_M_PANEL_RING),
+        ProL => Some(t::PRO_L_PANEL_RING),
+        _ => None,
+    }
+}
+/// ExpressKeys panel artwork of the Intuos Pro lines.
+fn keys_panel(family: Option<Family>) -> Option<(&'static str, &'static [u8])> {
+    Some(match family? {
+        ProS => (
+            "pro-s-keys",
+            include_bytes!("../../../assets/devices/intuos-pro-s-keys-wacom.png"),
+        ),
+        ProM => (
+            "pro-m-keys",
+            include_bytes!("../../../assets/devices/intuos-pro-m-keys-wacom.png"),
+        ),
+        ProL => (
+            "pro-l-keys",
+            include_bytes!("../../../assets/devices/intuos-pro-l-keys-wacom.png"),
+        ),
+        // Intuos Pro 2013: the ExpressKeys panel only, as in the macOS driver.
+        Pro2013S => (
+            "pro-2013-s-keys",
+            include_bytes!("../../../assets/devices/intuos-pro-2013-s-keys-wacom.png"),
+        ),
+        Pro2013M | Pro2013L => (
+            "pro-2013-ml-keys",
+            include_bytes!("../../../assets/devices/intuos-pro-2013-ml-keys-wacom.png"),
+        ),
         _ => return None,
     })
 }
 pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
-    let panel: Option<(&str, &[u8])> = match product {
-        0x0392 | 0x0393 | 0x03dd => Some((
-            "pro-s-keys",
-            include_bytes!("../../../assets/devices/intuos-pro-s-keys-wacom.png"),
-        )),
-        0x0357 | 0x0360 => Some((
-            "pro-m-keys",
-            include_bytes!("../../../assets/devices/intuos-pro-m-keys-wacom.png"),
-        )),
-        0x0358 | 0x0361 => Some((
-            "pro-l-keys",
-            include_bytes!("../../../assets/devices/intuos-pro-l-keys-wacom.png"),
-        )),
-        _ => None,
-    };
-    if let Some((key, bytes)) = panel {
+    let family = family(product);
+    if let Some((key, bytes)) = keys_panel(family) {
         crate::assets::glow(ui, area);
         crate::assets::artwork(ui, &format!("{name}-{key}"), bytes, area);
         return;
@@ -291,7 +266,7 @@ pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
     if intuos_art(product) {
         let art = device_art(product);
         crate::assets::glow(ui, area);
-        let cache = if product == 0x0374 {
+        let cache = if family == Some(IntuosS) {
             name.to_owned()
         } else {
             format!("{name}-{}", art.name)
@@ -299,28 +274,7 @@ pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
         crate::assets::artwork(ui, &cache, art.bytes, area);
         return;
     }
-    // Intuos Pro 2013: the ExpressKeys panel only, as in the macOS driver.
-    if tablet_config::intuos_pro_2013(product) {
-        let (key, bytes): (&str, &[u8]) = if product == 0x0314 {
-            (
-                "pro-2013-s-keys",
-                include_bytes!("../../../assets/devices/intuos-pro-2013-s-keys-wacom.png"),
-            )
-        } else {
-            (
-                "pro-2013-ml-keys",
-                include_bytes!("../../../assets/devices/intuos-pro-2013-ml-keys-wacom.png"),
-            )
-        };
-        crate::assets::glow(ui, area);
-        crate::assets::artwork(ui, &format!("{name}-{key}"), bytes, area);
-        return;
-    }
     use crate::theme::settings_layout as d;
-    let column = matches!(
-        product,
-        0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0360 | 0x0358 | 0x0361
-    );
     let count = tablet_config::express_key_count(product);
     let mut buttons = String::new();
     for i in 0..count {
@@ -330,17 +284,10 @@ pub fn tablet_art(ui: &Ui, product: u16, name: &str, area: Rect) {
             .replace("{y}", &(y * d::PX_360 - d::PX_8).to_string());
     }
     let svg = include_str!("../../../assets/devices/tablet-generic.svg")
-        .replace("{x}", if column { "110" } else { "55" })
-        .replace("{y}", if column { "42" } else { "73" })
-        .replace("{width}", if column { "400" } else { "450" })
-        .replace(
-            "{ring}",
-            if column {
-                include_str!("../../../assets/devices/tablet-generic-ring.svg")
-            } else {
-                ""
-            },
-        )
+        .replace("{x}", "55")
+        .replace("{y}", "73")
+        .replace("{width}", "450")
+        .replace("{ring}", "")
         .replace("{buttons}", &buttons);
     egui::Image::new(egui::ImageSource::Bytes {
         uri: format!("bytes://tablet-art-{product}.svg").into(),

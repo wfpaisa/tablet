@@ -570,23 +570,87 @@ pub fn wacom_vendor(vendor: u16) -> bool {
     matches!(vendor, 0x056a | 0x0531)
 }
 
-/// USB and Bluetooth ids from Linux drivers/hid/wacom_wac.c (v6.12) and
-/// libwacom. Generic HID Intuos USB ids 0374/0376/0378 use the four-key
-/// fallback. The Wacom One ids (0531:0100..=0105, 056a:03cb, 056a:03ce)
-/// do not collide with any 056a id listed here.
-pub fn express_key_count(product: u16) -> usize {
-    match product {
-        0x0100..=0x0105 | 0x03cb | 0x03ce => 0,
-        0x0392 | 0x0393 | 0x03dd | 0x0314 => 6,
-        0x0357 | 0x0358 | 0x0360 | 0x0361 | 0x0315 | 0x0317 => 8,
-        _ => 4,
+/// Product line: decides artwork, ExpressKeys layout and capabilities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Family {
+    IntuosS, IntuosSWireless, IntuosM, IntuosMWireless,
+    OneS, OneM, One12, One13Touch,
+    ProS, ProM, ProL, Pro2013S, Pro2013M, Pro2013L,
+}
+
+impl Family {
+    pub fn express_keys(self) -> usize {
+        use Family::*;
+        match self {
+            OneS | OneM | One12 | One13Touch => 0,
+            ProS | Pro2013S => 6,
+            ProM | ProL | Pro2013M | Pro2013L => 8,
+            IntuosS | IntuosSWireless | IntuosM | IntuosMWireless => 4,
+        }
+    }
+    pub fn wireless(self) -> bool {
+        use Family::*;
+        matches!(self, IntuosSWireless | IntuosMWireless | OneS | OneM | ProS | ProM | ProL)
+    }
+    /// The pen draws on the tablet's own screen.
+    pub fn pen_display(self) -> bool { matches!(self, Family::One12 | Family::One13Touch) }
+    /// Intuos Pro 2013 (PTH-451/651/851).
+    pub fn pro_2013(self) -> bool { matches!(self, Family::Pro2013S | Family::Pro2013M | Family::Pro2013L) }
+    /// Intuos Pro 2017 (PTH-460/660/860).
+    pub fn pro(self) -> bool { matches!(self, Family::ProS | Family::ProM | Family::ProL) }
+    /// Intuos CTL-4100 / CTL-6100, wired or wireless.
+    pub fn intuos(self) -> bool {
+        matches!(self, Family::IntuosS | Family::IntuosSWireless | Family::IntuosM | Family::IntuosMWireless)
     }
 }
 
-/// Intuos Pro 2013 (PTH-451/651/851): BTN_0 is the touch ring's centre
-/// button (libwacom `Ring=A`), so ExpressKey 1 is BTN_1.
+/// One supported tablet: every USB/Bluetooth id it may report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Model {
+    pub ids: &'static [u16],
+    pub name: &'static str,
+    pub number: &'static str,
+    pub family: Family,
+}
+
+/// The only list of supported models; adding a tablet is one row here.
+/// USB and Bluetooth ids from Linux drivers/hid/wacom_wac.c (v6.12) and
+/// libwacom. The Wacom One ids (0531:0100..=0105, 056a:03cb, 056a:03ce)
+/// do not collide with any other 056a id listed here.
+pub const MODELS: &[Model] = &[
+    Model { ids: &[0x0374], name: "Intuos S", number: "CTL-4100", family: Family::IntuosS },
+    Model { ids: &[0x0375], name: "Intuos M", number: "CTL-6100", family: Family::IntuosM },
+    Model { ids: &[0x0376, 0x0377, 0x03c6], name: "Intuos S", number: "CTL-4100WL", family: Family::IntuosSWireless },
+    Model { ids: &[0x0378, 0x0379, 0x03c8], name: "Intuos M", number: "CTL-6100WL", family: Family::IntuosMWireless },
+    Model { ids: &[0x0100, 0x0101, 0x0104], name: "Wacom One S", number: "CTC4110WL", family: Family::OneS },
+    Model { ids: &[0x0102, 0x0103, 0x0105], name: "Wacom One M", number: "CTC6110WL", family: Family::OneM },
+    Model { ids: &[0x03ce], name: "Wacom One 12", number: "DTC121", family: Family::One12 },
+    Model { ids: &[0x03cb], name: "Wacom One 13 touch", number: "DTH134", family: Family::One13Touch },
+    Model { ids: &[0x0392, 0x0393, 0x03dd], name: "Intuos Pro S", number: "PTH-460", family: Family::ProS },
+    Model { ids: &[0x0357, 0x0360], name: "Intuos Pro M", number: "PTH-660", family: Family::ProM },
+    Model { ids: &[0x0358, 0x0361], name: "Intuos Pro L", number: "PTH-860", family: Family::ProL },
+    Model { ids: &[0x0314], name: "Intuos Pro S", number: "PTH-451", family: Family::Pro2013S },
+    Model { ids: &[0x0315], name: "Intuos Pro M", number: "PTH-651", family: Family::Pro2013M },
+    Model { ids: &[0x0317], name: "Intuos Pro L", number: "PTH-851", family: Family::Pro2013L },
+];
+
+pub fn model(product: u16) -> Option<&'static Model> {
+    MODELS.iter().find(|m| m.ids.contains(&product))
+}
+
+pub fn family(product: u16) -> Option<Family> {
+    model(product).map(|m| m.family)
+}
+
+/// Unknown tablets use the four-key generic HID fallback.
+pub fn express_key_count(product: u16) -> usize {
+    family(product).map_or(4, Family::express_keys)
+}
+
+/// Intuos Pro 2013: BTN_0 is the touch ring's centre button (libwacom
+/// `Ring=A`), so ExpressKey 1 is BTN_1.
 pub fn intuos_pro_2013(product: u16) -> bool {
-    matches!(product, 0x0314 | 0x0315 | 0x0317)
+    family(product).is_some_and(Family::pro_2013)
 }
 
 /// Tablets with a touch ring (ABS_WHEEL) and four mode LEDs.
@@ -601,7 +665,7 @@ pub fn first_express_key(product: u16) -> u16 {
 
 /// Wacom One 12 / 13 touch: the pen draws on the tablet's own screen.
 pub fn pen_display(product: u16) -> bool {
-    matches!(product, 0x03cb | 0x03ce)
+    family(product).is_some_and(Family::pen_display)
 }
 
 /// The screen of a Wacom pen display, whose EDID vendor is "WAC".
@@ -610,9 +674,7 @@ pub fn own_screen(displays: &[Display]) -> Option<&Display> {
 }
 
 pub fn wireless_model(product: u16) -> bool {
-    matches!(product, 0x0376 | 0x0377 | 0x0378 | 0x0379 | 0x03c6 | 0x03c8
-        | 0x0392 | 0x0393 | 0x03dd | 0x0357 | 0x0358 | 0x0360 | 0x0361
-        | 0x0100..=0x0105)
+    family(product).is_some_and(Family::wireless)
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -892,6 +954,15 @@ mod tests {
         assert_eq!(serde_json::from_str::<Config>(&json).unwrap(), config);
         for product in [0x0314, 0x0315, 0x0317] { assert!(has_touch_ring(product)); }
         assert!(!has_touch_ring(0x0374));
+    }
+
+    #[test]
+    fn every_product_id_belongs_to_one_model() {
+        let mut seen = std::collections::HashSet::new();
+        for id in MODELS.iter().flat_map(|m| m.ids) { assert!(seen.insert(*id), "{id:04x} listed twice"); }
+        assert_eq!(express_key_count(0xffff), 4);
+        assert!(!wireless_model(0xffff) && !pen_display(0xffff) && !intuos_pro_2013(0xffff));
+        assert_eq!(model(0x0361).map(|m| m.number), Some("PTH-860"));
     }
 
     #[test]

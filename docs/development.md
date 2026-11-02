@@ -28,6 +28,14 @@ just <tarea>    # ejecuta una
 | `just check` | `lint` + `test`: todo lo que debe estar en verde antes de commitear. |
 | `just smoke-shortcuts` | Prueba las ventanas en pantalla en un servidor X aislado. |
 
+## Añadir un modelo
+
+Los modelos están en una sola tabla, `MODELS` de `crates/tablet-config/src/lib.rs`:
+ids USB/Bluetooth, nombre, número de modelo y familia. Un modelo nuevo de una
+familia existente es una fila. Una familia nueva se agrega a `Family`; el
+compilador marca cada `match` de `shared.rs` (dibujos, teclas, superficie activa)
+que tiene que decidir cómo dibujarla.
+
 ## Revisión visual
 
 La app egui debe verse igual que la UI HTML original
