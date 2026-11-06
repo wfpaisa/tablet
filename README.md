@@ -118,7 +118,8 @@ just dev-sim 0314 # simulate a specific model (see the table below)
 just check        # check formatting, code quality and tests
 just screens      # generate screenshots (requires a GPU)
 just compare      # compare screenshots with the visual references
-just package      # create a release archive in dist/
+just package      # create a portable release archive in dist/ (builds in Docker)
+just release      # bump the version, build and publish a GitHub release
 ```
 
 ### Simulating a model

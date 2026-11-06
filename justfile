@@ -86,9 +86,13 @@ install:
 uninstall *args:
     ./uninstall.sh {{args}}
 
-# Genera dist/tablet-center-<arch>-linux.tar.gz.
+# Archivo portable dist/tablet-center-<arch>-linux.tar.gz y su .sha256 (build en Docker).
 package:
     scripts/package.sh
+
+# Publica en GitHub: sube la versión, check, package, commit, tag, push y release.
+release *version:
+    scripts/release.sh {{version}}
 
 # Borra los artefactos de compilación.
 clean:
