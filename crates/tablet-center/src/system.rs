@@ -486,7 +486,7 @@ pub fn shell_menus(config: &Config, locale: &crate::i18n::Locale) -> serde_json:
             let name=menus::item_icon(item);
             let icon=match name.as_str() {
                 "undo"=>"edit-undo-symbolic", "redo"=>"edit-redo-symbolic", "copy"=>"edit-copy-symbolic", "paste"=>"edit-paste-symbolic", "save"=>"document-save-symbolic", "keyboard"=>"input-keyboard-symbolic",
-                "left_click"|"right_click"|"middle_click"|"double_click"|"back"|"forward"=>match name.as_str(){"back"=>"go-previous-symbolic","forward"=>"go-next-symbolic",_=>"input-mouse-symbolic"},
+                "left_click"|"right_click"|"middle_click"|"double_click"|"back"|"forward"|"pen_mouse_toggle"=>match name.as_str(){"back"=>"go-previous-symbolic","forward"=>"go-next-symbolic",_=>"input-mouse-symbolic"},
                 "display_toggle"=>"video-display-symbolic", "pan_scroll"|"pan_scroll_legacy"|"scroll"|"wheel"=>"input-tablet-symbolic", "pan_zoom"=>"zoom-fit-best-symbolic", "zoom"=>"zoom-in-symbolic", "express_menu"|"radial_menu"=>"view-more-symbolic", "app_shortcuts"=>"view-app-grid-symbolic", "keypad"=>"input-dialpad-symbolic", _=>"",
             };
             serde_json::json!({"label": menus::item_label(locale,item),"icon":if key==Shortcut::Keypad{""}else{icon},"span":if key==Shortcut::Keypad&&index==16{2}else{1},"action":item.action})

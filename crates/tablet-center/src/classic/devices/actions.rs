@@ -69,6 +69,7 @@ pub(crate) const GROUPS: &[(&str, &[(&str, &str)])] = &[
             ("precision_mode", "Precision mode"),
             ("pressure_hold", "Pressure hold"),
             ("mode_toggle", "Mode toggle"),
+            ("pen_mouse_toggle", "Pen/Mouse toggle"),
         ],
     ),
     ("Applications", &[("run", "Run application…")]),

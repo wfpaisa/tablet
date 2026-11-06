@@ -10,6 +10,8 @@ pub struct PadOutput {
     pub run: Option<String>,
     pub on_screen_keyboard: bool,
     pub toggle_mode: bool,
+    /// A key assigned to Pen/Mouse toggle was pressed.
+    pub toggle_mouse: bool,
     pub keyboard: Vec<Vec<InputEvent>>,
     pub keyboard_after: Vec<Vec<InputEvent>>,
     pub pointer: Vec<Vec<InputEvent>>,
@@ -202,6 +204,7 @@ pub fn press(action: &KeyAction, (x, y): (i32, i32), out: &mut PadOutput) -> Hel
         KeyAction::PressureHold => return Held::Pressure,
         KeyAction::PrecisionMode => return Held::Precision,
         KeyAction::ModeToggle => { out.toggle_mode = true; return Held::Nothing; }
+        KeyAction::PenMouseToggle => { out.toggle_mouse = true; return Held::Nothing; }
         KeyAction::Run { command, .. } => { out.run = Some(command.clone()); return Held::Nothing; }
         KeyAction::OnScreenKeyboard => { out.on_screen_keyboard = true; return Held::Nothing; }
         KeyAction::Modifier { shift, ctrl, alt, super_key, click: button } => {
@@ -467,6 +470,13 @@ mod tests {
         p.set_actions(vec![KeyAction::Disabled]);
         let out = p.process_frame(&button(0, false), (0, 0));
         assert_eq!(out.keyboard.len(), 1, "Ctrl+Z still gets released");
+    }
+
+    #[test]
+    fn pen_mouse_toggle_fires_once_per_press() {
+        let mut p = PadProcessor::new(vec![KeyAction::PenMouseToggle]);
+        assert!(p.process_frame(&button(0, true), (0, 0)).toggle_mouse);
+        assert!(!p.process_frame(&button(0, false), (0, 0)).toggle_mouse);
     }
 
     #[test]

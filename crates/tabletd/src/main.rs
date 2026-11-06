@@ -42,6 +42,7 @@ struct Shared {
     pad_gesture: AtomicU8,
     pad_effects: AtomicU8,
     mode_toggles: AtomicU64,
+    mouse_toggles: AtomicU64,
     relative_mode: AtomicBool,
     mouse_mode: AtomicBool,
     /// Last pen position sent to the pointer (after mapping), so ExpressKey
@@ -379,6 +380,7 @@ fn pump(
     let mut nudge = 1;
     let mut ring = false;
     let mut mode_toggles = shared.mode_toggles.load(Ordering::Acquire);
+    let mut mouse_toggles = shared.mouse_toggles.load(Ordering::Acquire);
     loop {
         let effects = shared.pad_effects.load(Ordering::Acquire);
         let effects_changed = processor.set_pad_effects(effects);
@@ -387,6 +389,10 @@ fn pump(
         let mode_changed = (toggles - mode_toggles) % 2 != 0;
         if mode_changed { processor.toggle_mode(); }
         mode_toggles = toggles;
+        let toggles = shared.mouse_toggles.load(Ordering::Acquire);
+        #[allow(clippy::manual_is_multiple_of)] // Keep compatibility with older Rust toolchains.
+        if (toggles - mouse_toggles) % 2 != 0 { processor.toggle_mouse(); }
+        mouse_toggles = toggles;
         shared.relative_mode.store(processor.relative_mode(), Ordering::Release);
         shared.mouse_mode.store(processor.mouse_mode(), Ordering::Release);
         // A held right-or-middle button shows a ring until it is decided.
@@ -1148,6 +1154,7 @@ fn remember_keys(shared: &Shared, frame: &[InputEvent]) {
 fn emit_pad(shared: &Shared, out: &pad::PadOutput) -> io::Result<()> {
     action_effects(out.run.as_deref(), out.on_screen_keyboard);
     if out.toggle_mode { shared.mode_toggles.fetch_add(1, Ordering::AcqRel); }
+    if out.toggle_mouse { shared.mouse_toggles.fetch_add(1, Ordering::AcqRel); }
     if let Some(keyboard) = shared.keyboard.lock().unwrap().as_mut() {
         for batch in &out.keyboard {
             keyboard.emit(batch)?;

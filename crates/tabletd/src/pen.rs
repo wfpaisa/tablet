@@ -220,11 +220,21 @@ impl PenProcessor {
 
     pub fn relative_mode(&self) -> bool { self.config.pen.mode == PenMode::Relative }
 
+    /// Mode toggle: Pen and Relative.
     pub fn toggle_mode(&mut self) {
+        self.switch_mode(if self.config.pen.mode == PenMode::Relative { PenMode::Pen } else { PenMode::Relative });
+    }
+
+    /// Pen/Mouse toggle: Mouse goes back to Pen, any other mode to Mouse.
+    pub fn toggle_mouse(&mut self) {
+        self.switch_mode(if self.config.pen.mode == PenMode::Mouse { PenMode::Pen } else { PenMode::Mouse });
+    }
+
+    fn switch_mode(&mut self, mode: PenMode) {
         self.first_touch = None;
         self.assisted_touch = None;
         self.hold_tip_until_lift = self.tip;
-        self.config.pen.mode = if self.config.pen.mode == PenMode::Relative { PenMode::Pen } else { PenMode::Relative };
+        self.config.pen.mode = mode;
         self.relative_last = None;
         self.relative_rest = (0.0, 0.0);
     }
@@ -236,6 +246,7 @@ impl PenProcessor {
         out.run = extra.run.or(out.run.take());
         out.on_screen_keyboard |= extra.on_screen_keyboard;
         if extra.toggle_mode { self.toggle_mode(); }
+        if extra.toggle_mouse { self.toggle_mouse(); }
     }
 
     fn effects(&mut self, out: &mut Output) {
@@ -1006,6 +1017,25 @@ mod tests {
         p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None);
         p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
         assert!(!p.mouse_mode());
+    }
+
+    #[test]
+    fn pen_mouse_toggle_alternates_pen_and_mouse_and_survives_unrelated_reload() {
+        let mut p = proc();
+        p.config.pen.lower_button = ButtonAction::PenMouseToggle;
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        assert_eq!(p.config.pen.mode, PenMode::Mouse);
+        let mut config = Config::default();
+        config.pen.lower_button = ButtonAction::PenMouseToggle;
+        config.pen.tip_sensitivity = 5;
+        p.set_config(config);
+        assert_eq!(p.config.pen.mode, PenMode::Mouse);
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, false)], None);
+        p.process_frame(&[key(KeyCode::BTN_STYLUS, true)], None);
+        assert_eq!(p.config.pen.mode, PenMode::Pen);
+        p.toggle_mode();
+        p.toggle_mouse();
+        assert_eq!(p.config.pen.mode, PenMode::Mouse, "relative goes to mouse");
     }
 
     #[test]

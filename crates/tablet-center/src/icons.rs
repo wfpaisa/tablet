@@ -5,7 +5,9 @@ pub fn action(id: &str) -> &'static str {
     match id {
         "left_click" | "click" | "click_lock" | "pressure_hold" => "mouse-left",
         "right_click" | "right_click_lock" => "mouse-right",
-        "middle_click" | "middle_click_lock" | "right_or_hold_middle" => "mouse",
+        "middle_click" | "middle_click_lock" | "right_or_hold_middle" | "pen_mouse_toggle" => {
+            "mouse"
+        }
         "double_click" => "mouse-pointer-click",
         "pan_scroll" | "pan_scroll_legacy" => "move",
         "pan_zoom" | "zoom" => "zoom-in",

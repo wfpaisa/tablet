@@ -26,6 +26,8 @@ pub enum ButtonAction {
     RightClickLock,
     PressureHold,
     ModeToggle,
+    /// Switch the pen between Pen and Mouse mode.
+    PenMouseToggle,
     Modifier {
         #[serde(default)] shift: bool,
         #[serde(default)] ctrl: bool,
@@ -269,6 +271,8 @@ pub enum KeyAction {
     RightClickLock,
     PressureHold,
     ModeToggle,
+    /// Switch the pen between Pen and Mouse mode.
+    PenMouseToggle,
     Modifier {
         #[serde(default)] shift: bool,
         #[serde(default)] ctrl: bool,
