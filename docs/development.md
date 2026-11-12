@@ -62,8 +62,10 @@ tamaños, colores, iconos ni textos. El resto es suavizado de fuentes y SVG.
 | `just build` | Build de release de `tablet-center` y `tabletd`. |
 | `just install` | Instala para el usuario actual (servicio, reglas udev, extensión de GNOME). |
 | `just uninstall [--purge]` | Desinstala; `--purge` borra también la configuración. |
-| `just package` | Genera `dist/tablet-center-<arch>-linux.tar.gz` y su `.sha256`, compilando en Docker (`rust:1-bookworm`) para que funcione con glibc antiguas. No publica nada. |
-| `just release [X.Y.Z]` | Publica en GitHub desde esta máquina: sube la versión (sin argumento, el parche), corre `just check`, empaqueta con `just package`, pregunta, y luego commitea, etiqueta, hace push y crea el release con `gh`. Si algo falla antes del commit, restaura `Cargo.toml` y `Cargo.lock`. Necesita `gh auth login` y Docker. |
+| `just package` | Genera `dist/tablet-center-<arch>-linux.tar.gz` y su `.sha256` (en Docker/Podman o con `--local`). No publica nada. |
+| `just package-rpm` | Genera el paquete `.rpm` en `dist/` usando `rpmbuild`. |
+| `just package-deb` | Genera el paquete `.deb` en `dist/`. |
+| `just release [X.Y.Z]` | Publica en GitHub desde esta máquina: sube la versión (sin argumento, el parche), corre `just check`, empaqueta el tarball y paquetes `.rpm`/`.deb`, pregunta, y luego commitea, etiqueta, hace push y crea el release con `gh`. Necesita `gh auth login`. |
 | `just fonts` | Rehace las fuentes Roboto embebidas desde los WOFF2 del original. |
 | `just clean` | Borra los artefactos de compilación. |
 

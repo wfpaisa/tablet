@@ -87,8 +87,16 @@ uninstall *args:
     ./uninstall.sh {{args}}
 
 # Archivo portable dist/tablet-center-<arch>-linux.tar.gz y su .sha256 (build en Docker).
-package:
-    scripts/package.sh
+package *args:
+    scripts/package.sh {{args}}
+
+# Construye el paquete RPM en dist/ (usa rpmbuild).
+package-rpm:
+    scripts/package-rpm.sh
+
+# Construye el paquete DEB en dist/.
+package-deb:
+    scripts/package-deb.sh
 
 # Publica en GitHub: sube la versión, check, package, commit, tag, push y release.
 release *version:

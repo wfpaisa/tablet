@@ -15,22 +15,46 @@ Built in Rust with egui.
 ## Install
 
 Requires GNOME 48 or later on Wayland and an x86_64 PC.
-Keep the pen away from the tablet, then run:
+Keep the pen away from the tablet, then choose one of the installation methods:
+
+### Option 1: Quick install from GitHub release
 
 ```sh
 curl -fsSL https://github.com/wfpaisa/tablet/releases/latest/download/tablet-center-x86_64-linux.tar.gz | tar xz && ./tablet-center/install.sh
 ```
 
-Enter your password if asked. When installation finishes, log out and back
-in, then open **Tablet Center** from the app grid. If the tablet still does
-not respond, restart the computer.
+### Option 2: Install RPM package (Fedora / RHEL / openSUSE)
 
-For a manual download, get `tablet-center-x86_64-linux.tar.gz` from the
-[latest release](https://github.com/wfpaisa/tablet/releases/latest), extract
-it, and run `./install.sh` inside the `tablet-center` folder.
+Download `tablet-center-*.rpm` from the [latest release](https://github.com/wfpaisa/tablet/releases/latest), then run:
 
-To uninstall, run `./tablet-center/uninstall.sh`. Add `--purge` to remove
-your settings too.
+```sh
+sudo dnf install ./tablet-center-*.rpm
+```
+
+### Option 3: Install DEB package (Debian / Ubuntu)
+
+Download `tablet-center_*.deb` from the [latest release](https://github.com/wfpaisa/tablet/releases/latest), then run:
+
+```sh
+sudo apt install ./tablet-center_*.deb
+```
+
+### Option 4: Build from source / Remake anytime
+
+Install stable [Rust](https://rustup.rs), clone this repository, then run:
+
+```sh
+./install.sh
+# or if you have just installed:
+just build && just install
+```
+
+When installation finishes, enter your password if prompted for the udev rule,
+then log out and back in so the `input` group and GNOME Shell extension take
+effect. If the tablet still does not respond, restart the computer.
+
+To uninstall, run `./uninstall.sh` (or `just uninstall`). Add `--purge` to
+remove your settings too.
 
 ## Features
 
@@ -112,15 +136,44 @@ Run `just` to list them, or see [docs/development.md](docs/development.md)
 for the full workflow.
 
 ```sh
+just build        # build release binaries for tabletd and tablet-center
+just install      # install binaries, systemd service, udev rules and extension
 just dev          # open the app with the installed service
 just dev-sim      # try simulated data without changing your settings
-just dev-sim 0314 # simulate a specific model (see the table below)
+just dev-sim 037a # simulate a specific model (e.g. 037a = One by Wacom CTL-472)
 just check        # check formatting, code quality and tests
-just screens      # generate screenshots (requires a GPU)
-just compare      # compare screenshots with the visual references
-just package      # create a portable release archive in dist/ (builds in Docker)
-just release      # bump the version, build and publish a GitHub release
+just package      # create portable release archive in dist/ (.tar.gz)
+just package-rpm  # build RPM package in dist/ (Fedora/RHEL)
+just package-deb  # build DEB package in dist/ (Debian/Ubuntu)
+just release      # bump version, build all packages, commit, tag and publish GitHub release
 ```
+
+### Packaging and GitHub Releases
+
+To generate release packages locally into `dist/`:
+
+```sh
+# Portable tarball (.tar.gz)
+just package
+# or without containers:
+./scripts/package.sh --local
+
+# RPM package (.rpm)
+just package-rpm
+
+# DEB package (.deb)
+just package-deb
+```
+
+To create a new GitHub release with all packages attached:
+
+```sh
+just release          # bumps patch version (e.g. 1.3.2 -> 1.3.3) and publishes
+just release 1.4.0    # releases a specific version
+```
+
+This runs quality checks, packages the `.tar.gz`, `.rpm`, and `.deb` archives,
+creates a git tag, pushes to GitHub, and publishes the release assets via `gh`.
 
 ### Simulating a model
 
@@ -136,6 +189,7 @@ Intuos Pro 2013 uses its ExpressKeys panel on the key configuration page.
 | Intuos M CTL-6100 | `0375` |
 | Intuos S CTL-4100WL | `0376`, `0377`, `03c6` |
 | Intuos M CTL-6100WL | `0378`, `0379`, `03c8` |
+| One by Wacom S CTL-472 | `037a` |
 | Wacom One S CTC4110WL | `0100`, `0101`, `0104` |
 | Wacom One M CTC6110WL | `0102`, `0103`, `0105` |
 | Wacom One 12 DTC121 | `03ce` |
