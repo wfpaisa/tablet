@@ -1,29 +1,49 @@
-#!/bin/sh
-# Builds the release binaries in Docker (Debian bookworm, so the archive
-# runs on older glibc too) and packs them with the installer into
-# dist/tablet-center-<arch>-linux.tar.gz plus its .sha256, the files attached
-# to GitHub releases. The name has no version so the README can link to
-# releases/latest/download/. Usage: scripts/package.sh
-set -eu
+#!/usr/bin/env bash
+# Builds the portable release archive and packs it into
+# dist/tablet-center-<arch>-linux.tar.gz plus its .sha256.
+# If Docker or Podman is available, it can build in a clean Debian container
+# for maximum glibc portability; otherwise (or with --local) it packages
+# the local release build.
+set -euo pipefail
 cd "$(dirname "$0")/.."
 
-command -v docker >/dev/null || { echo "package: docker not found" >&2; exit 1; }
 name="tablet-center-$(uname -m)-linux"
-
-# The container has no network: fetch the crates into the host registry first.
-cargo fetch --locked --quiet
-cargo_home=${CARGO_HOME:-$HOME/.cargo}
-docker run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD":/src -w /src \
-	-v "$cargo_home/registry":/cargo/registry \
-	-e HOME=/tmp -e CARGO_HOME=/cargo -e CARGO_TARGET_DIR=/src/target/docker \
-	rust:1-bookworm sh -c 'RUSTUP_TOOLCHAIN=$RUST_VERSION cargo build --release --locked --offline -p tabletd -p tablet-center'
-
 stage="dist/tablet-center"
-rm -rf dist
+bin_dir="target/release"
+
+use_container=false
+container_cmd=""
+
+if [[ "${1:-}" != "--local" ]]; then
+    if command -v docker >/dev/null 2>&1; then
+        use_container=true
+        container_cmd="docker"
+    elif command -v podman >/dev/null 2>&1; then
+        use_container=true
+        container_cmd="podman"
+    fi
+fi
+
+if $use_container; then
+    echo "Building in $container_cmd (Debian bookworm) for portable glibc compatibility..."
+    cargo fetch --locked --quiet
+    cargo_home=${CARGO_HOME:-$HOME/.cargo}
+    $container_cmd run --rm --network none --user "$(id -u):$(id -g)" -v "$PWD":/src -w /src \
+        -v "$cargo_home/registry":/cargo/registry \
+        -e HOME=/tmp -e CARGO_HOME=/cargo -e CARGO_TARGET_DIR=/src/target/docker \
+        rust:1-bookworm sh -c 'RUSTUP_TOOLCHAIN=$RUST_VERSION cargo build --release --locked --offline -p tabletd -p tablet-center'
+    bin_dir="target/docker/release"
+else
+    echo "Packaging from local release build..."
+    if [[ ! -f target/release/tabletd || ! -f target/release/tablet-center ]]; then
+        cargo build --release -p tabletd -p tablet-center
+    fi
+fi
+
 mkdir -p "$stage/bin"
-install -m 755 target/docker/release/tabletd target/docker/release/tablet-center "$stage/bin/"
+install -m 755 "$bin_dir/tabletd" "$bin_dir/tablet-center" "$stage/bin/"
 cp -r packaging gnome-extension "$stage/"
 cp install.sh uninstall.sh LICENSE README.md "$stage/"
 tar -C dist -czf "dist/$name.tar.gz" tablet-center
 (cd dist && sha256sum "$name.tar.gz" >"$name.tar.gz.sha256")
-echo "dist/$name.tar.gz (needs $(objdump -T "$stage/bin/tablet-center" | grep -oE 'GLIBC_[0-9.]+' | sort -Vu | tail -1))"
+echo "Created portable archive: dist/$name.tar.gz"

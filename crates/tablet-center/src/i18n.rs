@@ -65,6 +65,10 @@ impl ClassicText for &str {
             {
                 continue;
             }
+            let head = &self[..index];
+            if head.ends_with("One by ") || head.ends_with("one by ") {
+                continue;
+            }
             let tail = &self[index + 5..];
             if tail
                 .get(..4)
@@ -116,5 +120,6 @@ mod tests {
             l.t("Wacom One / WACOM / wacom / Awacom"),
             "Wacom One / TABLET / tablet / Awacom"
         );
+        assert_eq!(l.t("One by Wacom"), "One by Wacom");
     }
 }

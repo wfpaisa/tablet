@@ -53,9 +53,21 @@ cargo update --workspace --offline --quiet
 info "Running just check"
 just check
 
-info "Building the portable archive (Docker)"
+info "Building the portable archive and packages"
 just package
 [[ -f "$ASSET" && -f "$ASSET.sha256" ]] || die "just package did not produce $ASSET"
+
+extra_assets=()
+if command -v rpmbuild >/dev/null 2>&1; then
+    info "Building RPM package"
+    just package-rpm || true
+fi
+info "Building DEB package"
+just package-deb || true
+
+for pkg in dist/*.rpm dist/*.deb; do
+    [[ -f "$pkg" ]] && extra_assets+=("$pkg")
+done
 
 read -rp "Commit, tag, push and publish $tag? [y/N] " answer
 [[ "$answer" == [yY]* ]] || die "Cancelled; nothing was published"
@@ -67,7 +79,7 @@ git tag -a "$tag" -m "Tablet Center $version"
 git push --quiet --atomic origin main "$tag"
 
 info "Creating the GitHub release"
-gh release create "$tag" "$ASSET" "$ASSET.sha256" \
+gh release create "$tag" "$ASSET" "$ASSET.sha256" "${extra_assets[@]}" \
     --repo "$REPO" --verify-tag --title "Tablet Center $tag" --generate-notes
 
 info "Done: https://github.com/$REPO/releases/tag/$tag"

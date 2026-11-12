@@ -578,6 +578,7 @@ pub fn wacom_vendor(vendor: u16) -> bool {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Family {
     IntuosS, IntuosSWireless, IntuosM, IntuosMWireless,
+    OneByWacomS,
     OneS, OneM, One12, One13Touch,
     ProS, ProM, ProL, Pro2013S, Pro2013M, Pro2013L,
 }
@@ -586,7 +587,7 @@ impl Family {
     pub fn express_keys(self) -> usize {
         use Family::*;
         match self {
-            OneS | OneM | One12 | One13Touch => 0,
+            OneByWacomS | OneS | OneM | One12 | One13Touch => 0,
             ProS | Pro2013S => 6,
             ProM | ProL | Pro2013M | Pro2013L => 8,
             IntuosS | IntuosSWireless | IntuosM | IntuosMWireless => 4,
@@ -626,6 +627,7 @@ pub const MODELS: &[Model] = &[
     Model { ids: &[0x0375], name: "Intuos M", number: "CTL-6100", family: Family::IntuosM },
     Model { ids: &[0x0376, 0x0377, 0x03c6], name: "Intuos S", number: "CTL-4100WL", family: Family::IntuosSWireless },
     Model { ids: &[0x0378, 0x0379, 0x03c8], name: "Intuos M", number: "CTL-6100WL", family: Family::IntuosMWireless },
+    Model { ids: &[0x037a], name: "One by Wacom S", number: "CTL-472", family: Family::OneByWacomS },
     Model { ids: &[0x0100, 0x0101, 0x0104], name: "Wacom One S", number: "CTC4110WL", family: Family::OneS },
     Model { ids: &[0x0102, 0x0103, 0x0105], name: "Wacom One M", number: "CTC6110WL", family: Family::OneM },
     Model { ids: &[0x03ce], name: "Wacom One 12", number: "DTC121", family: Family::One12 },
@@ -972,11 +974,11 @@ mod tests {
     #[test]
     fn wacom_one_models_are_recognised_without_express_keys() {
         assert!(wacom_vendor(0x0531) && wacom_vendor(0x056a) && !wacom_vendor(0x256c));
-        for product in [0x0100, 0x0103, 0x03cb, 0x03ce] {
+        for product in [0x0100, 0x0103, 0x037a, 0x03cb, 0x03ce] {
             assert_eq!(express_key_count(product), 0);
         }
-        assert!(wireless_model(0x0101) && !wireless_model(0x03ce));
-        assert!(pen_display(0x03cb) && pen_display(0x03ce) && !pen_display(0x0100));
+        assert!(wireless_model(0x0101) && !wireless_model(0x03ce) && !wireless_model(0x037a));
+        assert!(pen_display(0x03cb) && pen_display(0x03ce) && !pen_display(0x0100) && !pen_display(0x037a));
         let screen = |id: &str| Display { id: id.into(), ..Default::default() };
         let displays = [screen("DEL|DELL S2721QS|1"), screen("WAC|Wacom One 12|2")];
         assert_eq!(own_screen(&displays).map(|d| d.id.as_str()), Some("WAC|Wacom One 12|2"));

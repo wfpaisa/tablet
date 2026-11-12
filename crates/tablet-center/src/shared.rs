@@ -105,7 +105,9 @@ pub fn device_art(product: u16) -> DeviceArt {
         Some(IntuosSWireless) => art!("intuos-s-wl-wacom", t::INTUOS_S_WL_RATIO, "intuos-pen"),
         Some(IntuosM) => art!("intuos-m-wacom", t::INTUOS_M_RATIO, "intuos-pen"),
         Some(IntuosMWireless) => art!("intuos-m-wl-wacom", t::INTUOS_M_WL_RATIO, "intuos-pen"),
-        Some(OneS | OneM) => art!("wacom-one-wacom", t::ONE_RATIO, "wacom-one-pen-wacom"),
+        Some(OneS | OneM | OneByWacomS) => {
+            art!("wacom-one-wacom", t::ONE_RATIO, "wacom-one-pen-wacom")
+        }
         Some(One12) => art!("wacom-one-12-wacom", t::ONE_12_RATIO, "wacom-one-pen-wacom"),
         Some(One13Touch) => art!(
             "wacom-one-13-touch-wacom",
@@ -179,7 +181,7 @@ pub fn art_ratio(product: u16) -> Option<f32> {
         ProM => Some(t::PRO_M_KEYS_RATIO),
         ProL => Some(t::PRO_L_KEYS_RATIO),
         IntuosM | IntuosSWireless | IntuosMWireless => Some(device_art(product).ratio),
-        IntuosS | OneS | OneM | One12 | One13Touch => None,
+        IntuosS | OneS | OneM | One12 | One13Touch | OneByWacomS => None,
     }
 }
 pub fn key_spot(product: u16, index: usize, _count: usize) -> (f32, f32) {
@@ -194,7 +196,7 @@ pub fn key_spot(product: u16, index: usize, _count: usize) -> (f32, f32) {
         Some(ProS) => column(t::PRO_S_KEY_X, &t::PRO_S_KEY_Y),
         Some(ProM) => column(t::PRO_M_KEY_X, &t::PRO_M_KEY_Y),
         Some(ProL) => column(t::PRO_L_KEY_X, &t::PRO_L_KEY_Y),
-        Some(OneS | OneM | One12 | One13Touch) | None => {
+        Some(OneS | OneM | One12 | One13Touch | OneByWacomS) | None => {
             (d::PX_0_23 + index as f32 * d::PX_0_18, d::PX_0_13)
         }
     }
@@ -203,7 +205,7 @@ pub fn key_spot(product: u16, index: usize, _count: usize) -> (f32, f32) {
 pub fn active_surface(product: u16) -> [f32; 4] {
     match family(product) {
         Some(IntuosM | IntuosMWireless) => t::INTUOS_M_ACTIVE,
-        Some(OneS | OneM) => t::ONE_ACTIVE,
+        Some(OneS | OneM | OneByWacomS) => t::ONE_ACTIVE,
         Some(One12) => t::ONE_12_ACTIVE,
         Some(One13Touch) => t::ONE_13_ACTIVE,
         Some(ProS) => t::PRO_S_ACTIVE,
