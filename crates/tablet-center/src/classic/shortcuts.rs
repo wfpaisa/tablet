@@ -64,9 +64,7 @@ pub fn title(key: Shortcut) -> &'static str {
 }
 fn icon(ui: &Ui, name: &str, r: Rect, color: egui::Color32) {
     let source = match name {
-        "home" => crate::icons::source("house"),
-        "gesture" => crate::icons::source("move"),
-        "close" => crate::icons::source("x"),
+        "home" | "gesture" | "close" => crate::icons::source(name),
         _ => devices::action_icon(name),
     };
     egui::Image::new(source).tint(color).paint_at(ui, r);

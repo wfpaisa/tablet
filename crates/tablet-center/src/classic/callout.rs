@@ -141,7 +141,7 @@ pub fn card(
         label,
         tone,
     );
-    egui::Image::new(crate::icons::source("chevron-right"))
+    egui::Image::new(crate::icons::source("next"))
         .tint(t::MUTED)
         .paint_at(
             ui,

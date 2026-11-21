@@ -146,18 +146,17 @@ pub(super) fn touch_ring(
                         t::TEXT,
                     );
                     if c.touch_ring.get(i) == Some(&action) {
-                        egui::Image::new(egui::include_image!(
-                            "../../../../../assets/icons/select-check.svg"
-                        ))
-                        .paint_at(
-                            ui,
-                            rect(
-                                row.right() - menu::PX_24,
-                                row.center().y - menu::PX_7,
-                                menu::PX_14,
-                                menu::PX_14,
-                            ),
-                        );
+                        egui::Image::new(crate::icons::source("select-check"))
+                            .tint(t::STROKE)
+                            .paint_at(
+                                ui,
+                                rect(
+                                    row.right() - menu::PX_24,
+                                    row.center().y - menu::PX_7,
+                                    menu::PX_14,
+                                    menu::PX_14,
+                                ),
+                            );
                     }
                     if response.clicked() {
                         c.touch_ring.resize(4, RingAction::Disabled);
@@ -312,7 +311,7 @@ pub(super) fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Respons
         t::font(d::PX_14),
         t::interaction::ACCENT_SOFT,
     );
-    egui::Image::new(crate::icons::source("chevron-right"))
+    egui::Image::new(crate::icons::source("next"))
         .tint(t::interaction::ACCENT_SOFT)
         .paint_at(
             ui,

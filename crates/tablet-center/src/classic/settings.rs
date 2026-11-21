@@ -647,18 +647,17 @@ fn select_overlay(ui: &mut Ui, l: &mut Locale, state: &mut State) {
                                 t::TEXT,
                             );
                             if selected {
-                                egui::Image::new(egui::include_image!(
-                                    "../../../../assets/icons/select-check.svg"
-                                ))
-                                .paint_at(
-                                    ui,
-                                    rect(
-                                        r.right() - s::PX_24,
-                                        r.center().y - s::PX_7,
-                                        s::PX_14,
-                                        s::PX_14,
-                                    ),
-                                );
+                                egui::Image::new(crate::icons::source("select-check"))
+                                    .tint(t::STROKE)
+                                    .paint_at(
+                                        ui,
+                                        rect(
+                                            r.right() - s::PX_24,
+                                            r.center().y - s::PX_7,
+                                            s::PX_14,
+                                            s::PX_14,
+                                        ),
+                                    );
                             }
                             if delta != 0 && index == state.active_option {
                                 response.scroll_to_me(Some(egui::Align::Center));

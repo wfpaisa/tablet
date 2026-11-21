@@ -162,6 +162,8 @@ pen's serial number. Stop the daemon with SIGTERM, not SIGKILL.
 - Fonts: [Roboto](https://github.com/googlefonts/roboto-classic), SIL Open
   Font License.
 - App icon: created for this project.
+- UI icons: [Hugeicons](https://hugeicons.com) Stroke Rounded, see
+  `assets/icons/app/README.md`.
 
 ## License
 

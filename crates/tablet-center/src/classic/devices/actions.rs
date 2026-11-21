@@ -319,7 +319,7 @@ pub(super) fn actions(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, sl
             ui.painter()
                 .rect_filled(close, t::CONTROL_RADIUS, t::RAISED);
         }
-        egui::Image::new(crate::icons::source("x"))
+        egui::Image::new(crate::icons::source("close"))
             .tint(crate::widgets::hover_color(&response, t::MUTED, t::TEXT))
             .paint_at(ui, close.shrink(t::SPACE_6));
         if response.clicked() {

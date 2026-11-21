@@ -59,10 +59,10 @@ pub fn show(ui: &mut Ui, r: Rect) {
     } else if title.drag_started() {
         grab(ui.ctx(), Cmd::StartDrag);
     }
-    for (i, label, command) in [
-        (0, "Minimize", Cmd::Minimized(true)),
-        (1, "Maximize", Cmd::Maximized(!maximized)),
-        (2, "Close", Cmd::Close),
+    for (i, label, command, icon) in [
+        (0, "Minimize", Cmd::Minimized(true), "window-minimize"),
+        (1, "Maximize", Cmd::Maximized(!maximized), "window-maximize"),
+        (2, "Close", Cmd::Close, "window-close"),
     ] {
         let x = r.right() - layout::CAPTION_RIGHT + i as f32 * layout::CAPTION_STEP;
         let response = click(
@@ -91,43 +91,15 @@ pub fn show(ui: &mut Ui, r: Rect) {
         if response.clicked() {
             ui.ctx().send_viewport_cmd(command);
         }
-        let p = ui.painter();
-        match i {
-            0 => {
-                p.line_segment(
-                    [
-                        pos2(x - t::SPACE_3, layout::CAPTION_Y),
-                        pos2(x + t::SPACE_3, layout::CAPTION_Y),
-                    ],
-                    Stroke::new(layout::GLYPH_STROKE, t::TEXT),
-                );
-            }
-            1 => {
-                p.rect_stroke(
-                    rect(x - t::SPACE_3, layout::MAXIMIZE_TOP, t::SPACE_6, t::SPACE_6),
-                    1,
-                    Stroke::new(layout::GLYPH_STROKE, t::TEXT),
-                    StrokeKind::Inside,
-                );
-            }
-            _ => {
-                for sign in [-1., 1.] {
-                    p.line_segment(
-                        [
-                            pos2(
-                                x - layout::CLOSE_HALF,
-                                layout::CAPTION_Y - layout::CLOSE_HALF * sign,
-                            ),
-                            pos2(
-                                x + layout::CLOSE_HALF,
-                                layout::CAPTION_Y + layout::CLOSE_HALF * sign,
-                            ),
-                        ],
-                        Stroke::new(layout::GLYPH_STROKE, t::TEXT),
-                    );
-                }
-            }
-        }
+        egui::Image::new(crate::icons::source(icon))
+            .tint(t::TEXT)
+            .paint_at(
+                ui,
+                Rect::from_center_size(
+                    pos2(x, layout::CAPTION_Y),
+                    vec2(layout::CAPTION_ICON, layout::CAPTION_ICON),
+                ),
+            );
     }
 }
 pub fn finish(ui: &mut Ui, r: Rect) {

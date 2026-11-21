@@ -65,7 +65,7 @@ fn devices_screenshots() {
                 .to_rgb8();
             let rmse = page_rmse(&reference, &actual);
             println!("{name}: RMSE {rmse:.7}");
-            // Lucide icons and restyled sliders differ from the reference on purpose;
+            // Replacement icons and restyled sliders differ from the reference on purpose;
             // the pen and ExpressKeys pages use callouts instead.
             let limit = if matches!(suffix, "pen" | "expresskeys" | "display-toggle" | "info") {
                 0.15
@@ -242,7 +242,7 @@ fn shortcuts_screenshots() {
                 .to_rgb8();
             let rmse = page_rmse(&reference, &actual);
             println!("{name}: RMSE {rmse:.7}");
-            // Lucide icons and restyled sliders differ from the reference on purpose;
+            // Replacement icons and restyled sliders differ from the reference on purpose;
             // menu pages also keep their options below the preview, not beside it.
             if rmse > 0.07 && tablet_center::classic::shortcuts::key(page).is_none() {
                 failures.push((name, rmse));

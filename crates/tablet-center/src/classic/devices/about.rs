@@ -220,7 +220,7 @@ pub(super) fn about(ui: &Ui, l: &Locale, w: f32, status: &Response) {
         ab::METERS_TOP + meters.len() as f32 * ab::METER_STEP,
     );
     crate::widgets::card(ui, r);
-    card_heading(ui, r, "pencil", &l.t("Pen input"));
+    card_heading(ui, r, "nav-pen", &l.t("Pen input"));
     for (i, (label, value, centered)) in meters.into_iter().enumerate() {
         let y = r.top() + ab::METERS_TOP + i as f32 * ab::METER_STEP;
         text(ui, r.left() + ab::PAD, y, &l.t(label), ab::LABEL, t::MUTED);

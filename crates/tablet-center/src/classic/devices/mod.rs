@@ -221,19 +221,13 @@ pub fn strip(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, focused: Op
     }
     if overflow {
         let arrow = |x: f32| rect(x, d::PX_150 + a::TOP_SHIFT, a::ARROW, d::PX_30);
-        if strip_arrow(
-            ui,
-            arrow(left),
-            "chevron-left",
-            "Previous",
-            s.app_offset > 0.,
-        ) {
+        if strip_arrow(ui, arrow(left), "previous", "Previous", s.app_offset > 0.) {
             s.app_offset -= a::STEP;
         }
         if strip_arrow(
             ui,
             arrow(right - a::ARROW),
-            "chevron-right",
+            "next",
             "Next",
             s.app_offset < max_offset,
         ) {
@@ -314,7 +308,7 @@ pub fn strip(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, focused: Op
                     ui.painter()
                         .circle_filled(close.rect.center(), a::CLOSE / 2., t::TRACK);
                 }
-                egui::Image::new(crate::icons::source("x"))
+                egui::Image::new(crate::icons::source("close"))
                     .tint(crate::widgets::hover_color(close, t::MUTED, t::TEXT))
                     .paint_at(
                         ui,
@@ -362,7 +356,7 @@ pub fn strip(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, focused: Op
         StrokeKind::Inside,
     );
     let color = crate::widgets::hover_color(&response, t::MUTED, t::TEXT);
-    egui::Image::new(crate::icons::source("plus"))
+    egui::Image::new(crate::icons::source("add"))
         .tint(color)
         .paint_at(
             ui,

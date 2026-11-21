@@ -97,9 +97,8 @@ pub mod frame_layout {
     pub const CAPTION_STEP: f32 = 32.0;
     pub const CAPTION_Y: f32 = 21.0;
     pub const CAPTION_SIZE: f32 = 26.0;
-    pub const GLYPH_STROKE: f32 = 1.4;
+    pub const CAPTION_ICON: f32 = 14.0;
     pub const MAXIMIZE_TOP: f32 = 18.0;
-    pub const CLOSE_HALF: f32 = 2.5;
     /// Resize grip along each window edge.
     pub const EDGE: f32 = 8.0;
     /// Resize grip at each window corner.

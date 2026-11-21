@@ -69,14 +69,14 @@ pub const LOGO: egui::ImageSource<'static> = egui::include_image!("../../../asse
 /// Classic navigation glyph: Devices, Shortcuts, Settings, then the sidebar pages.
 pub fn icon(index: usize) -> egui::ImageSource<'static> {
     const NAMES: [&str; 8] = [
-        "tablet",
-        "layout-grid",
-        "settings",
-        "pencil",
-        "keyboard",
-        "monitor",
-        "refresh-cw",
-        "hand",
+        "nav-devices",
+        "nav-shortcuts",
+        "nav-settings",
+        "nav-pen",
+        "nav-express-keys",
+        "nav-mapping",
+        "nav-display-toggle",
+        "nav-touch",
     ];
     crate::icons::source(NAMES[index])
 }
