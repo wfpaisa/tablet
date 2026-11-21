@@ -65,7 +65,8 @@ pub struct State {
     pub select: Option<usize>,
     pub dialog: Option<Dialog>,
     pub title: String,
-    pub toast: Option<(String, Instant)>,
+    /// Message, when it appeared and how long it stays.
+    pub toast: Option<(String, Instant, Duration)>,
     pub backups: Vec<system::BackupInfo>,
     pub autostart: bool,
     pub blur: bool,
@@ -193,13 +194,20 @@ impl State {
             UpdateEvent::Checked { .. } => {}
             UpdateEvent::Installed(Ok(())) => {
                 self.update = None;
-                self.notify(l.t("Update installed. Restart Tablet Center to use it."));
+                // Twice as long: the user has to act on it.
+                self.notify_for(
+                    l.t("Update installed. Restart Tablet Center to use it."),
+                    s::TOAST_MS * 2,
+                );
             }
             UpdateEvent::Installed(Err(error)) => self.notify(error),
         }
     }
     pub fn notify(&mut self, message: String) {
-        self.toast = Some((message, Instant::now()));
+        self.notify_for(message, s::TOAST_MS);
+    }
+    fn notify_for(&mut self, message: String, ms: u64) {
+        self.toast = Some((message, Instant::now(), Duration::from_millis(ms)));
     }
     pub fn initialize(&mut self, ctx: &egui::Context) {
         if self.initialized {
@@ -1061,14 +1069,13 @@ pub fn dialog(ui: &mut Ui, l: &Locale, c: &mut Config, state: &mut State) {
     }
 }
 pub fn toast(ui: &mut Ui, state: &mut State) {
-    if let Some((message, time)) = &state.toast {
-        if time.elapsed() > Duration::from_millis(s::TOAST_MS) {
+    if let Some((message, time, duration)) = &state.toast {
+        if time.elapsed() > *duration {
             state.toast = None;
             return;
         }
-        ui.ctx().request_repaint_after(
-            Duration::from_millis(s::TOAST_MS).saturating_sub(time.elapsed()),
-        );
+        ui.ctx()
+            .request_repaint_after(duration.saturating_sub(time.elapsed()));
         let w = width(ui, message, s::PX_15) + s::PX_36;
         let bounds = crate::widgets::view(ui);
         let r = rect(

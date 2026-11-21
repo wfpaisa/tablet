@@ -208,8 +208,12 @@ pub mod sidebar_layout {
     pub const SWITCH_LABEL_TOP: f32 = 42.0;
     pub const SWITCH_FONT: f32 = 12.5;
     /// Settings row pinned to the bottom, under a divider.
-    pub const FOOTER: f32 = 60.0;
+    pub const FOOTER: f32 = 74.0;
     pub const FOOTER_ITEM_TOP: f32 = 10.0;
+    /// Installed version in the bottom-right corner, under Settings.
+    pub const VERSION_FONT: f32 = 10.5;
+    pub const VERSION_RIGHT: f32 = 14.0;
+    pub const VERSION_BOTTOM: f32 = 7.0;
 }
 
 /// Dimensions from the original control CSS.

@@ -141,6 +141,16 @@ pub fn navigation(
     if response.clicked() {
         *tab = 2;
     }
+    ui.painter().text(
+        pos2(
+            t::SIDEBAR - layout::VERSION_RIGHT,
+            h - layout::VERSION_BOTTOM,
+        ),
+        Align2::RIGHT_BOTTOM,
+        format!("v{}", crate::update::CURRENT),
+        t::font(layout::VERSION_FONT),
+        t::FAINT,
+    );
 }
 /// Device pages under the switch.
 pub fn sidebar(
