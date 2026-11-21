@@ -156,8 +156,12 @@ ext_dir="$HOME/.local/share/gnome-shell/extensions/$ext"
 new_ext=true
 [ -d "$ext_dir" ] && new_ext=false
 install_extension() {
-	mkdir -p "$ext_dir"
+	mkdir -p "$ext_dir/icons" "$ext_dir/locales"
 	install -m 644 gnome-extension/$ext/* "$ext_dir/"
+	install -m 644 assets/locales/*.json "$ext_dir/locales/"
+	for icon in mode-pen mode-mouse mode-relative mode-arrow; do
+		sed 's/currentColor/#fff/g' "assets/icons/app/$icon.svg" > "$ext_dir/icons/$icon.svg"
+	done
 	enabled=$(gsettings get org.gnome.shell enabled-extensions)
 	case "$enabled" in
 	*"'$ext'"*) ;;

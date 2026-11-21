@@ -4,6 +4,7 @@ pub mod devices;
 pub mod pen;
 pub mod settings;
 pub mod shortcuts;
+use crate::theme::frame_layout;
 use crate::theme::sidebar_layout as layout;
 use crate::{
     assets, theme as t,
@@ -15,14 +16,30 @@ use egui::{pos2, Align2, Stroke, StrokeKind, Ui};
 /// navigation between both.
 pub fn navigation(ui: &mut Ui, h: f32, locale: &crate::i18n::Locale, tab: &mut usize) {
     ui.painter().rect_filled(
-        rect(1., t::TITLE_BAR, t::SIDEBAR - 1., h - t::TITLE_BAR - 1.),
+        rect(1., 1., t::SIDEBAR - 1., h - 2.),
         t::SQUARE,
-        t::PANEL,
+        t::sidebar(ui.ctx()),
     );
     ui.painter().vline(
         layout::BORDER_X,
-        t::TITLE_BAR..=h - 1.,
+        1. ..=h - 1.,
         Stroke::new(t::BORDER, t::LINE),
+    );
+    egui::Image::new(assets::LOGO).paint_at(
+        ui,
+        rect(
+            frame_layout::LOGO_LEFT,
+            frame_layout::INNER_RADIUS,
+            frame_layout::LOGO_SIZE,
+            frame_layout::LOGO_SIZE,
+        ),
+    );
+    ui.painter().text(
+        pos2(frame_layout::TITLE_LEFT, frame_layout::CAPTION_RADIUS),
+        egui::Align2::LEFT_TOP,
+        "Tablet Center",
+        t::semibold(frame_layout::CAPTION_RADIUS),
+        t::TEXT.gamma_multiply(0.8),
     );
     ui.painter().rect(
         rect(

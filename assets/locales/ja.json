@@ -71,6 +71,7 @@
   "Middle click": "中クリック",
   "Minimize": "最小化",
   "Mouse": "マウス",
+  "Relative": "相対",
   "New": "新規",
   "New backup": "バックアップを作成",
   "No backups yet.": "バックアップはありません。作成して設定を保存しましょう。",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ペン ID",
   "Pen input": "ペン入力",
   "Tilt X": "傾き X",
-  "Tilt Y": "傾き Y"
+  "Tilt Y": "傾き Y",
+  "Blur background": "背景をぼかす",
+  "Make the window translucent and blur what is behind it.": "ウィンドウを半透明にし、背後をぼかします。",
+  "Not supported by this desktop": "このデスクトップ環境は背景のぼかしに対応していません"
 }

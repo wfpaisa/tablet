@@ -71,6 +71,7 @@
   "Middle click": "가운데 클릭",
   "Minimize": "최소화",
   "Mouse": "마우스",
+  "Relative": "상대",
   "New": "새로 만들기",
   "New backup": "백업 만들기",
   "No backups yet.": "백업이 없습니다. 백업을 만들어 설정을 보관하세요.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "펜 ID",
   "Pen input": "펜 입력",
   "Tilt X": "기울기 X",
-  "Tilt Y": "기울기 Y"
+  "Tilt Y": "기울기 Y",
+  "Blur background": "배경 흐리게",
+  "Make the window translucent and blur what is behind it.": "창을 반투명하게 만들고 창 뒤의 배경을 흐리게 합니다.",
+  "Not supported by this desktop": "이 데스크톱 환경은 배경 흐림을 지원하지 않습니다"
 }

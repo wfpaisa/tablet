@@ -564,3 +564,56 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   idéntico antes y después; las 107 capturas de `just screens` son idénticas byte
   a byte a las de HEAD. `just fix` y `just check` en verde.
 - Pendiente: `actions.rs` sigue con unas 1200 líneas.
+
+## Azul y anillos de atajos (2026-11-21)
+
+- Aplicado el acento #007DFF en egui y GNOME Shell. El menú radial y Express
+  muestran botones independientes con ampliación, halo, haz y etiqueta al
+  resaltar una acción. En la vista previa, el resaltado sigue la selección
+  y también permite editar las entradas deshabilitadas.
+- Las capturas `overlay-radial-menu.png` y `overlay-express-menu.png` muestran
+  una acción resaltada sobre un fondo oscuro de prueba. Revisadas frente al
+  diseño nuevo, mientras las referencias HTML conservan el azul y el anillo
+  segmentado anteriores.
+
+## Desenfoque de fondo en Wayland (2026-11-21)
+
+- Settings → General guarda el ajuste de desenfoque junto al idioma. Empieza
+  apagado y el interruptor queda deshabilitado si el compositor no lo admite.
+  La fila está traducida a los 14 idiomas.
+- GNOME 51.1 anunció la capacidad y recibió la región redondeada de la ventana
+  al activar el ajuste. Con el ajuste apagado, la ventana no solicitó una
+  región de desenfoque.
+- El haz de los menús radial y Express se abre de unos 10 px junto al centro
+  al 70 % del diámetro del botón activo, tanto en egui como en GNOME Shell.
+  De las 138 imágenes comparadas, solo cambian las tres con el haz visible.
+- La fila de desenfoque aparece al inicio de General. Si el compositor no
+  anuncia soporte, el interruptor se muestra apagado y deshabilitado con una
+  nota. La captura con desenfoque activo usa un degradado para mostrar la
+  translucidez.
+
+## Aviso de cambio de modo (2026-11-21)
+
+- Los cambios activados desde el lápiz o una ExpressKey muestran un aviso
+  centrado con los modos anterior y nuevo. GNOME Shell lo dibuja por D-Bus.
+  Ante un error, tablet-center recibe el cambio por stdin. Ambos reutilizan
+  el halo y el aro del menú radial y los textos de los 14 idiomas.
+- Verificado en GNOME 51.1 y X11/XWayland aislados. El aviso se reemplaza
+  al recibir otro cambio y se oculta al vencer el plazo. En Wayland puro,
+  el compositor puede dar foco a la ventana de respaldo.
+- Revisadas las capturas del aviso y de Ajustes. La tarjeta del aviso es
+  translúcida. El desenfoque se aplica a la ventana de Ajustes cuando el
+  compositor lo admite.
+
+## Barra de título integrada y botones de la vista general (2026-11-21)
+
+- El logo y «Tablet Center» pasan a la parte superior de la barra lateral. La
+  barra de título ya no tiene fondo propio; conserva arrastre, doble clic y
+  los botones de ventana.
+- Con desenfoque, la barra lateral es más translúcida (alpha 140) y el
+  contenido más opaco (alpha 228).
+- Los accesos de la vista general (ExpressKeys, Asignación, Cambiar de
+  pantalla, Lápiz) son píldoras de vidrio oscuro con insignia de color de
+  acento y chevron. La captura `classic-dark-devices` usa el margen de 0.15.
+- Iconos de los modos del aviso: `mode-pen`, `mode-mouse`, `mode-relative`,
+  `mode-arrow` en `assets/icons/app`.

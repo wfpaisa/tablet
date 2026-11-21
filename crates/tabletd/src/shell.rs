@@ -6,9 +6,13 @@
 use std::{
     sync::mpsc::{self, Sender},
     thread,
+    time::Duration,
 };
 
+use tablet_config::PenMode;
+
 pub enum Feedback {
+    ModeChanged { from: PenMode, to: PenMode },
     Precision { x: i32, y: i32, w: i32, h: i32 },
     HidePrecision,
     /// A ring at a desktop point that fills in over the given milliseconds.
@@ -22,7 +26,17 @@ pub enum Feedback {
 const BUS_NAME: &str = "dev.tabletcenter.Shell";
 const PATH: &str = "/dev/tabletcenter/Shell";
 
-pub fn spawn() -> Sender<Feedback> {
+pub const REPLY_TIMEOUT: Duration = Duration::from_millis(150);
+
+fn mode_name(mode: PenMode) -> &'static str {
+    match mode {
+        PenMode::Pen => "pen",
+        PenMode::Mouse => "mouse",
+        PenMode::Relative => "relative",
+    }
+}
+
+pub fn spawn(mode_fallback: impl Fn(PenMode, PenMode) + Send + 'static) -> Sender<Feedback> {
     let (tx, rx) = mpsc::channel::<Feedback>();
     thread::spawn(move || {
         // Connected on demand and dropped after a failed call: tabletd may
@@ -31,11 +45,14 @@ pub fn spawn() -> Sender<Feedback> {
         let mut conn: Option<zbus::blocking::Connection> = None;
         for feedback in rx {
             if conn.is_none() {
-                conn = zbus::blocking::Connection::session().ok();
+                conn = zbus::blocking::connection::Builder::session()
+                    .and_then(|builder| builder.method_timeout(REPLY_TIMEOUT).build())
+                    .ok();
             }
             let reply = match conn.as_ref() {
                 None => Err(zbus::Error::Failure("no session bus".into())),
                 Some(conn) => match &feedback {
+                    Feedback::ModeChanged { from, to } => conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "ShowModeOsd", &(mode_name(*from), mode_name(*to))),
                     Feedback::HoldRing { x, y, ms } => {
                         conn.call_method(Some(BUS_NAME), PATH, Some(BUS_NAME), "ShowHoldRing", &(x, y, ms))
                     }
@@ -51,8 +68,10 @@ pub fn spawn() -> Sender<Feedback> {
             if reply.is_err() {
                 conn = None;
             }
-            if let Feedback::Menu { shown, .. } = feedback {
-                let _ = shown.send(reply.is_ok());
+            match feedback {
+                Feedback::Menu { shown, .. } => { let _ = shown.send(reply.is_ok()); }
+                Feedback::ModeChanged { from, to } if reply.is_err() => mode_fallback(from, to),
+                _ => {}
             }
         }
     });

@@ -122,10 +122,14 @@ fn isolated_settings_commands() {
 }
 
 fn native_settings_ui_round_trip() {
-    use egui_kittest::{kittest::Queryable, Harness};
+    use egui_kittest::{
+        kittest::{NodeT as _, Queryable},
+        Harness,
+    };
     let mut app = tablet_center::App::simulated();
     app.tab = 2;
     app.settings.native = true;
+    app.settings.blur_supported = Some(true);
     // Tall enough to show the backups section without scrolling.
     let mut h = Harness::builder()
         .with_size(egui::vec2(1100., 1600.))
@@ -143,6 +147,23 @@ fn native_settings_ui_round_trip() {
     }
     h.run_steps(3);
     settle(&mut h);
+    assert!(!h.state().settings.blur && !system::blur_enabled());
+    h.get_by_label("Blur background").click();
+    settle(&mut h);
+    assert!(h.state().settings.blur && system::blur_enabled());
+    for support in [None, Some(false)] {
+        h.state_mut().settings.blur_supported = support;
+        h.run_steps(2);
+        let switch = h.get_by_label("Blur background").accesskit_node();
+        assert!(switch.is_disabled());
+        assert_eq!(switch.toggled(), Some(egui::accesskit::Toggled::False));
+        assert!(system::blur_enabled());
+    }
+    h.state_mut().settings.blur_supported = Some(true);
+    h.run_steps(2);
+    h.get_by_label("Blur background").click();
+    settle(&mut h);
+    assert!(!h.state().settings.blur && !system::blur_enabled());
     h.state_mut().config.pen.click_threshold = 61;
     h.get_by_label("Create backup").click();
     h.run_steps(2);

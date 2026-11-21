@@ -218,6 +218,8 @@ impl PenProcessor {
         changed
     }
 
+    pub fn mode(&self) -> PenMode { self.config.pen.mode }
+
     pub fn relative_mode(&self) -> bool { self.config.pen.mode == PenMode::Relative }
 
     /// Mode toggle: Pen and Relative.

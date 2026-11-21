@@ -71,6 +71,7 @@
   "Middle click": "Mittelklick",
   "Minimize": "Minimieren",
   "Mouse": "Maus",
+  "Relative": "Relativ",
   "New": "Neu",
   "New backup": "Sicherung erstellen",
   "No backups yet.": "Noch keine Sicherungen. Erstellen Sie eine, um Ihre Einstellungen zu sichern.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "Stift-ID",
   "Pen input": "Stifteingabe",
   "Tilt X": "Neigung X",
-  "Tilt Y": "Neigung Y"
+  "Tilt Y": "Neigung Y",
+  "Blur background": "Hintergrund weichzeichnen",
+  "Make the window translucent and blur what is behind it.": "Macht das Fenster durchscheinend und zeichnet den Hintergrund weich.",
+  "Not supported by this desktop": "Diese Desktop-Umgebung unterstützt keine Hintergrundunschärfe"
 }

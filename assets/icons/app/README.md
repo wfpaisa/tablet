@@ -63,3 +63,7 @@ to SVG paths by `/home/projects/ia/icons/scripts/font_to_svg.py`).
 | `window-minimize.svg` | `minus-sign` | Title bar: minimize |
 | `window-maximize.svg` | `square` | Title bar: maximize |
 | `window-close.svg` | `cancel-01` | Title bar: close |
+| `mode-pen.svg` | `pen-01` | Mode change notice: Pen |
+| `mode-mouse.svg` | `mouse-01` | Mode change notice: Mouse |
+| `mode-relative.svg` | `move` | Mode change notice: Relative mouse |
+| `mode-arrow.svg` | `arrow-right-02` | Mode change notice: arrow between modes |

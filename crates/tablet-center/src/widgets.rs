@@ -240,7 +240,7 @@ pub fn card(ui: &Ui, r: Rect) {
     ui.painter().rect(
         r,
         t::CARD_RADIUS,
-        t::PANEL,
+        t::panel(ui.ctx()),
         Stroke::new(t::BORDER, t::LINE),
         StrokeKind::Inside,
     );

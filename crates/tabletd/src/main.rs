@@ -25,7 +25,7 @@ use std::{
     os::fd::AsRawFd,
     time::{Duration, Instant},
 };
-use tablet_config::{Config, DeviceInfo, Display, Gesture, KeyAction, PenState, Request, Response, Shortcut};
+use tablet_config::{Config, DeviceInfo, Display, Gesture, KeyAction, PenMode, PenState, Request, Response, Shortcut};
 
 #[derive(Default)]
 struct Shared {
@@ -83,6 +83,8 @@ struct Shared {
     pen_active: Mutex<Option<Instant>>,
     /// `tablet-center --shortcut-host`, which shows on-screen shortcuts.
     shortcut_host: Mutex<Option<(Child, ChildStdin)>>,
+    /// The X11/XWayland mode notification window can bypass the window manager.
+    mode_host: Mutex<Option<(Child, ChildStdin)>>,
 }
 
 struct Outputs {
@@ -123,9 +125,19 @@ fn main() {
     let shared = Arc::new(Shared {
         config: RwLock::new(tablet_config::load()),
         double_click_ms: AtomicU64::new(devices::double_click_time().as_millis() as u64),
-        shell: Mutex::new(Some(shell::spawn())),
         ..Default::default()
     });
+    let osd = Arc::downgrade(&shared);
+    let shell = shell::spawn(move |from, to| {
+        if let Some(shared) = osd.upgrade() {
+            let x11 = std::env::var_os("DISPLAY").is_some_and(|display| !display.is_empty());
+            let host = if x11 { &shared.mode_host } else { &shared.shortcut_host };
+            send_to_shortcut_host(host, serde_json::json!({
+                "name": "mode_osd", "from": from, "to": to,
+            }), x11);
+        }
+    });
+    *shared.shell.lock().unwrap() = Some(shell);
     let focus = Arc::clone(&shared);
     shell::watch_focus(move |id| {
         let mut current = focus.focused_app.lock().unwrap();
@@ -384,6 +396,7 @@ fn pump(
     loop {
         let effects = shared.pad_effects.load(Ordering::Acquire);
         let effects_changed = processor.set_pad_effects(effects);
+        let previous_mode = processor.mode();
         let toggles = shared.mode_toggles.load(Ordering::Acquire);
         #[allow(clippy::manual_is_multiple_of)] // Keep compatibility with older Rust toolchains.
         let mode_changed = (toggles - mode_toggles) % 2 != 0;
@@ -391,8 +404,10 @@ fn pump(
         mode_toggles = toggles;
         let toggles = shared.mouse_toggles.load(Ordering::Acquire);
         #[allow(clippy::manual_is_multiple_of)] // Keep compatibility with older Rust toolchains.
-        if (toggles - mouse_toggles) % 2 != 0 { processor.toggle_mouse(); }
+        let mouse_changed = (toggles - mouse_toggles) % 2 != 0;
+        if mouse_changed { processor.toggle_mouse(); }
         mouse_toggles = toggles;
+        show_mode_change(shared, previous_mode, processor.mode());
         shared.relative_mode.store(processor.relative_mode(), Ordering::Release);
         shared.mouse_mode.store(processor.mouse_mode(), Ordering::Release);
         // A held right-or-middle button shows a ring until it is decided.
@@ -402,7 +417,7 @@ fn pump(
         }
         // Joystick gestures keep emitting while the pen rests, so wake up
         // regularly while one is active.
-        let ticking = effects_changed || mode_changed || processor.wants_ticks() || pad_gesture().is_some() || effects != 0;
+        let ticking = effects_changed || mode_changed || mouse_changed || processor.wants_ticks() || pad_gesture().is_some() || effects != 0;
         let hide_in = shared.pointer_used.lock().unwrap().map(|t| POINTER_HIDE_DELAY.saturating_sub(t.elapsed()));
         let timeout = match (ticking.then_some(TICK), hide_in) {
             (Some(a), Some(b)) => Some(a.min(b)),
@@ -418,7 +433,7 @@ fn pump(
             let pen_cursor = !processor.mouse_mode() && !shared.mouse_owns_cursor.load(Ordering::Acquire);
             hide_pointer(shared, processor.state().in_proximity && pen_cursor, &mut nudge)?;
         }
-        if effects_changed || mode_changed || (ticking && last_tick.elapsed() >= TICK) {
+        if effects_changed || mode_changed || mouse_changed || (ticking && last_tick.elapsed() >= TICK) {
             let dt = last_tick.elapsed().as_secs_f64().min(0.1);
             let mut out = processor.process_frame(&[], pad_gesture());
             let tick = processor.tick(dt, pad_gesture());
@@ -454,7 +469,9 @@ fn pump(
                 processor.set_double_click_time(Duration::from_millis(shared.double_click_ms.load(Ordering::Acquire)));
                 map = new_mapping();
             }
+            let previous_mode = processor.mode();
             let mut out = processor.process_frame(&frame, pad_gesture());
+            show_mode_change(shared, previous_mode, processor.mode());
             shared.relative_mode.store(processor.relative_mode(), Ordering::Release);
             shared.mouse_mode.store(processor.mouse_mode(), Ordering::Release);
             remap(&map, &mut out.pen);
@@ -681,9 +698,16 @@ fn hold_ring(shared: &Shared, show: bool, wait: Duration) {
     }
 }
 
-/// How long to wait for the GNOME Shell extension before falling back to
-/// the Tablet Center window.
-const SHELL_MENU_WAIT: Duration = Duration::from_millis(150);
+fn show_mode_change(shared: &Shared, from: PenMode, to: PenMode) {
+    if from == to {
+        return;
+    }
+    if let Ok(shell) = shared.shell.lock() {
+        if let Some(tx) = shell.as_ref() {
+            let _ = tx.send(shell::Feedback::ModeChanged { from, to });
+        }
+    }
+}
 
 /// Asks the GNOME Shell extension to draw the menu; false if it did not.
 fn shell_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) -> bool {
@@ -691,7 +715,7 @@ fn shell_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
     let feedback = shell::Feedback::Menu { name: shortcut.name(), at, centered, shown: tx };
     let sent = shared.shell.lock().unwrap().as_ref().is_some_and(|shell| shell.send(feedback).is_ok());
-    sent && rx.recv_timeout(SHELL_MENU_WAIT).unwrap_or(false)
+    sent && rx.recv_timeout(shell::REPLY_TIMEOUT).unwrap_or(false)
 }
 
 fn show_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) {
@@ -726,13 +750,17 @@ fn show_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) {
         "at": cursor_point(shared),
         "centered": centered,
     });
+    send_to_shortcut_host(&shared.shortcut_host, request, false);
+}
+
+fn send_to_shortcut_host(host: &Mutex<Option<(Child, ChildStdin)>>, request: serde_json::Value, mode_x11: bool) {
     let mut line = request.to_string();
     line.push('\n');
-    let mut host = shared.shortcut_host.lock().unwrap();
+    let Ok(mut host) = host.lock() else { return };
     // A host that exited (or was never started) is started again.
     for _ in 0..2 {
         if host.is_none() {
-            *host = spawn_shortcut_host();
+            *host = spawn_shortcut_host(mode_x11);
         }
         let Some((_, stdin)) = host.as_mut() else { return };
         if stdin.write_all(line.as_bytes()).and_then(|()| stdin.flush()).is_ok() {
@@ -745,9 +773,13 @@ fn show_shortcut(shared: &Shared, shortcut: Shortcut, centered: bool) {
     }
 }
 
-fn spawn_shortcut_host() -> Option<(Child, ChildStdin)> {
-    let spawned = Command::new(tablet_center()).arg("--shortcut-host").stdin(Stdio::piped()).spawn();
-    match spawned {
+fn spawn_shortcut_host(mode_x11: bool) -> Option<(Child, ChildStdin)> {
+    let mut command = Command::new(tablet_center());
+    command.arg("--shortcut-host").stdin(Stdio::piped());
+    if mode_x11 {
+        command.env("TABLET_CENTER_MODE_X11", "1");
+    }
+    match command.spawn() {
         Ok(mut child) => {
             let stdin = child.stdin.take()?;
             Some((child, stdin))
@@ -774,7 +806,7 @@ fn prepare_shortcuts(shared: &Shared) {
     drop(config);
     let mut host = shared.shortcut_host.lock().unwrap();
     if used && host.is_none() {
-        *host = spawn_shortcut_host();
+        *host = spawn_shortcut_host(false);
     }
 }
 

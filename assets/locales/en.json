@@ -1,4 +1,7 @@
 {
+  "Pen": "Pen",
+  "Mouse": "Mouse",
+  "Relative": "Relative",
   "Devices manager": "Device manager",
   "Right · hold Middle": "Right click; hold for middle click",
   "Force proportions": "Keep proportions",
@@ -115,5 +118,8 @@
   "Brush size": "Brush size",
   "Rotate canvas": "Rotate canvas",
   "Undo / redo": "Undo / redo",
-  "Press the centre button to switch modes. The lit LED shows the active mode.": "Press the centre button to switch modes. The lit LED shows the active mode."
+  "Press the centre button to switch modes. The lit LED shows the active mode.": "Press the centre button to switch modes. The lit LED shows the active mode.",
+  "Blur background": "Blur background",
+  "Make the window translucent and blur what is behind it.": "Make the window translucent and blur what is behind it.",
+  "Not supported by this desktop": "Not supported by this desktop"
 }

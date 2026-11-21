@@ -1,47 +1,31 @@
 //! Custom title bar, window buttons, resize handles and inner highlight.
 use crate::theme::frame_layout as layout;
 use crate::{
-    assets, theme as t,
+    theme as t,
     widgets::{click, rect, text},
 };
 use egui::{pos2, vec2, Rect, Stroke, StrokeKind, Ui, ViewportCommand as Cmd};
+
+pub fn inner(ctx: &egui::Context) -> Rect {
+    ctx.content_rect().shrink(t::BORDER)
+}
+
 pub fn show(ui: &mut Ui, r: Rect) {
-    ui.painter().rect_filled(r, t::WINDOW_RADIUS, t::BG);
+    // The title bar has no fill of its own: the sidebar (with the logo) and
+    // the content run up to the top edge. In glass mode the content fill
+    // stops at the sidebar so both alphas stay independent.
+    let mut radius = egui::CornerRadius::same(t::WINDOW_RADIUS);
+    let left = if t::glass(ui.ctx()) {
+        radius.nw = t::SQUARE;
+        radius.sw = t::SQUARE;
+        t::SIDEBAR
+    } else {
+        0.
+    };
     ui.painter().rect_filled(
-        rect(1., 1., r.width() - t::SPACE_2, t::TITLE_BAR - 1.),
-        t::INNER_RADIUS,
-        t::BAR,
-    );
-    ui.painter().rect_filled(
-        rect(
-            1.,
-            layout::BAR_SQUARE_TOP,
-            r.width() - t::SPACE_2,
-            t::TITLE_BAR - layout::BAR_SQUARE_TOP,
-        ),
-        t::SQUARE,
-        t::BAR,
-    );
-    ui.painter().hline(
-        1. ..=r.right() - 1.,
-        layout::TITLE_LINE_Y,
-        Stroke::new(t::BORDER, t::LINE),
-    );
-    egui::Image::new(assets::LOGO).paint_at(
-        ui,
-        rect(
-            layout::LOGO_LEFT,
-            layout::INNER_RADIUS,
-            layout::LOGO_SIZE,
-            layout::LOGO_SIZE,
-        ),
-    );
-    ui.painter().text(
-        pos2(layout::TITLE_LEFT, layout::CAPTION_RADIUS),
-        egui::Align2::LEFT_TOP,
-        "Tablet Center",
-        t::semibold(layout::CAPTION_RADIUS),
-        t::TEXT.gamma_multiply(0.8),
+        rect(left, 0., r.width() - left, r.height()),
+        radius,
+        t::background(ui.ctx()),
     );
     let title = ui.interact(
         rect(
@@ -110,8 +94,8 @@ pub fn finish(ui: &mut Ui, r: Rect) {
             egui::Id::new("frame-edge"),
         ))
         .rect_stroke(
-            r.shrink(1.),
-            11,
+            inner(ui.ctx()),
+            t::INNER_RADIUS,
             Stroke::new(t::BORDER, t::HIGHLIGHT),
             StrokeKind::Inside,
         );

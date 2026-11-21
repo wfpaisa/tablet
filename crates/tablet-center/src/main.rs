@@ -48,6 +48,17 @@ fn main() -> eframe::Result {
             .with_active(false)
             .with_inner_size([1., 1.])
             .with_min_inner_size([1., 1.]);
+        if std::env::var_os("TABLET_CENTER_MODE_X11").is_some() {
+            use winit::platform::x11::EventLoopBuilderExtX11;
+
+            options.event_loop_builder = Some(Box::new(|event_loop| {
+                event_loop.with_x11();
+            }));
+            options.viewport = options
+                .viewport
+                .with_window_type(egui::X11WindowType::Notification)
+                .with_override_redirect(true);
+        }
     }
     eframe::run_native(
         "Tablet Center",
@@ -65,7 +76,7 @@ fn main() -> eframe::Result {
             } else {
                 tablet_center::App::native(&cc.egui_ctx)
             };
-            app.tablet = tablet_center::tablet_input::TabletInput::new(cc);
+            app.attach_window(cc);
             Ok(Box::new(app))
         }),
     )

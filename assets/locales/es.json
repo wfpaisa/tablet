@@ -71,6 +71,7 @@
   "Middle click": "Clic central",
   "Minimize": "Minimizar",
   "Mouse": "Mouse",
+  "Relative": "Relativo",
   "New": "Nueva",
   "New backup": "Crear copia",
   "No backups yet.": "Aún no hay copias. Crea una para guardar tus ajustes.",
@@ -282,5 +283,8 @@
   "Brush size": "Tamaño del pincel",
   "Rotate canvas": "Rotar lienzo",
   "Undo / redo": "Deshacer / rehacer",
-  "Press the centre button to switch modes. The lit LED shows the active mode.": "Pulsa el botón central para cambiar de modo. El LED encendido indica el modo activo."
+  "Press the centre button to switch modes. The lit LED shows the active mode.": "Pulsa el botón central para cambiar de modo. El LED encendido indica el modo activo.",
+  "Blur background": "Desenfocar el fondo",
+  "Make the window translucent and blur what is behind it.": "Hace que la ventana sea translúcida y desenfoca lo que hay detrás.",
+  "Not supported by this desktop": "Este escritorio no admite el desenfoque"
 }

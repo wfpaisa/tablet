@@ -295,6 +295,30 @@ pub fn autostart_enabled() -> Result<bool, String> {
     Ok(autostart_path()?.is_file())
 }
 
+pub fn blur_enabled() -> bool {
+    tablet_config::config_path()
+        .with_file_name("blur")
+        .is_file()
+}
+
+pub fn set_blur_enabled(enabled: bool) -> std::io::Result<()> {
+    // Presence of this file stores the preference without a partial write.
+    let path = tablet_config::config_path().with_file_name("blur");
+    if enabled {
+        if let Some(dir) = path.parent() {
+            fs::create_dir_all(dir)?;
+        }
+        fs::File::create(path)?;
+        Ok(())
+    } else {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(error),
+        }
+    }
+}
+
 pub fn set_autostart(enabled: bool) -> Result<(), String> {
     let path = autostart_path()?;
     if enabled {
@@ -485,7 +509,7 @@ pub fn shell_menus(config: &Config, locale: &crate::i18n::Locale) -> serde_json:
         let items: Vec<_> = menus::items(&config.shortcuts, key).iter().enumerate().map(|(index,item)| {
             let name=menus::item_icon(item);
             let icon=match name.as_str() {
-                "undo"=>"edit-undo-symbolic", "redo"=>"edit-redo-symbolic", "copy"=>"edit-copy-symbolic", "paste"=>"edit-paste-symbolic", "save"=>"document-save-symbolic", "keyboard"=>"input-keyboard-symbolic",
+                "undo"=>"edit-undo-symbolic", "redo"=>"edit-redo-symbolic", "select_all"=>"edit-select-all-symbolic", "cut"=>"edit-cut-symbolic", "copy"=>"edit-copy-symbolic", "paste"=>"edit-paste-symbolic", "save"=>"document-save-symbolic", "keyboard"=>"input-keyboard-symbolic",
                 "left_click"|"right_click"|"middle_click"|"double_click"|"back"|"forward"|"pen_mouse_toggle"=>match name.as_str(){"back"=>"go-previous-symbolic","forward"=>"go-next-symbolic",_=>"input-mouse-symbolic"},
                 "display_toggle"=>"video-display-symbolic", "pan_scroll"|"pan_scroll_legacy"|"scroll"|"wheel"=>"input-tablet-symbolic", "pan_zoom"=>"zoom-fit-best-symbolic", "zoom"=>"zoom-in-symbolic", "express_menu"|"radial_menu"=>"view-more-symbolic", "app_shortcuts"=>"view-app-grid-symbolic", "keypad"=>"input-dialpad-symbolic", _=>"",
             };

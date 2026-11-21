@@ -71,6 +71,7 @@
   "Middle click": "Средний щелчок",
   "Minimize": "Свернуть",
   "Mouse": "Мышь",
+  "Relative": "Относительный режим",
   "New": "Создать",
   "New backup": "Создать копию",
   "No backups yet.": "Резервных копий пока нет. Создайте копию, чтобы сохранить настройки.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ID пера",
   "Pen input": "Ввод пера",
   "Tilt X": "Наклон X",
-  "Tilt Y": "Наклон Y"
+  "Tilt Y": "Наклон Y",
+  "Blur background": "Размытие фона",
+  "Make the window translucent and blur what is behind it.": "Делает окно полупрозрачным и размывает изображение за ним.",
+  "Not supported by this desktop": "Эта среда рабочего стола не поддерживает размытие фона"
 }

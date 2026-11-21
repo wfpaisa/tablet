@@ -23,6 +23,11 @@ rm -rf dist
 mkdir -p "$stage/bin"
 install -m 755 target/docker/release/tabletd target/docker/release/tablet-center "$stage/bin/"
 cp -r packaging gnome-extension "$stage/"
+mkdir -p "$stage/assets/icons/app"
+cp -r assets/locales "$stage/assets/"
+for asset in mode-pen.svg mode-mouse.svg mode-relative.svg mode-arrow.svg; do
+    cp "assets/icons/app/$asset" "$stage/assets/icons/app/"
+done
 cp install.sh uninstall.sh LICENSE README.md "$stage/"
 tar -C dist -czf "dist/$name.tar.gz" tablet-center
 (cd dist && sha256sum "$name.tar.gz" >"$name.tar.gz.sha256")

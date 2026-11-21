@@ -2,6 +2,7 @@
 use crate::theme::about_layout as ab;
 use crate::theme::app_strip as a;
 use crate::theme::devices_layout as d;
+use crate::theme::overview_chip as chip;
 use crate::theme::overview_layout as ov;
 use crate::theme::pen_layout as p;
 use crate::theme::run_dialog as rd;
@@ -351,7 +352,7 @@ pub fn strip(ui: &mut Ui, l: &Locale, c: &mut Config, s: &mut State, focused: Op
     ui.painter().rect(
         rr,
         t::PILL_RADIUS,
-        crate::widgets::hover_color(&response, t::PANEL, t::RAISED),
+        crate::widgets::hover_color(&response, t::panel(ui.ctx()), t::RAISED),
         Stroke::new(1., t::LINE),
         StrokeKind::Inside,
     );
@@ -583,7 +584,9 @@ fn backdrop(ui: &mut Ui, id: &str, r: egui::Rect) -> Ui {
         }
         .as_shape(r, t::CARD_RADIUS),
     );
-    child.painter().rect_filled(r, t::CARD_RADIUS, t::PANEL);
+    child
+        .painter()
+        .rect_filled(r, t::CARD_RADIUS, t::panel(child.ctx()));
     crate::widgets::mark_modal(ui.ctx());
     child
 }

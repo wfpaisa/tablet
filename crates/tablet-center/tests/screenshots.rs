@@ -3,6 +3,21 @@ use egui_kittest::Harness;
 use tablet_center::classic::devices::{PEN_LOWER, PEN_UPPER};
 // Some Vulkan drivers cannot initialize several headless devices concurrently.
 static SCREENSHOT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+fn paint_test_backdrop(ui: &egui::Ui) {
+    let rect = ui.ctx().content_rect();
+    let mut backdrop = egui::Mesh::default();
+    for (point, color) in [
+        (rect.left_top(), egui::Color32::from_rgb(37, 78, 158)),
+        (rect.right_top(), egui::Color32::from_rgb(139, 38, 118)),
+        (rect.right_bottom(), egui::Color32::from_rgb(212, 95, 43)),
+        (rect.left_bottom(), egui::Color32::from_rgb(21, 125, 122)),
+    ] {
+        backdrop.colored_vertex(point, color);
+    }
+    backdrop.add_triangle(0, 1, 2);
+    backdrop.add_triangle(0, 2, 3);
+    ui.painter().add(egui::Shape::mesh(backdrop));
+}
 /// RMSE between a reference page and a capture over the page area. The
 /// references have the original 116 px tab header; the app now shows only a
 /// 44 px title bar with the tabs in the sidebar, so pages sit 72 px higher.
@@ -66,8 +81,12 @@ fn devices_screenshots() {
             let rmse = page_rmse(&reference, &actual);
             println!("{name}: RMSE {rmse:.7}");
             // Replacement icons and restyled sliders differ from the reference on purpose;
-            // the pen and ExpressKeys pages use callouts instead.
-            let limit = if matches!(suffix, "pen" | "expresskeys" | "display-toggle" | "info") {
+            // the pen and ExpressKeys pages use callouts instead, and the overview
+            // uses dark glass shortcut pills.
+            let limit = if matches!(
+                suffix,
+                "" | "pen" | "expresskeys" | "display-toggle" | "info"
+            ) {
                 0.15
             } else {
                 // Responsive pages use the height freed by the smaller header.
@@ -261,23 +280,35 @@ fn overlay_screenshots() {
     std::fs::create_dir_all(&out).unwrap();
     for key in [
         tablet_config::Shortcut::ExpressMenu,
+        tablet_config::Shortcut::RadialMenu,
         tablet_config::Shortcut::Keypad,
         tablet_config::Shortcut::AppShortcuts,
     ] {
+        let radial = matches!(
+            key,
+            tablet_config::Shortcut::ExpressMenu | tablet_config::Shortcut::RadialMenu
+        );
         let config = tablet_config::Config::default();
         let locale = tablet_center::i18n::Locale::new("en");
+        let size = shortcuts::menu_size(shortcuts::menu(&config.shortcuts, key), key);
         let mut installed = false;
         let mut h = Harness::builder()
             .with_size(egui::vec2(1100., 720.))
             .wgpu()
             .build_ui(move |ui| {
+                if radial {
+                    ui.painter().rect_filled(
+                        ui.ctx().content_rect(),
+                        0.,
+                        tablet_center::theme::VIEW,
+                    );
+                }
                 if !installed {
                     tablet_center::assets::install(ui.ctx());
                     installed = true;
                     ui.ctx().request_repaint();
                     return;
                 }
-                let size = shortcuts::menu_size(shortcuts::menu(&config.shortcuts, key), key);
                 let request = tablet_center::overlay::ShowRequest {
                     name: key,
                     at: None,
@@ -294,12 +325,51 @@ fn overlay_screenshots() {
                 shortcuts::draw_menu(ui, &locale, &config.shortcuts, key, origin, None, false);
             });
         h.run_steps(8);
+        if radial {
+            let viewport_center = h.ctx.content_rect().center();
+            use tablet_center::theme::radial;
+            let scale = size.x / radial::DIAMETER;
+            // Hover the bottom entry (Save in Express, Copy in Radial).
+            h.event(egui::Event::PointerMoved(
+                viewport_center + egui::vec2(radial::ICON, radial::ORBIT) * scale,
+            ));
+            h.run_steps(12);
+        }
         let name = format!("overlay-{}", key.name().replace('_', "-"));
         h.render()
             .unwrap()
             .save(out.join(format!("{name}.png")))
             .unwrap();
     }
+    let locale = tablet_center::i18n::Locale::new("en");
+    let modes =
+        tablet_center::overlay::ModeOsd::parse(r#"{"name":"mode_osd","from":"pen","to":"mouse"}"#)
+            .unwrap();
+    let mut installed = false;
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1100., 720.))
+        .wgpu()
+        .build_ui(move |ui| {
+            paint_test_backdrop(ui);
+            if !installed {
+                tablet_center::assets::install(ui.ctx());
+                installed = true;
+                ui.ctx().request_repaint();
+                return;
+            }
+            tablet_center::overlay::draw_mode_osd(
+                ui,
+                &locale,
+                modes,
+                tablet_center::theme::mode_osd::SHOW_TIME
+                    + tablet_center::theme::mode_osd::POP_TIME,
+            );
+        });
+    h.run_steps(8);
+    h.render()
+        .unwrap()
+        .save(out.join("overlay-mode-osd.png"))
+        .unwrap();
     // Entry actions in the right panel, on a grid and on a radial page.
     for (page, height, name) in [
         (3, 1600., "classic-dark-shortcuts-actions-open"),
@@ -345,6 +415,25 @@ fn settings_screenshots() {
             )))
             .unwrap();
     }
+    let mut app = tablet_center::App::simulated();
+    app.tab = 2;
+    app.settings.blur_supported = Some(true);
+    app.settings.blur = true;
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1100., 720.))
+        .wgpu()
+        .build_ui_state(
+            |ui, app: &mut tablet_center::App| {
+                paint_test_backdrop(ui);
+                app.show(ui);
+            },
+            app,
+        );
+    h.run_steps(8);
+    h.render()
+        .unwrap()
+        .save(out.join("classic-dark-settings-blur-on.png"))
+        .unwrap();
     for suffix in [
         "language-open",
         "toast",
@@ -362,7 +451,7 @@ fn settings_screenshots() {
             let mut app = tablet_center::App::simulated();
             app.tab = 2;
             match suffix {
-                "language-open" => app.settings.select = Some(0),
+                "language-open" => {}
                 "create-dialog" => {
                     app.settings.dialog = Some(tablet_center::classic::settings::Dialog::Create);
                 }
@@ -392,6 +481,18 @@ fn settings_screenshots() {
                 .wgpu()
                 .build_ui_state(|ui, app: &mut tablet_center::App| app.show(ui), app);
             h.run_steps(8);
+            if suffix == "language-open" {
+                h.event(egui::Event::PointerMoved(egui::pos2(650., 580.)));
+                h.event(egui::Event::MouseWheel {
+                    unit: egui::MouseWheelUnit::Point,
+                    delta: egui::vec2(0., -150.),
+                    modifiers: egui::Modifiers::NONE,
+                    phase: egui::TouchPhase::Move,
+                });
+                h.run_steps(12);
+                h.state_mut().settings.select = Some(0);
+                h.run_steps(4);
+            }
             h.render()
                 .unwrap()
                 .save(out.join(format!(

@@ -11,6 +11,8 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
 import {MenuHost} from './menus.js';
+import {ModeOsd} from './osd.js';
+import {ACCENT} from './theme.js';
 
 const BUS_NAME = 'dev.tabletcenter.Shell';
 const OBJECT_PATH = '/dev/tabletcenter/Shell';
@@ -43,6 +45,10 @@ const INTERFACE = `
       <arg type="i" direction="in" name="x"/>
       <arg type="i" direction="in" name="y"/>
       <arg type="b" direction="in" name="centered"/>
+    </method>
+    <method name="ShowModeOsd">
+      <arg type="s" direction="in" name="from"/>
+      <arg type="s" direction="in" name="to"/>
     </method>
   </interface>
 </node>`;
@@ -126,7 +132,7 @@ class HoldRing {
         cr.arc(w / 2, h / 2, r, 0, 2 * Math.PI);
         cr.stroke();
         if (this._progress > 0) {
-            cr.setSourceRGBA(1, 1, 1, 0.95);
+            cr.setSourceRGBA(...ACCENT, 0.95);
             cr.arc(w / 2, h / 2, r, start, start + this._progress * 2 * Math.PI);
             cr.stroke();
         }
@@ -146,6 +152,7 @@ export default class TabletCenterExtension extends Extension {
         Main.layoutManager.uiGroup.add_child(this._precision);
         this._ring = new HoldRing();
         this._menus = new MenuHost();
+        this._modes = new ModeOsd(this.path);
         this._dbus = Gio.DBusExportedObject.wrapJSObject(INTERFACE, {
             GetFocusedApp: () => this._focusedApp(),
             // A lone out argument is returned bare; GJS wraps it in the reply tuple.
@@ -161,6 +168,7 @@ export default class TabletCenterExtension extends Extension {
             HidePrecision: () => this._precision.hide(),
             ShowHoldRing: (x, y, ms) => this._ring.show(x, y, ms),
             ShowMenu: (name, hasAt, x, y, centered) => this._menus.show(name, hasAt, x, y, centered),
+            ShowModeOsd: (from, to) => this._modes.show(from, to),
             HideHoldRing: () => this._ring.release(),
         });
         const emitFocus = () =>
@@ -188,6 +196,8 @@ export default class TabletCenterExtension extends Extension {
         this._precision = null;
         this._ring.destroy();
         this._menus.destroy();
+        this._modes.destroy();
+        this._modes = null;
         this._ring = this._menus = this._dbus = this._name = null;
     }
 }

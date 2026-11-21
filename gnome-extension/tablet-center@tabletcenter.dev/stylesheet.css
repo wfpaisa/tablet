@@ -28,7 +28,7 @@
   color: #eeeeee;
 }
 .tc-cell:hover {
-  background-color: #3584e4;
+  background-color: #007dff;
   color: #ffffff;
 }
 .tc-cell.tc-off {
@@ -38,24 +38,19 @@
   spacing: 4px;
   padding: 0 4px;
 }
-.tc-slice-label {
-  color: #eeeeee;
-  spacing: 3px;
+.tc-radial-icon {
+  color: #ffffff;
 }
-.tc-slice-label.tc-off {
-  color: rgba(255, 255, 255, 0.3);
-}
-.tc-hub {
-  border-radius: 999px;
-  border-width: 0;
-  box-shadow: none;
+.tc-radial-close {
   color: #d8d8d8;
+  border-radius: 999px;
 }
-.tc-hub:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+.tc-radial-label {
+  background-color: #ffffff;
+  color: #1a1a1a;
 }
 /* Picked with the pen: no keyboard focus ring. */
-.tc-hub:focus,
+.tc-radial-close:focus,
 .tc-close:focus,
 .tc-cell:focus {
   box-shadow: none;

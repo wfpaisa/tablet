@@ -1,9 +1,12 @@
 //! Persistent stdin shortcut host and transparent native overlay viewports.
+mod mode_osd;
+pub use mode_osd::{draw_mode_osd, ModeOsd};
+
 use crate::{classic::shortcuts, i18n::Locale, theme};
 use egui::{pos2, vec2, Pos2, Rect, Vec2};
 use std::{
     io::BufRead,
-    sync::mpsc,
+    sync::{mpsc, Arc, OnceLock},
     time::{Duration, Instant},
 };
 use tablet_config::{Config, KeyAction, Shortcut};
@@ -74,12 +77,26 @@ pub fn place(
         clamp(target.y, menu.y, viewport.y) - menu.y / 2.,
     )
 }
+enum HostMessage {
+    Shortcut(ShowRequest, Box<Config>),
+    Mode(ModeOsd, Arc<Locale>),
+}
+
+struct ModeNotice {
+    modes: ModeOsd,
+    locale: Arc<Locale>,
+    opened: Arc<OnceLock<Instant>>,
+    presented: bool,
+}
+
 pub struct Host {
     pub config: Config,
     pub pending: Option<ShowRequest>,
     pub shown: bool,
     monitors: Vec<Monitor>,
-    messages: mpsc::Receiver<(ShowRequest, Config)>,
+    primary: Option<Monitor>,
+    messages: mpsc::Receiver<HostMessage>,
+    mode_notice: Option<ModeNotice>,
     eof: mpsc::Receiver<()>,
     opened: Instant,
     closing: Option<(Instant, Option<KeyAction>)>,
@@ -91,37 +108,47 @@ pub struct Host {
 impl Host {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         crate::assets::install(&cc.egui_ctx);
-        let monitors = cc
-            .winit_window()
-            .map(|w| {
-                w.available_monitors()
-                    .map(|m| {
-                        let scale = m.scale_factor() as f32;
-                        let p = m.position();
-                        let size = m.size();
-                        Monitor {
-                            bounds: Rect::from_min_size(
-                                pos2(p.x as f32 / scale, p.y as f32 / scale),
-                                vec2(size.width as f32 / scale, size.height as f32 / scale),
-                            ),
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let monitor_bounds = |m: winit::monitor::MonitorHandle| {
+            let scale = m.scale_factor() as f32;
+            let p = m.position();
+            let size = m.size();
+            Monitor {
+                bounds: Rect::from_min_size(
+                    pos2(p.x as f32 / scale, p.y as f32 / scale),
+                    vec2(size.width as f32 / scale, size.height as f32 / scale),
+                ),
+            }
+        };
+        let mut primary = None;
+        let monitors = cc.winit_window().map_or_else(Vec::new, |window| {
+            primary = window
+                .primary_monitor()
+                .or_else(|| window.current_monitor())
+                .map(monitor_bounds);
+            window.available_monitors().map(monitor_bounds).collect()
+        });
         let (tx, messages) = mpsc::channel();
         let (end, eof) = mpsc::channel();
         let ctx = cc.egui_ctx.clone();
         std::thread::spawn(move || {
             for line in std::io::stdin().lock().lines() {
                 let Ok(line) = line else { break };
-                if let Some(request) = ShowRequest::parse(&line) {
-                    // Disk access stays off the event loop; read fresh settings for every opening.
-                    if tx.send((request, tablet_config::load())).is_err() {
-                        return;
-                    }
-                    ctx.request_repaint();
+                // Read fresh settings off the event loop.
+                let message = if let Some(mode) = ModeOsd::parse(&line) {
+                    let language = std::fs::read_to_string(
+                        tablet_config::config_path().with_file_name("language"),
+                    )
+                    .unwrap_or_else(|_| "en".into());
+                    HostMessage::Mode(mode, Locale::new(language.trim()).into())
+                } else if let Some(request) = ShowRequest::parse(&line) {
+                    HostMessage::Shortcut(request, Box::new(tablet_config::load()))
+                } else {
+                    continue;
+                };
+                if tx.send(message).is_err() {
+                    return;
                 }
+                ctx.request_repaint();
             }
             let _ = end.send(());
             ctx.request_repaint();
@@ -132,7 +159,9 @@ impl Host {
             pending: None,
             shown: false,
             monitors,
+            primary,
             messages,
+            mode_notice: None,
             eof,
             opened: Instant::now(),
             closing: None,
@@ -175,10 +204,68 @@ impl Host {
         self.closing = None;
         self.opened = Instant::now()
             - if replacing {
-                Duration::from_millis(160)
+                Duration::from_secs_f32(theme::interaction::OVERLAY_MAP_DELAY)
             } else {
                 Duration::ZERO
             };
+    }
+    fn mode_viewport() -> egui::ViewportId {
+        egui::ViewportId::from_hash_of("mode-osd")
+    }
+
+    fn show_mode_notice(&mut self, ctx: &egui::Context) {
+        let Some(notice) = &mut self.mode_notice else {
+            return;
+        };
+        let mut builder = egui::ViewportBuilder::default()
+            .with_title("Tablet Center mode")
+            .with_app_id("tablet-center-mode-osd")
+            .with_decorations(false)
+            .with_transparent(true)
+            .with_always_on_top()
+            .with_taskbar(false)
+            .with_active(false)
+            .with_mouse_passthrough(true)
+            .with_window_type(egui::X11WindowType::Notification)
+            .with_override_redirect(true)
+            .with_maximized(true);
+        if let Some(monitor) = self.primary.as_ref().or_else(|| self.monitors.first()) {
+            builder = builder
+                .with_position(monitor.bounds.min)
+                .with_inner_size(monitor.bounds.size());
+        }
+        let ModeNotice {
+            modes,
+            locale,
+            opened,
+            presented,
+        } = notice;
+        let (modes, locale, opened) = (*modes, locale.clone(), opened.clone());
+        ctx.show_viewport_deferred(Self::mode_viewport(), builder, move |ctx, _| {
+            use theme::mode_osd as motion;
+            let elapsed = opened.get_or_init(Instant::now).elapsed().as_secs_f32();
+            if elapsed >= motion::LIFETIME {
+                ctx.send_viewport_cmd(egui::ViewportCommand::Visible(false));
+                ctx.request_repaint_of(egui::ViewportId::ROOT);
+                return;
+            }
+            egui::CentralPanel::default()
+                .frame(egui::Frame::NONE)
+                .show(ctx, |ui| {
+                    draw_mode_osd(ui, &locale, modes, elapsed);
+                });
+            let delay =
+                if (motion::SHOW_TIME + motion::POP_TIME..motion::FADE_AT).contains(&elapsed) {
+                    Duration::from_secs_f32(motion::FADE_AT - elapsed)
+                } else {
+                    Duration::from_millis(16)
+                };
+            ctx.request_repaint_after(delay);
+        });
+        if !*presented {
+            *presented = true;
+            ctx.send_viewport_cmd_to(Self::mode_viewport(), egui::ViewportCommand::Visible(true));
+        }
     }
 }
 impl eframe::App for Host {
@@ -192,8 +279,18 @@ impl eframe::App for Host {
                 None => self.close_shortcut(),
             }
         }
-        while let Ok((request, config)) = self.messages.try_recv() {
-            self.receive(request, config);
+        while let Ok(message) = self.messages.try_recv() {
+            match message {
+                HostMessage::Shortcut(request, config) => self.receive(request, *config),
+                HostMessage::Mode(modes, locale) => {
+                    self.mode_notice = Some(ModeNotice {
+                        modes,
+                        locale,
+                        opened: Arc::default(),
+                        presented: false,
+                    });
+                }
+            }
             // Hidden roots run logic only; briefly wake the transparent anchor to create the child.
             ctx.send_viewport_cmd(egui::ViewportCommand::Visible(true));
         }
@@ -216,6 +313,23 @@ impl eframe::App for Host {
                 }
             }
         }
+        if let Some(notice) = &self.mode_notice {
+            if let Some(opened) = notice.opened.get() {
+                let remaining = Duration::from_secs_f32(theme::mode_osd::LIFETIME)
+                    .saturating_sub(opened.elapsed());
+                if remaining.is_zero() {
+                    self.mode_notice = None;
+                    ctx.send_viewport_cmd_to(
+                        Self::mode_viewport(),
+                        egui::ViewportCommand::Visible(false),
+                    );
+                } else {
+                    ctx.request_repaint_after(remaining);
+                }
+            } else {
+                ctx.request_repaint_after(Duration::from_millis(16));
+            }
+        }
         if self.shown {
             ctx.request_repaint_after(Duration::from_millis(16));
         }
@@ -223,6 +337,7 @@ impl eframe::App for Host {
     fn ui(&mut self, ui: &mut egui::Ui, _: &mut eframe::Frame) {
         ui.ctx()
             .send_viewport_cmd(egui::ViewportCommand::Visible(false));
+        self.show_mode_notice(ui.ctx());
         let Some(request) = self.pending.clone() else {
             return;
         };
@@ -274,14 +389,20 @@ impl eframe::App for Host {
                                     ui.ctx().data_mut(|d| d.insert_temp(anchor, p));
                                     Some(p)
                                 });
+                        let radial = shortcuts::is_radial(request.name);
+                        let label_margin = if radial {
+                            shortcuts::radial_label_margin(ui, m, size.x)
+                        } else {
+                            0.
+                        };
                         let origin = place(
                             &request,
                             m.at_cursor,
                             cursor,
                             &monitors,
                             ui.ctx().content_rect().size(),
-                            size,
-                        );
+                            size + vec2(0., 2. * label_margin),
+                        ) + vec2(0., label_margin);
                         let elapsed = opened.elapsed().as_secs_f32();
                         use crate::theme::interaction as motion;
                         let (opacity, scale_progress) = if let Some(start) = &closing {
@@ -291,6 +412,26 @@ impl eframe::App for Host {
                                     motion::EASE_IN,
                                 );
                             (remaining, remaining)
+                        } else if radial {
+                            // Viewport creation may take longer than the animation.
+                            let id = egui::Id::new("radial-first-frame");
+                            let first_frame = ui.ctx().data_mut(|data| {
+                                if let Some((request, first_frame)) =
+                                    data.get_temp::<(Instant, Instant)>(id)
+                                {
+                                    if request == opened {
+                                        return first_frame;
+                                    }
+                                }
+                                let first_frame = Instant::now();
+                                data.insert_temp(id, (opened, first_frame));
+                                first_frame
+                            });
+                            let progress = (first_frame.elapsed().as_secs_f32()
+                                / motion::OVERLAY_SHOW_TIME)
+                                .clamp(0., 1.);
+                            let eased = egui::emath::easing::quadratic_out(progress);
+                            (eased, eased)
                         } else {
                             let time = elapsed - motion::OVERLAY_MAP_DELAY;
                             (
@@ -335,13 +476,15 @@ impl eframe::App for Host {
                                 ui.ctx().request_repaint_of(egui::ViewportId::ROOT);
                             }
                         }
+                        let transform = ui.ctx().layer_transform_from_global(layer);
                         let (focused, escape, outside, closed) = ui.ctx().input(|i| {
                             (
                                 i.viewport().focused.unwrap_or(false),
                                 i.key_pressed(egui::Key::Escape),
                                 i.pointer.any_click()
                                     && i.pointer.interact_pos().is_some_and(|p| {
-                                        !Rect::from_min_size(origin, size).contains(p)
+                                        let local = transform.map_or(p, |transform| transform * p);
+                                        !Rect::from_min_size(origin, size).contains(local)
                                     }),
                                 i.viewport().close_requested(),
                             )
@@ -368,6 +511,38 @@ impl eframe::App for Host {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stdin_mode_osd_accepts_transitions_and_rejects_invalid_requests() {
+        use tablet_config::PenMode;
+        for (name, mode) in [("mouse", PenMode::Mouse), ("relative", PenMode::Relative)] {
+            let line = format!(r#"{{"name":"mode_osd","from":"pen","to":"{name}"}}"#);
+            assert_eq!(
+                ModeOsd::parse(&line),
+                Some(ModeOsd {
+                    from: PenMode::Pen,
+                    to: mode
+                })
+            );
+            let line = format!(r#"{{"name":"mode_osd","from":"{name}","to":"pen"}}"#);
+            assert_eq!(
+                ModeOsd::parse(&line),
+                Some(ModeOsd {
+                    from: mode,
+                    to: PenMode::Pen
+                })
+            );
+        }
+        for line in [
+            r#"{"name":"mode_osd","from":"unknown","to":"mouse"}"#,
+            r#"{"name":"mode_osd","from":"pen"}"#,
+            r#"{"name":"mode_osd","from":"pen","to":"pen"}"#,
+            r#"{"name":"keypad","from":"pen","to":"mouse"}"#,
+            "invalid JSON",
+        ] {
+            assert_eq!(ModeOsd::parse(line), None, "{line}");
+        }
+        assert!(ShowRequest::parse(r#"{"name":"mode_osd","from":"pen","to":"mouse"}"#).is_none());
+    }
     #[test]
     fn stdin_protocol_and_monitor_placement_match_shortcut_js() {
         assert!(ShowRequest::parse(r#"{"name":"unknown"}"#).is_none());
@@ -423,7 +598,9 @@ mod tests {
             pending: None,
             shown: false,
             monitors: vec![],
+            primary: None,
             messages,
+            mode_notice: None,
             eof,
             opened: Instant::now(),
             closing: None,

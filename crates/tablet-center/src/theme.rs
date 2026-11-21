@@ -1,7 +1,6 @@
 //! Classic CSS tokens and layout measurements.
 use egui::{Color32, FontFamily, FontId};
 pub const BG: Color32 = Color32::from_gray(36);
-pub const BAR: Color32 = Color32::from_gray(48);
 pub const LINE: Color32 = Color32::from_gray(58);
 pub const PANEL: Color32 = Color32::from_gray(46);
 pub const VIEW: Color32 = Color32::from_gray(30);
@@ -10,11 +9,75 @@ pub const TRACK: Color32 = Color32::from_gray(74);
 pub const TEXT: Color32 = Color32::WHITE;
 pub const MUTED: Color32 = Color32::from_gray(168);
 pub const FAINT: Color32 = Color32::from_gray(112);
-pub const ACCENT: Color32 = Color32::from_rgb(53, 132, 228);
+pub const ACCENT: Color32 = Color32::from_rgb(0, 125, 255);
+
+// Glass: the sidebar lets more of the blur through than the content.
+const GLASS_ALPHA: u8 = 194;
+const CONTENT_GLASS_ALPHA: u8 = 228;
+const SIDEBAR_GLASS_ALPHA: u8 = 140;
+const BG_GLASS: Color32 = with_alpha(BG, CONTENT_GLASS_ALPHA);
+const SIDEBAR_GLASS: Color32 = with_alpha(PANEL, SIDEBAR_GLASS_ALPHA);
+const PANEL_GLASS: Color32 = with_alpha(PANEL, GLASS_ALPHA);
+const GLASS_ID: &str = "background-glass";
+
+pub fn glass(ctx: &egui::Context) -> bool {
+    ctx.data(|data| data.get_temp(egui::Id::new(GLASS_ID)).unwrap_or(false))
+}
+
+pub fn set_glass(ctx: &egui::Context, on: bool) {
+    if glass(ctx) != on {
+        ctx.data_mut(|data| data.insert_temp(egui::Id::new(GLASS_ID), on));
+        ctx.request_repaint();
+    }
+}
+
+pub fn background(ctx: &egui::Context) -> Color32 {
+    if glass(ctx) {
+        BG_GLASS
+    } else {
+        BG
+    }
+}
+
+pub fn sidebar(ctx: &egui::Context) -> Color32 {
+    if glass(ctx) {
+        SIDEBAR_GLASS
+    } else {
+        PANEL
+    }
+}
+
+pub fn panel(ctx: &egui::Context) -> Color32 {
+    if glass(ctx) {
+        PANEL_GLASS
+    } else {
+        PANEL
+    }
+}
+
+const fn with_alpha(color: Color32, alpha: u8) -> Color32 {
+    Color32::from_rgba_unmultiplied_const(color.r(), color.g(), color.b(), alpha)
+}
+
+const fn accent_alpha(alpha: u8) -> Color32 {
+    Color32::from_rgba_unmultiplied_const(ACCENT.r(), ACCENT.g(), ACCENT.b(), alpha)
+}
+
+// Composite the accent over an opaque surface in sRGB.
+const fn accent_over(base: Color32, alpha: u8) -> Color32 {
+    const fn mix(base: u8, accent: u8, alpha: u8) -> u8 {
+        ((base as u16 * (255 - alpha as u16) + accent as u16 * alpha as u16 + 127) / 255) as u8
+    }
+    Color32::from_rgb(
+        mix(base.r(), ACCENT.r(), alpha),
+        mix(base.g(), ACCENT.g(), alpha),
+        mix(base.b(), ACCENT.b(), alpha),
+    )
+}
 pub const THUMB: Color32 = Color32::from_gray(246);
 pub const RING: Color32 = Color32::from_rgba_premultiplied(89, 89, 89, 89);
 pub const GREEN: Color32 = Color32::from_rgb(51, 209, 122);
-pub const CHIP: Color32 = Color32::from_rgb(47, 66, 87);
+pub const CHIP: Color32 = accent_over(PANEL, 57);
 pub const HIGHLIGHT: Color32 = Color32::from_gray(78);
 pub const CLEAR: Color32 = Color32::TRANSPARENT;
 /// Light under the dark pen and tablet pictures in dark mode.
@@ -86,7 +149,7 @@ pub const SPACE_91: f32 = 91.0;
 
 /// Dimensions from the original frame CSS.
 pub mod frame_layout {
-    pub const BAR_SQUARE_TOP: f32 = 25.0;
+    pub const BLUR_REGION_BAND: i32 = 2;
     pub const LOGO_LEFT: f32 = 17.0;
     pub const INNER_RADIUS: f32 = 11.0;
     pub const LOGO_SIZE: f32 = 20.0;
@@ -103,7 +166,6 @@ pub mod frame_layout {
     pub const EDGE: f32 = 8.0;
     /// Resize grip at each window corner.
     pub const CORNER: f32 = 16.0;
-    pub const TITLE_LINE_Y: f32 = super::TITLE_BAR - 0.5;
     pub const PLACEHOLDER_LEFT: f32 = 260.0;
     pub const PLACEHOLDER_TOP: f32 = 240.0;
     pub const RELEASE_DISTANCE: f32 = 10000.0;
@@ -312,10 +374,10 @@ pub const WATERMARK: Color32 = Color32::from_gray(43);
 pub const LINK: Color32 = Color32::from_rgb(170, 170, 255);
 pub const METER_BORDER: Color32 = Color32::from_gray(128);
 pub const METER_FILL: Color32 = Color32::from_rgb(119, 181, 119);
-pub const BEAM: Color32 = Color32::from_rgba_premultiplied(6, 16, 28, 31);
-pub const BEAM_EDGE: Color32 = Color32::from_rgba_premultiplied(29, 72, 125, 140);
-pub const AREA: Color32 = Color32::from_rgba_premultiplied(18, 46, 80, 89);
-pub const SCREEN: Color32 = Color32::from_rgb(41, 66, 97);
+pub const BEAM: Color32 = accent_alpha(31);
+pub const BEAM_EDGE: Color32 = accent_alpha(140);
+pub const AREA: Color32 = accent_alpha(89);
+pub const SCREEN: Color32 = accent_over(BG, 81);
 pub const DIM: Color32 = Color32::from_black_alpha(140);
 pub fn if_screen(on: bool) -> Color32 {
     if on {
@@ -327,8 +389,8 @@ pub fn if_screen(on: bool) -> Color32 {
 
 /// Soft white halo around the overview tablet, a little fainter than the pen's.
 pub const GLOW: Color32 = Color32::from_rgba_premultiplied(22, 22, 22, 22);
-pub const TOGGLE_OUTLINE: Color32 = Color32::from_rgb(54, 61, 68);
-pub const TOGGLE_BEAM: Color32 = Color32::from_rgb(37, 40, 43);
+pub const TOGGLE_OUTLINE: Color32 = accent_over(Color32::from_gray(55), 19);
+pub const TOGGLE_BEAM: Color32 = accent_over(BG, 10);
 pub const TOGGLE_DOT: Color32 = Color32::from_gray(49);
 
 pub const SCREEN_SIZE: Color32 = Color32::from_rgb(201, 209, 219);
@@ -607,9 +669,9 @@ pub mod devices_layout {
     pub const PX_845: f32 = 845.;
     pub const PX_892: f32 = 892.;
 }
-pub const DISABLED_ACCENT: Color32 = Color32::from_rgb(50, 89, 137);
+pub const DISABLED_ACCENT: Color32 = accent_over(PANEL, 128);
 
-pub const TOGGLE_BEAM_ACTIVE: Color32 = Color32::from_rgba_premultiplied(9, 24, 41, 46);
+pub const TOGGLE_BEAM_ACTIVE: Color32 = accent_alpha(46);
 
 pub const FULL_RADIUS: u8 = 255;
 
@@ -629,8 +691,6 @@ pub mod shortcuts_layout {
     pub const HOVER: Color32 = Color32::from_gray(68);
     pub const WATERMARK: Color32 = Color32::from_gray(43);
     pub const SHADOW: Color32 = Color32::from_black_alpha(115);
-    pub const RADIAL_UNITS: f32 = 204.;
-    pub const LABEL_RADIUS: f32 = 67.;
     pub const PREVIEW_WIDTH: f32 = 460.;
     pub const OPTIONS_WIDTH: f32 = 240.;
     pub const GAP: f32 = 50.;
@@ -654,6 +714,83 @@ pub mod shortcuts_layout {
     pub const GRID_HEADER: f32 = 47.;
     pub const GRID_BOTTOM: f32 = 13.;
     pub const EDGE: f32 = 8.;
+}
+
+/// Radial shortcut geometry at a 300-point diameter.
+pub mod radial {
+    use egui::{Color32, Vec2};
+
+    pub const DIAMETER: f32 = 300.;
+    pub const ORBIT: f32 = 105.;
+    pub const BUTTON_RADIUS: f32 = 28.;
+    pub const ACTIVE_RADIUS: f32 = 36.;
+    pub const HUB_RADIUS: f32 = 18.;
+    pub const ICON: f32 = 22.;
+    pub const ACTIVE_ICON: f32 = 26.;
+    pub const HUB_ICON: f32 = 16.;
+    pub const BUTTON: Color32 = Color32::from_rgba_unmultiplied_const(58, 58, 58, 224);
+    pub const BUTTON_BORDER: Color32 = super::interaction::WHITE_6;
+    pub const BUTTON_BORDER_WIDTH: f32 = 1.;
+    pub const SHADOW: Color32 = Color32::from_black_alpha(92);
+    pub const SHADOW_OFFSET: f32 = 2.;
+    pub const SHADOW_BLUR: f32 = 7.;
+    pub const HUB: Color32 = Color32::from_rgba_unmultiplied_const(90, 90, 90, 217);
+    pub const HUB_ICON_COLOR: Color32 = Color32::from_gray(216);
+    pub const DISABLED_ICON: Color32 = Color32::from_rgba_premultiplied(77, 77, 77, 77);
+    pub const RING_GAP: f32 = 2.;
+    pub const RING_WIDTH: f32 = 2.;
+    pub const HALO: Color32 = super::accent_alpha(112);
+    pub const HALO_BLUR: f32 = 10.;
+    pub const GRADIENT_SEGMENTS: u32 = 64;
+    pub const BEAM_AT_HUB: Color32 = super::accent_alpha(140);
+    pub const BEAM_AT_BUTTON: Color32 = super::accent_alpha(38);
+    pub const BEAM_HUB_WIDTH: f32 = 10.;
+    pub const BEAM_BUTTON_WIDTH_RATIO: f32 = 0.7;
+    pub const LABEL_FILL: Color32 = Color32::WHITE;
+    pub const LABEL_TEXT: Color32 = Color32::from_gray(26);
+    pub const LABEL_FONT: f32 = 14.;
+    pub const LABEL_DEFAULT_TEXT_SIZE: f32 = super::shortcuts_layout::TEXT_SIZES[2];
+    pub const LABEL_RADIUS: f32 = 8.;
+    pub const LABEL_PADDING: Vec2 = egui::vec2(12., 6.);
+    pub const LABEL_ARROW_WIDTH: f32 = 10.;
+    pub const LABEL_ARROW_HEIGHT: f32 = 6.;
+    pub const LABEL_ARROW_OVERLAP: f32 = 2.;
+    pub const LABEL_GAP: f32 = 8.;
+    pub const LABEL_SHADOW: Color32 = Color32::from_black_alpha(77);
+    pub const LABEL_SHADOW_OFFSET: f32 = 2.;
+    pub const LABEL_SHADOW_BLUR: f32 = 8.;
+    pub const HOVER_TIME: f32 = 0.12;
+
+    // Preserve the angular sectors and their inner and outer reach.
+    pub const HIT_INNER_RATIO: f32 = 34. / 204.;
+    pub const HIT_OUTER_RATIO: f32 = 100. / 204.;
+}
+
+// Mode change card and motion, mirrored by the GNOME Shell extension.
+pub mod mode_osd {
+    use egui::{Color32, Vec2};
+
+    pub const SIZE: Vec2 = egui::vec2(320., 150.);
+    pub const RADIUS: u8 = 28;
+    pub const FILL: Color32 = Color32::from_rgba_unmultiplied_const(30, 30, 30, 219);
+    pub const BORDER: Color32 = super::radial::BUTTON_BORDER;
+    pub const BORDER_WIDTH: f32 = super::radial::BUTTON_BORDER_WIDTH;
+    pub const BUTTON_RADIUS: f32 = 32.;
+    pub const BUTTON_OFFSET: f32 = 64.;
+    pub const ICON_CENTER_Y: f32 = 58.;
+    pub const PREVIOUS_ICON: Color32 = Color32::from_rgba_unmultiplied_const(255, 255, 255, 128);
+    pub const ARROW_SIZE: f32 = 26.;
+    pub const ARROW_TRAVEL: f32 = 12.;
+    pub const LABEL_CENTER_Y: f32 = 121.;
+    pub const FONT: f32 = 15.;
+    pub const SHOW_TIME: f32 = 0.16;
+    pub const POP_TIME: f32 = 0.16;
+    pub const HOLD_TIME: f32 = 1.2;
+    pub const HIDE_TIME: f32 = 0.2;
+    pub const FADE_AT: f32 = SHOW_TIME + HOLD_TIME;
+    pub const LIFETIME: f32 = FADE_AT + HIDE_TIME;
+    pub const START_SCALE: f32 = super::interaction::OVERLAY_SCALE_START;
+    pub const POP_SCALE: f32 = 0.08;
 }
 
 // Settings CSS status and modal tokens.
@@ -680,10 +817,16 @@ pub mod settings_layout {
     pub const AUTOSTART_RULE: f32 = 616.5;
     pub const SHELL_Y: f32 = 647.;
     pub const HINT_Y: f32 = 686.;
+    pub const BLUR_HEIGHT: f32 = 148.;
+    pub const BLUR_RULE: f32 = 319.5;
+    pub const BLUR_Y: f32 = 206.;
+    pub const BLUR_HINT_Y: f32 = 244.;
+    pub const BLUR_UNSUPPORTED_Y: f32 = 272.;
+    pub const DISABLED_THUMB: Color32 = super::MUTED;
     pub const CJK_OFFSET: f32 = -2.;
     pub const INPUT_BORDER: Color32 = Color32::from_gray(118);
     pub const INPUT: Color32 = Color32::from_gray(59);
-    pub const FOCUS: Color32 = Color32::from_rgba_premultiplied(16, 40, 69, 77);
+    pub const FOCUS: Color32 = super::accent_alpha(77);
     pub const ACTIVE: Color32 = Color32::from_gray(68);
     pub const RUNNING: Color32 = Color32::from_rgb(48, 164, 108);
     pub const STOPPED: Color32 = Color32::from_rgb(229, 72, 77);
@@ -893,6 +1036,32 @@ pub mod overview_layout {
     pub const BUTTON_GAP: f32 = 8.;
     pub const CHEVRON: f32 = 14.;
 }
+/// Overview shortcut pills over the tablet and pen art: dark glass with an
+/// accent icon badge and a chevron.
+pub mod overview_chip {
+    use egui::Color32 as C;
+    pub const HEIGHT: f32 = 34.;
+    pub const RADIUS: u8 = 17;
+    pub const STEP: f32 = 42.;
+    pub const MIN_WIDTH: f32 = 170.;
+    pub const PAD_LEFT: f32 = 5.;
+    pub const PAD_RIGHT: f32 = 12.;
+    pub const BADGE: f32 = 24.;
+    pub const ICON: f32 = 14.;
+    pub const GAP: f32 = 9.;
+    pub const CHEVRON_GAP: f32 = 10.;
+    pub const CHEVRON: f32 = 12.;
+    pub const FONT: f32 = 14.;
+    pub const FILL: C = C::from_rgba_unmultiplied_const(26, 26, 28, 205);
+    pub const FILL_HOVER: C = C::from_rgba_unmultiplied_const(40, 40, 44, 225);
+    pub const BORDER: C = C::from_rgba_unmultiplied_const(255, 255, 255, 30);
+    pub const BORDER_HOVER: C = super::accent_alpha(160);
+    pub const BADGE_FILL: C = super::accent_alpha(56);
+    pub const BADGE_FILL_HOVER: C = super::ACCENT;
+    pub const SHADOW: C = C::from_black_alpha(110);
+    pub const SHADOW_Y: i8 = 4;
+    pub const SHADOW_BLUR: u8 = 14;
+}
 /// About this device: details and live pen input cards.
 pub mod about_layout {
     pub const LEFT: f32 = 289.;
@@ -1002,16 +1171,16 @@ pub mod interaction {
     pub const WHITE_6: C = C::from_rgba_premultiplied(15, 15, 15, 15);
     pub const WHITE_8: C = C::from_rgba_premultiplied(20, 20, 20, 20);
     /// ACCENT at 12% and 18%, for selected pen callouts.
-    pub const ACCENT_TINT: C = C::from_rgba_premultiplied(6, 16, 27, 31);
-    pub const ACCENT_TINT_HOVER: C = C::from_rgba_premultiplied(10, 24, 41, 46);
+    pub const ACCENT_TINT: C = super::accent_alpha(31);
+    pub const ACCENT_TINT_HOVER: C = super::accent_alpha(46);
     /// Text and border of accent-tinted buttons.
-    pub const ACCENT_SOFT: C = C::from_rgb(143, 186, 240);
-    pub const ACCENT_TINT_LINE: C = C::from_rgba_premultiplied(19, 46, 80, 89);
+    pub const ACCENT_SOFT: C = super::accent_over(super::TEXT, 141);
+    pub const ACCENT_TINT_LINE: C = super::accent_alpha(89);
     pub const RING_HOVER: C = C::from_rgba_premultiplied(179, 179, 179, 179);
     pub const FRAME_HOVER: C = C::from_rgba_premultiplied(31, 31, 31, 31);
     pub const CLOSE: C = C::from_rgb(224, 27, 36);
     pub const MONITOR_HOVER: C = C::from_gray(138);
-    pub const MONITOR_ON_HOVER: C = C::from_rgb(120, 174, 240);
+    pub const MONITOR_ON_HOVER: C = super::accent_over(super::TEXT, 170);
     pub const SWITCH_TIME: f32 = 0.15;
     /// Pen actions panel sliding in, and the option cards sliding out.
     pub const PANEL_SLIDE_TIME: f32 = 0.3;

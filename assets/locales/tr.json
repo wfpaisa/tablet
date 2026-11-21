@@ -71,6 +71,7 @@
   "Middle click": "Orta tıklama",
   "Minimize": "Küçült",
   "Mouse": "Fare",
+  "Relative": "Göreli",
   "New": "Yeni",
   "New backup": "Yedek oluştur",
   "No backups yet.": "Henüz yedek yok. Ayarlarınızı saklamak için bir yedek oluşturun.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "Kalem kimliği",
   "Pen input": "Kalem girişi",
   "Tilt X": "Eğim X",
-  "Tilt Y": "Eğim Y"
+  "Tilt Y": "Eğim Y",
+  "Blur background": "Arka planı bulanıklaştır",
+  "Make the window translucent and blur what is behind it.": "Pencereyi yarı saydam yapar ve arkasındaki görüntüyü bulanıklaştırır.",
+  "Not supported by this desktop": "Bu masaüstü ortamı bulanıklaştırmayı desteklemiyor"
 }

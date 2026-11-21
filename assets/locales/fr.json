@@ -71,6 +71,7 @@
   "Middle click": "Clic central",
   "Minimize": "Réduire",
   "Mouse": "Souris",
+  "Relative": "Relatif",
   "New": "Nouveau",
   "New backup": "Créer une sauvegarde",
   "No backups yet.": "Aucune sauvegarde. Créez-en une pour conserver vos réglages.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ID du stylet",
   "Pen input": "Saisie du stylet",
   "Tilt X": "Inclinaison X",
-  "Tilt Y": "Inclinaison Y"
+  "Tilt Y": "Inclinaison Y",
+  "Blur background": "Flouter l’arrière-plan",
+  "Make the window translucent and blur what is behind it.": "Rend la fenêtre translucide et floute ce qui se trouve derrière.",
+  "Not supported by this desktop": "Ce bureau ne prend pas en charge le flou"
 }

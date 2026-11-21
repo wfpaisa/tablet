@@ -1,5 +1,6 @@
 //! Tablet Center native UI and deterministic screenshot state.
 pub mod assets;
+mod blur;
 pub mod classic;
 pub mod daemon;
 pub mod frame;
@@ -13,6 +14,7 @@ pub mod theme;
 pub mod widgets;
 use tablet_config::{Config, DeviceInfo, Display, PenState, Response};
 pub struct App {
+    blur: Option<blur::Blur>,
     pub tablet: Option<tablet_input::TabletInput>,
     pub config: Config,
     pub status: Response,
@@ -32,6 +34,7 @@ pub struct App {
 impl App {
     pub fn simulated() -> Self {
         Self {
+            blur: None,
             tablet: None,
             config: Config::default(),
             status: Response {
@@ -91,6 +94,30 @@ impl App {
             tablet_config::config_path(),
         ));
         app
+    }
+    pub fn attach_window(&mut self, cc: &eframe::CreationContext<'_>) {
+        self.tablet = tablet_input::TabletInput::new(cc);
+        self.blur = blur::Blur::new(cc);
+        self.settings.blur_supported = Some(false);
+    }
+
+    fn apply_blur(&mut self, ctx: &egui::Context) {
+        if let Some(blur) = &mut self.blur {
+            self.settings.blur_supported = Some(blur.supported());
+        }
+        let on = self.settings.blur_supported == Some(true) && self.settings.blur;
+        theme::set_glass(ctx, on);
+        let Some(blur) = &mut self.blur else {
+            return;
+        };
+        let area = on.then(|| {
+            // Convert egui points to Wayland logical coordinates.
+            let zoom = ctx.zoom_factor();
+            let rect = frame::inner(ctx);
+            let rect = egui::Rect::from_min_max(rect.min * zoom, rect.max * zoom);
+            (rect, f32::from(theme::INNER_RADIUS) * zoom)
+        });
+        blur.set(area);
     }
     pub fn show(&mut self, ui: &mut egui::Ui) {
         self.paint(ui);
@@ -246,6 +273,7 @@ impl App {
         self.settings.initialize(ui.ctx());
         let previous = self.config.clone();
         self.settings.poll(&mut self.config, &mut self.locale);
+        self.apply_blur(ui.ctx());
         if self
             .devices
             .app

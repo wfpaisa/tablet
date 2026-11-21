@@ -3,12 +3,14 @@
 // menus, already translated, to shell-menus.json; picking an entry asks
 // tabletd to run its action, as the window does.
 
+import Cairo from 'cairo';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
 import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {ACCENT, RADIAL as ring} from './theme.js';
 
 const MENUS_FILE = GLib.build_filenamev([GLib.get_user_config_dir(), 'tablet-center', 'shell-menus.json']);
 const SOCKET = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'tabletd.sock']);
@@ -64,116 +66,247 @@ function centeredLabel(text, size) {
 
 const disabled = item => item.action?.type === 'disabled';
 
-// A ring of slices, clockwise from the top, with a close button in the hub.
+// Separate circular buttons in clockwise order, with the original angular hit test.
+export function paintRadialButton(cr, x, y, radius, scale, active) {
+    const circle = (cx, cy, r) => cr.arc(cx, cy, r, 0, 2 * Math.PI);
+    const glow = (cx, cy, r, blur, rgba) => {
+        const gradient = new Cairo.RadialGradient(cx, cy, r, cx, cy, r + blur);
+        gradient.addColorStopRGBA(0, ...rgba);
+        gradient.addColorStopRGBA(1, ...rgba.slice(0, 3), 0);
+        cr.setSource(gradient);
+        circle(cx, cy, r + blur);
+        cr.fill();
+    };
+    const blur = ring.shadowBlur * scale;
+    glow(x, y + ring.shadowOffset * scale, radius - blur / 2, blur, ring.shadow);
+    if (active) {
+        const rim = (ring.ringGap + ring.ringWidth) * scale;
+        glow(x, y, radius + rim, ring.haloBlur * scale, [...ACCENT, ring.haloOpacity]);
+        const line = ring.ringWidth * scale;
+        cr.setSourceRGBA(...ring.white);
+        cr.setLineWidth(line);
+        circle(x, y, radius + rim - line / 2);
+        cr.stroke();
+    }
+    circle(x, y, radius);
+    cr.setSourceRGBA(...(active ? [...ACCENT, 1] : ring.button));
+    cr.fill();
+    if (!active) {
+        const line = ring.buttonBorderWidth * scale;
+        cr.setSourceRGBA(...ring.buttonBorder);
+        cr.setLineWidth(line);
+        circle(x, y, radius - line / 2);
+        cr.stroke();
+    }
+}
+
 function radialMenu(menu, pick, close) {
     const d = menu.diameter;
-    const R = d / 2 - 2;
-    const r = R * 0.34;
+    const scale = d / ring.diameter;
+    const c = d / 2;
     const n = menu.items.length;
-    const angle = i => (i / n) * 2 * Math.PI - Math.PI / 2;
-    let hover = -1;
-
-    const actor = new St.Widget({width: d, height: d, reactive: true});
-    const area = new St.DrawingArea({width: d, height: d, reactive: true});
+    const angle = i => i / n * 2 * Math.PI - Math.PI / 2;
+    const direction = menu.items.map((_item, i) => [Math.cos(angle(i)), Math.sin(angle(i))]);
+    const positions = direction.map(([x, y]) => [c + x * ring.orbit * scale, c + y * ring.orbit * scale]);
+    // St rounds padding while allocating the text.
+    const padX = Math.ceil(ring.labelPadX * scale);
+    const padY = Math.ceil(ring.labelPadY * scale);
+    const font = ring.labelFont * scale * menu.text / ring.labelDefaultTextSize;
+    const labelHeight = Math.ceil(font * ring.labelLineHeight) + 2 * padY;
+    const rim = (ring.ringGap + ring.ringWidth) * scale;
+    const arrow = ring.labelArrowHeight * scale;
+    const paintPad = Math.max(0, (ring.orbit + ring.activeRadius + ring.haloBlur) * scale + rim - c);
+    const margin = Math.ceil(Math.max(paintPad, (ring.orbit + ring.activeRadius + ring.labelGap) * scale + rim + arrow + labelHeight - c));
+    const actor = new St.Widget({width: d, height: d + 2 * margin, reactive: true});
+    const area = new St.DrawingArea({x: -paintPad, width: d + 2 * paintPad, height: actor.height});
     actor.add_child(area);
+
+    const icons = menu.items.map(item => {
+        const name = item.icon || (disabled(item) ? 'action-unavailable-symbolic' : 'input-keyboard-symbolic');
+        const icon = iconFor(name, ring.icon * scale);
+        icon.style_class = 'tc-radial-icon';
+        icon.opacity = disabled(item) ? Math.round(ring.maxOpacity * ring.disabledOpacity) : ring.maxOpacity;
+        actor.add_child(icon);
+        return icon;
+    });
+    function sizeIcon(i, size) {
+        const [x, y] = positions[i];
+        icons[i].icon_size = size;
+        icons[i].set_position(x - size / 2, y + margin - size / 2);
+    }
+    icons.forEach((_icon, i) => sizeIcon(i, ring.icon * scale));
+    const hubRadius = ring.hubRadius * scale;
+    const hub = new St.Button({
+        style_class: 'tc-radial-close',
+        can_focus: false,
+        width: 2 * hubRadius,
+        height: 2 * hubRadius,
+        accessible_name: menu.close,
+        child: iconFor('window-close-symbolic', ring.hubIcon * scale),
+    });
+    hub.set_position(c - hubRadius, c + margin - hubRadius);
+    hub.connect('clicked', close);
+    actor.add_child(hub);
+
+    const bubble = centeredLabel('', font);
+    bubble.style_class = 'tc-radial-label';
+    bubble.style = `font-size: ${font}px; border-radius: ${ring.labelRadius * scale}px;
+        padding: ${padY}px ${padX}px;
+        box-shadow: 0 ${ring.labelShadowOffset * scale}px ${ring.labelShadowBlur * scale}px rgba(0, 0, 0, ${ring.labelShadowOpacity});`;
+    bubble.hide();
+    actor.add_child(bubble);
+    let hover = -1;
+    const progress = menu.items.map(() => 0);
+    const timelines = new Map();
+    const radiusFor = i => (ring.buttonRadius + (ring.activeRadius - ring.buttonRadius) * progress[i]) * scale;
+
+    // Move the pill with the expanding button and keep long labels within the menu width.
+    let labelArrow;
+    function positionLabel() {
+        if (hover < 0)
+            return;
+        const [x, y] = positions[hover];
+        const h = labelHeight;
+        const [, naturalWidth] = bubble.clutter_text.get_preferred_width(-1);
+        const width = Math.min(d, Math.ceil(naturalWidth) + 2 * padX);
+        const left = Math.max(0, Math.min(x - width / 2, d - width));
+        const above = hover < n / 4 || hover > 3 * n / 4;
+        const sign = above ? -1 : 1;
+        const tip = y + sign * (radiusFor(hover) + rim + ring.labelGap * scale);
+        const edge = tip + sign * arrow;
+        const arrowX = Math.max(left + padX, Math.min(x, left + width - padX));
+        bubble.set_position(left, margin + (above ? edge - h : edge));
+        bubble.set_size(width, h);
+        labelArrow = [arrowX, tip, edge];
+    }
+
+    function animateButton(i, target) {
+        if (i < 0)
+            return;
+        timelines.get(i)?.stop();
+        const from = progress[i];
+        const timeline = new Clutter.Timeline({actor, duration: ring.hoverMs});
+        timeline.set_progress_mode(Clutter.AnimationMode.EASE_OUT_QUAD);
+        timeline.connect('new-frame', () => {
+            progress[i] = from + (target - from) * timeline.get_progress();
+            positionLabel();
+            area.queue_repaint();
+        });
+        timeline.connect('completed', () => timelines.delete(i));
+        timelines.set(i, timeline);
+        timeline.start();
+    }
+
+    function setHover(i) {
+        if (i === hover)
+            return;
+        const previous = hover;
+        hover = i;
+        if (previous >= 0)
+            sizeIcon(previous, ring.icon * scale);
+        if (hover < 0) {
+            bubble.hide();
+        } else {
+            sizeIcon(hover, ring.activeIcon * scale);
+            bubble.text = menu.items[hover].label.replace(/\r?\n/g, ' ');
+            bubble.show();
+            positionLabel();
+        }
+        animateButton(previous, 0);
+        animateButton(hover, 1);
+        area.queue_repaint();
+    }
 
     area.connect('repaint', () => {
         const cr = area.get_context();
-        const c = d / 2;
-        menu.items.forEach((item, i) => {
-            const a0 = angle(i - 0.5);
-            const a1 = angle(i + 0.5);
-            cr.newPath();
-            cr.arc(c, c, R, a0, a1);
-            cr.arcNegative(c, c, r, a1, a0);
+        cr.translate(paintPad, margin);
+        if (hover >= 0) {
+            const [dx, dy] = direction[hover];
+            const hub = ring.hubRadius * scale;
+            const radius = radiusFor(hover);
+            const inner = ring.beamHubWidth * scale / 2;
+            const outer = radius * ring.beamButtonWidthRatio;
+            // End on the button chord of the requested width.
+            const end = ring.orbit * scale - Math.sqrt(radius * radius - outer * outer);
+            const hx = c + dx * hub;
+            const hy = c + dy * hub;
+            const ex = c + dx * end;
+            const ey = c + dy * end;
+            const beam = new Cairo.LinearGradient(hx, hy, ex, ey);
+            beam.addColorStopRGBA(0, ...ACCENT, ring.beamHubOpacity);
+            beam.addColorStopRGBA(1, ...ACCENT, ring.beamButtonOpacity);
+            cr.moveTo(c + dy * inner, c - dx * inner);
+            cr.lineTo(c - dy * inner, c + dx * inner);
+            cr.lineTo(hx - dy * inner, hy + dx * inner);
+            cr.lineTo(ex - dy * outer, ey + dx * outer);
+            cr.lineTo(ex + dy * outer, ey - dx * outer);
+            cr.lineTo(hx + dy * inner, hy - dx * inner);
             cr.closePath();
-            if (i === hover && !disabled(item))
-                cr.setSourceRGBA(0.208, 0.518, 0.894, 1);
-            else
-                cr.setSourceRGBA(0.14, 0.14, 0.14, 0.95);
-            cr.fillPreserve();
-            cr.setSourceRGBA(1, 1, 1, 0.08);
-            cr.setLineWidth(1);
-            cr.stroke();
-        });
-        cr.newPath();
-        cr.arc(c, c, R, 0, 2 * Math.PI);
-        cr.setSourceRGBA(1, 1, 1, 0.12);
-        cr.setLineWidth(1.5);
-        cr.stroke();
-        cr.arc(c, c, r, 0, 2 * Math.PI);
-        cr.setSourceRGBA(0.19, 0.19, 0.19, 1);
-        cr.fillPreserve();
-        cr.setSourceRGBA(1, 1, 1, 0.08);
-        cr.setLineWidth(1);
-        cr.stroke();
+            cr.setSource(beam);
+            cr.fill();
+        }
+
+        const circle = (x, y, radius) => cr.arc(x, y, radius, 0, 2 * Math.PI);
+        for (let i = 0; i < n; i++) {
+            if (i !== hover)
+                paintRadialButton(cr, ...positions[i], radiusFor(i), scale, false);
+        }
+        if (hover >= 0) {
+            paintRadialButton(cr, ...positions[hover], radiusFor(hover), scale, true);
+            const [arrowX, tip, edge] = labelArrow;
+            const halfArrow = ring.labelArrowWidth * scale / 2;
+            cr.setSourceRGBA(...ring.white);
+            cr.moveTo(arrowX, tip);
+            const join = edge + Math.sign(edge - tip) * ring.labelArrowOverlap * scale;
+            cr.lineTo(arrowX - halfArrow, edge);
+            cr.lineTo(arrowX - halfArrow, join);
+            cr.lineTo(arrowX + halfArrow, join);
+            cr.lineTo(arrowX + halfArrow, edge);
+            cr.closePath();
+            cr.fill();
+        }
+        cr.setSourceRGBA(...ring.hub);
+        circle(c, c, ring.hubRadius * scale);
+        cr.fill();
         cr.$dispose();
     });
 
-    // Which slice a point falls in, or -1 in the hub or outside the ring.
-    const sliceAt = (sx, sy) => {
-        const [ok, x, y] = area.transform_stage_point(sx, sy);
-        if (!ok)
-            return -1;
-        const dx = x - d / 2;
-        const dy = y - d / 2;
-        const dist = Math.hypot(dx, dy);
-        if (dist < r || dist > R)
-            return -1;
+    const pointerAt = (sx, sy) => {
+        const [ok, x, y] = actor.transform_stage_point(sx, sy);
+        const dx = x - c;
+        const dy = y - margin - c;
+        const distance = Math.hypot(dx, dy);
+        if (!ok || Math.abs(dx) > c || Math.abs(dy) > c)
+            return {outside: true};
+        if (distance < ring.hubRadius * scale)
+            return {hub: true};
+        const outer = c - ring.hitRimInset;
+        if (n === 0 || distance < outer * ring.hitInner || distance > outer)
+            return {};
         const turn = (Math.atan2(dy, dx) + Math.PI / 2 + 2 * Math.PI) % (2 * Math.PI);
-        return Math.round((turn / (2 * Math.PI)) * n) % n;
+        const index = Math.round(turn / (2 * Math.PI) * n) % n;
+        return disabled(menu.items[index]) ? {} : {index};
     };
-    area.connect('motion-event', (_a, event) => {
-        const i = sliceAt(...event.get_coords());
-        if (i !== hover) {
-            hover = i;
-            area.queue_repaint();
-        }
+    const track = (_actor, event) => {
+        const {index} = pointerAt(...event.get_coords());
+        setHover(index ?? -1);
+        return Clutter.EVENT_PROPAGATE;
+    };
+    actor.connect('motion-event', track);
+    actor.connect('enter-event', track);
+    actor.connect('leave-event', () => {
+        setHover(-1);
         return Clutter.EVENT_PROPAGATE;
     });
-    area.connect('leave-event', () => {
-        hover = -1;
-        area.queue_repaint();
-        return Clutter.EVENT_PROPAGATE;
-    });
-    area.connect('button-release-event', (_a, event) => {
-        const i = sliceAt(...event.get_coords());
-        if (i >= 0 && !disabled(menu.items[i]))
-            pick(menu.items[i]);
+    actor.connect('button-release-event', (_actor, event) => {
+        const {outside, hub, index} = pointerAt(...event.get_coords());
+        if (outside || hub)
+            close();
+        else if (index !== undefined)
+            pick(menu.items[index]);
         return Clutter.EVENT_STOP;
     });
-
-    // Labels halfway between hub and rim; they let events through.
-    const mid = (r + R) / 2;
-    const width = Math.min(R - r, 2 * mid * Math.sin(Math.PI / n)) * 1.05;
-    menu.items.forEach((item, i) => {
-        const box = new St.BoxLayout({
-            orientation: Clutter.Orientation.VERTICAL,
-            width,
-            style_class: `tc-slice-label${disabled(item) ? ' tc-off' : ''}`,
-        });
-        const icon = iconFor(item.icon, Math.round(menu.text * 1.6));
-        if (icon)
-            box.add_child(icon);
-        box.add_child(centeredLabel(item.label, menu.text));
-        // Centred on its spot once its height is known (it needs the stage).
-        const cy = d / 2 + mid * Math.sin(angle(i));
-        box.set_position(d / 2 + mid * Math.cos(angle(i)) - width / 2, cy);
-        box.connect('notify::height', () => box.set_y(Math.round(cy - box.height / 2)));
-        actor.add_child(box);
-    });
-
-    const hub = new St.Button({
-        style_class: 'tc-hub',
-        can_focus: false,
-        width: 2 * (r - 6),
-        height: 2 * (r - 6),
-        accessible_name: menu.close,
-        child: new St.Icon({icon_name: 'window-close-symbolic', icon_size: Math.round(r * 0.5)}),
-    });
-    hub.set_position(d / 2 - (r - 6), d / 2 - (r - 6));
-    hub.connect('clicked', close);
-    actor.add_child(hub);
+    actor.connect('destroy', () => timelines.forEach(timeline => timeline.stop()));
     return actor;
 }
 

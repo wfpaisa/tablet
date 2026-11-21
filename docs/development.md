@@ -46,7 +46,7 @@ con las referencias por pestañas: `classic-dark-settings(-tall)` se revisa a oj
 
 | Tarea | Qué hace |
 |---|---|
-| `just screens` | Genera las capturas de la app en `target/screens` con `egui_kittest` (necesita GPU). Incluye `classic-dark-es-*`, sin referencia, para revisar textos largos en español. |
+| `just screens` | Genera las capturas de la app en `target/screens` con `egui_kittest` (necesita GPU). Incluye `overlay-radial-menu.png` con una acción resaltada, `overlay-mode-osd.png` con el aviso centrado, `classic-dark-settings-blur-on.png` con un degradado detrás de la ventana y `classic-dark-es-*` para revisar textos largos en español. |
 | `just compare [nombres…]` | Pone lado a lado referencia, captura y mapa de diferencias en `target/compare/` e imprime el RMSE. Sin nombres compara todas. |
 | `just review` | `screens` + `compare` de todo. |
 | `just reference` | Regenera `docs/reference/` desde la UI original con Chromium headless (levanta su dev-server en :8765 si hace falta). |

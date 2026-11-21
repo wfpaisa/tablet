@@ -71,6 +71,7 @@
   "Middle click": "Środkowe kliknięcie",
   "Minimize": "Minimalizuj",
   "Mouse": "Mysz",
+  "Relative": "Tryb względny",
   "New": "Nowa",
   "New backup": "Utwórz kopię",
   "No backups yet.": "Brak kopii zapasowych. Utwórz kopię, aby zachować ustawienia.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ID pióra",
   "Pen input": "Wejście pióra",
   "Tilt X": "Nachylenie X",
-  "Tilt Y": "Nachylenie Y"
+  "Tilt Y": "Nachylenie Y",
+  "Blur background": "Rozmyj tło",
+  "Make the window translucent and blur what is behind it.": "Sprawia, że okno staje się półprzezroczyste, i rozmywa jego tło.",
+  "Not supported by this desktop": "To środowisko graficzne nie obsługuje rozmycia tła"
 }

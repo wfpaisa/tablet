@@ -71,6 +71,7 @@
   "Middle click": "Clique do meio",
   "Minimize": "Minimizar",
   "Mouse": "Mouse",
+  "Relative": "Relativo",
   "New": "Novo",
   "New backup": "Criar backup",
   "No backups yet.": "Ainda não há backups. Crie um para guardar suas configurações.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ID da caneta",
   "Pen input": "Entrada da caneta",
   "Tilt X": "Inclinação X",
-  "Tilt Y": "Inclinação Y"
+  "Tilt Y": "Inclinação Y",
+  "Blur background": "Desfocar o fundo",
+  "Make the window translucent and blur what is behind it.": "Torna a janela translúcida e desfoca o que está por trás.",
+  "Not supported by this desktop": "Este ambiente de trabalho não oferece suporte ao desfoque"
 }

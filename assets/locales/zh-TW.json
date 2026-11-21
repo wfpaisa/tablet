@@ -71,6 +71,7 @@
   "Middle click": "按滑鼠中鍵",
   "Minimize": "最小化",
   "Mouse": "滑鼠",
+  "Relative": "相對模式",
   "New": "新增",
   "New backup": "新增備份",
   "No backups yet.": "尚無備份。建立備份以儲存設定。",
@@ -273,5 +274,8 @@
   "Pen tool ID": "筆 ID",
   "Pen input": "筆輸入",
   "Tilt X": "傾斜 X",
-  "Tilt Y": "傾斜 Y"
+  "Tilt Y": "傾斜 Y",
+  "Blur background": "模糊背景",
+  "Make the window translucent and blur what is behind it.": "讓視窗半透明，並模糊視窗後方的內容。",
+  "Not supported by this desktop": "此桌面環境不支援背景模糊"
 }

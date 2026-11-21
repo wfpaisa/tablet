@@ -37,10 +37,16 @@ pub enum Dialog {
     Delete(String),
 }
 enum Update {
-    Ready(bool, String, Vec<system::BackupInfo>),
+    Ready {
+        autostart: Result<bool, String>,
+        language: String,
+        backups: Result<Vec<system::BackupInfo>, String>,
+        blur: bool,
+    },
     Done(String),
     Backups(Vec<system::BackupInfo>),
     Autostart(bool),
+    Blur(bool),
     Config(Box<Config>, bool),
 }
 #[derive(Default)]
@@ -52,6 +58,8 @@ pub struct State {
     pub toast: Option<(String, Instant)>,
     pub backups: Vec<system::BackupInfo>,
     pub autostart: bool,
+    pub blur: bool,
+    pub blur_supported: Option<bool>,
     pub native: bool,
     pub busy: bool,
     active_option: usize,
@@ -120,12 +128,15 @@ impl State {
             self.language = "en".into();
         }
         self.launch(ctx, || {
-            Ok(Update::Ready(
-                system::autostart_enabled()?,
-                std::fs::read_to_string(tablet_config::config_path().with_file_name("language"))
-                    .unwrap_or_else(|_| "en".into()),
-                system::list_backups()?,
-            ))
+            Ok(Update::Ready {
+                autostart: system::autostart_enabled(),
+                language: std::fs::read_to_string(
+                    tablet_config::config_path().with_file_name("language"),
+                )
+                .unwrap_or_else(|_| "en".into()),
+                backups: system::list_backups(),
+                blur: system::blur_enabled(),
+            })
         });
     }
     pub fn poll(&mut self, c: &mut Config, l: &mut Locale) {
@@ -135,11 +146,23 @@ impl State {
             self.busy = false;
             match result {
                 Err(e) => self.notify(e),
-                Ok(Update::Ready(a, lang, b)) => {
-                    self.autostart = a;
-                    self.language = lang.trim().into();
+                Ok(Update::Ready {
+                    autostart,
+                    language,
+                    backups,
+                    blur,
+                }) => {
+                    self.language = language.trim().into();
                     *l = Locale::new(&self.language);
-                    self.backups = b;
+                    self.blur = blur;
+                    match autostart {
+                        Ok(value) => self.autostart = value,
+                        Err(error) => self.notify(error),
+                    }
+                    match backups {
+                        Ok(value) => self.backups = value,
+                        Err(error) => self.notify(error),
+                    }
                 }
                 Ok(Update::Done(s)) => {
                     if !s.is_empty() {
@@ -148,6 +171,7 @@ impl State {
                 }
                 Ok(Update::Backups(b)) => self.backups = b,
                 Ok(Update::Autostart(value)) => self.autostart = value,
+                Ok(Update::Blur(value)) => self.blur = value,
                 Ok(Update::Config(config, applied)) => {
                     *c = *config;
                     if !applied {
@@ -173,12 +197,17 @@ fn rule(ui: &Ui, y: f32) {
     ui.painter()
         .hline(s::PX_48..=s::PX_808, y, Stroke::new(s::PX_1, t::LINE));
 }
-fn toggle(ui: &mut Ui, l: &Locale, y: f32, s: &str, value: &mut bool) -> bool {
+fn toggle(ui: &mut Ui, l: &Locale, y: f32, s: &str, value: &mut bool, enabled: bool) -> bool {
     let s = l.t(s);
     let x = s::PX_48 + width(ui, &s, s::PX_15) + s::PX_20;
     text(ui, s::PX_48, y + s::PX_5, &s, s::PX_15, t::TEXT);
-    let progress =
-        crate::widgets::switch_progress(ui, (&s, y.to_bits()), *value, t::interaction::SWITCH_TIME);
+    let progress = if enabled {
+        crate::widgets::switch_progress(ui, (&s, y.to_bits()), *value, t::interaction::SWITCH_TIME)
+    } else if *value {
+        1.
+    } else {
+        0.
+    };
     ui.painter().rect_filled(
         rect(x, y, s::PX_52, s::PX_30),
         s::SWITCH_RADIUS,
@@ -193,15 +222,17 @@ fn toggle(ui: &mut Ui, l: &Locale, y: f32, s: &str, value: &mut bool) -> bool {
             y + s::PX_15,
         ),
         s::PX_12,
-        t::THUMB,
+        if enabled { t::THUMB } else { s::DISABLED_THUMB },
     );
-    let hit = click(
-        ui,
-        rect(s::PX_48, y, x + s::PX_52 - s::PX_48, s::PX_30),
-        s.clone(),
-        &s,
-    )
-    .clicked();
+    let area = rect(s::PX_48, y, x + s::PX_52 - s::PX_48, s::PX_30);
+    if !enabled {
+        ui.interact(area, ui.id().with(&s), egui::Sense::hover())
+            .widget_info(|| {
+                egui::WidgetInfo::selected(egui::WidgetType::Checkbox, false, *value, &s)
+            });
+        return false;
+    }
+    let hit = click(ui, area, s.clone(), &s).clicked();
     if hit {
         *value = !*value;
     }
@@ -279,7 +310,7 @@ fn section(ui: &Ui, l: &Locale, y: f32, key: &str, width: f32, height: f32) -> f
     ui.painter().rect(
         rect(s::PX_29, top, width - s::PX_58, height),
         t::CARD_RADIUS,
-        t::PANEL,
+        t::panel(ui.ctx()),
         Stroke::new(s::PX_1, t::LINE),
         StrokeKind::Inside,
     );
@@ -304,9 +335,10 @@ pub fn show(ui: &mut Ui, l: &mut Locale, c: &mut Config, status: &Response, stat
         .iter()
         .map(|b| backup_row_height(ui, &b.title))
         .sum::<f32>();
+    let general_height = s::GENERAL_HEIGHT + s::BLUR_HEIGHT;
     let total = s::SECTION_TOP
         + s::PX_3 * (s::SECTION_CARD + s::SECTION_GAP)
-        + s::GENERAL_HEIGHT
+        + general_height
         + device_height
         + backup_height
         - s::SECTION_GAP
@@ -358,14 +390,7 @@ pub fn show(ui: &mut Ui, l: &mut Locale, c: &mut Config, status: &Response, stat
             );
         }
         y = next;
-        let next = section(
-            ui,
-            l,
-            y,
-            "General settings",
-            bounds.width(),
-            s::GENERAL_HEIGHT,
-        );
+        let next = section(ui, l, y, "General settings", bounds.width(), general_height);
         general(
             ui,
             l,
@@ -387,6 +412,8 @@ pub fn show(ui: &mut Ui, l: &mut Locale, c: &mut Config, status: &Response, stat
 }
 fn general(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, state: &mut State, o: f32) {
     let bounds = crate::widgets::view(ui);
+    blur_row(ui, l, state, o, state.blur_supported == Some(true));
+    let o = o - s::BLUR_HEIGHT;
     label(ui, l, s::PX_48, s::PX_206 - o, "Driver service", s::PX_18);
     ui.painter().circle_filled(
         pos2(s::PX_52_5, s::PX_254_5 - o),
@@ -431,6 +458,7 @@ fn general(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, state: &m
         s::AUTOSTART_Y - o,
         "Tablet Center autostart",
         &mut state.autostart,
+        true,
     ) && !state.busy
     {
         let enabled = state.autostart;
@@ -449,6 +477,7 @@ fn general(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, state: &m
         s::SHELL_Y - o,
         "On-screen shortcuts in GNOME Shell",
         &mut c.shortcuts.in_shell,
+        true,
     );
     paragraph(
         ui,
@@ -462,6 +491,46 @@ fn general(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, state: &m
         s::PX_13,
         t::MUTED,
     );
+}
+fn blur_row(ui: &mut Ui, l: &Locale, state: &mut State, o: f32, supported: bool) {
+    let mut enabled = supported && state.blur;
+    if toggle(
+        ui,
+        l,
+        s::BLUR_Y - o,
+        "Blur background",
+        &mut enabled,
+        supported && !state.busy,
+    ) {
+        if state.native {
+            state.launch(ui.ctx(), move || {
+                system::set_blur_enabled(enabled).map_err(|error| error.to_string())?;
+                Ok(Update::Blur(enabled))
+            });
+        } else {
+            state.blur = enabled;
+            ui.ctx().request_repaint();
+        }
+    }
+    label(
+        ui,
+        l,
+        s::PX_48,
+        s::BLUR_HINT_Y - o,
+        "Make the window translucent and blur what is behind it.",
+        s::PX_13,
+    );
+    if !supported {
+        text(
+            ui,
+            s::PX_48,
+            s::BLUR_UNSUPPORTED_Y - o,
+            &l.t("Not supported by this desktop"),
+            s::PX_13,
+            t::MUTED,
+        );
+    }
+    rule(ui, s::BLUR_RULE - o);
 }
 fn backups(ui: &mut Ui, l: &Locale, state: &mut State, bounds: egui::Rect, o: f32) {
     // Row actions end at the card's inner edge, whatever the window width.

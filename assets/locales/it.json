@@ -71,6 +71,7 @@
   "Middle click": "Clic centrale",
   "Minimize": "Riduci a icona",
   "Mouse": "Mouse",
+  "Relative": "Relativa",
   "New": "Nuovo",
   "New backup": "Crea backup",
   "No backups yet.": "Nessun backup. Creane uno per conservare le impostazioni.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "ID penna",
   "Pen input": "Input penna",
   "Tilt X": "Inclinazione X",
-  "Tilt Y": "Inclinazione Y"
+  "Tilt Y": "Inclinazione Y",
+  "Blur background": "Sfoca lo sfondo",
+  "Make the window translucent and blur what is behind it.": "Rende la finestra traslucida e sfoca ciò che si trova dietro.",
+  "Not supported by this desktop": "Questo ambiente desktop non supporta la sfocatura"
 }

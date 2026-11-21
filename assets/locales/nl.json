@@ -71,6 +71,7 @@
   "Middle click": "Middelklik",
   "Minimize": "Minimaliseren",
   "Mouse": "Muis",
+  "Relative": "Relatief",
   "New": "Nieuw",
   "New backup": "Back-up maken",
   "No backups yet.": "Nog geen back-ups. Maak er een om uw instellingen te bewaren.",
@@ -273,5 +274,8 @@
   "Pen tool ID": "Pen-ID",
   "Pen input": "Peninvoer",
   "Tilt X": "Kanteling X",
-  "Tilt Y": "Kanteling Y"
+  "Tilt Y": "Kanteling Y",
+  "Blur background": "Achtergrond vervagen",
+  "Make the window translucent and blur what is behind it.": "Maakt het venster doorschijnend en vervaagt wat erachter staat.",
+  "Not supported by this desktop": "Deze bureaubladomgeving ondersteunt geen vervaging"
 }

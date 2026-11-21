@@ -359,13 +359,17 @@ pub(super) fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Respons
         rect(d::PX_892, d::PX_327, d::PX_36, d::PX_440),
     );
     let has_keys = tablet_config::express_key_count(product) > 0;
-    for (i, label) in ["ExpressKeys", "Mapping", "Display toggle", "Pen"]
+    let labels = ["ExpressKeys", "Mapping", "Display toggle", "Pen"];
+    // The stacked tablet pills share one width so their badges line up.
+    let stack = labels[..3]
         .iter()
-        .enumerate()
-    {
+        .map(|label| chip_width(ui, &l.t(label)))
+        .fold(chip::MIN_WIDTH, f32::max);
+    for (i, label) in labels.iter().enumerate() {
         if i == 0 && !has_keys {
             continue;
         }
+        let caption = l.t(label);
         let r = if i == 3 {
             rect(d::PX_845, d::PX_669, d::PX_130, d::PX_31)
         } else {
@@ -376,31 +380,19 @@ pub(super) fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Respons
                 } else {
                     d::PX_487
                 },
-                d::PX_492 + (i as f32 - if has_keys { 0. } else { 0.5 }) * d::PX_39,
+                d::PX_492 + (i as f32 - if has_keys { 0. } else { 0.5 }) * chip::STEP,
                 d::PX_170,
                 d::PX_31,
             )
         };
-        // Icon and label stay centered as a group; long translations widen the button.
-        let caption = l.t(label);
-        let group = d::PX_22 + crate::widgets::text_width(ui, &caption, d::PX_15);
-        let r = egui::Rect::from_center_size(
-            r.center(),
-            vec2(r.width().max(group + d::PX_24), r.height()),
-        );
-        let icon_left = r.center().x - group / d::PX_2;
-        ui.painter().rect_filled(r, 6, t::STROKE);
-        egui::Image::new(assets::icon(if i == 3 { 3 } else { i + 4 }))
-            .tint(t::VIEW)
-            .paint_at(ui, rect(icon_left, r.top() + d::PX_8, d::PX_16, d::PX_16));
-        ui.painter().text(
-            pos2(icon_left + d::PX_22, r.center().y - 1.),
-            Align2::LEFT_CENTER,
-            caption,
-            t::font(d::PX_15),
-            t::VIEW,
-        );
-        if click(ui, r, label, label).clicked() {
+        let width = if i == 3 {
+            chip_width(ui, &caption).max(r.width())
+        } else {
+            stack
+        };
+        let r = egui::Rect::from_center_size(r.center(), vec2(width, chip::HEIGHT));
+        let icon = assets::icon(if i == 3 { 3 } else { i + 4 });
+        if shortcut_chip(ui, r, icon, &caption, label).clicked() {
             ui.ctx().data_mut(|d| {
                 d.insert_temp(
                     egui::Id::new("navigate"),
@@ -410,8 +402,11 @@ pub(super) fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Respons
         }
     }
     let y = d::PX_116 + (h - d::PX_116 - d::PX_234) / d::PX_2;
-    ui.painter()
-        .rect_filled(rect(w - d::PX_65, y, d::PX_64, d::PX_234), 14, t::PANEL);
+    ui.painter().rect_filled(
+        rect(w - d::PX_65, y, d::PX_64, d::PX_234),
+        14,
+        t::panel(ui.ctx()),
+    );
     for (i, o) in [
         Orientation::Landscape,
         Orientation::Portrait,
@@ -465,4 +460,96 @@ pub(super) fn overview(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Respons
             s.pending_orientation = Some(o);
         }
     }
+}
+
+fn chip_width(ui: &Ui, caption: &str) -> f32 {
+    chip::PAD_LEFT
+        + chip::BADGE
+        + chip::GAP
+        + crate::widgets::text_width(ui, caption, chip::FONT)
+        + chip::CHEVRON_GAP
+        + chip::CHEVRON
+        + chip::PAD_RIGHT
+}
+
+/// Dark glass pill with an accent icon badge, label and chevron.
+fn shortcut_chip(
+    ui: &mut Ui,
+    r: egui::Rect,
+    icon: egui::ImageSource<'static>,
+    caption: &str,
+    id: &str,
+) -> egui::Response {
+    let response = click(ui, r, id, caption);
+    let hovered = response.hovered();
+    ui.painter().add(
+        egui::epaint::Shadow {
+            offset: [0, chip::SHADOW_Y],
+            blur: chip::SHADOW_BLUR,
+            spread: 0,
+            color: chip::SHADOW,
+        }
+        .as_shape(r, chip::RADIUS),
+    );
+    ui.painter().rect(
+        r,
+        chip::RADIUS,
+        if hovered {
+            chip::FILL_HOVER
+        } else {
+            chip::FILL
+        },
+        Stroke::new(
+            t::BORDER,
+            if hovered {
+                chip::BORDER_HOVER
+            } else {
+                chip::BORDER
+            },
+        ),
+        StrokeKind::Inside,
+    );
+    let badge = pos2(r.left() + chip::PAD_LEFT + chip::BADGE / 2., r.center().y);
+    ui.painter().circle_filled(
+        badge,
+        chip::BADGE / 2.,
+        if hovered {
+            chip::BADGE_FILL_HOVER
+        } else {
+            chip::BADGE_FILL
+        },
+    );
+    egui::Image::new(icon)
+        .tint(if hovered {
+            t::TEXT
+        } else {
+            t::interaction::ACCENT_SOFT
+        })
+        .paint_at(
+            ui,
+            egui::Rect::from_center_size(badge, vec2(chip::ICON, chip::ICON)),
+        );
+    ui.painter().text(
+        pos2(
+            r.left() + chip::PAD_LEFT + chip::BADGE + chip::GAP,
+            r.center().y,
+        ),
+        Align2::LEFT_CENTER,
+        caption,
+        t::font(chip::FONT),
+        t::TEXT,
+    );
+    egui::Image::new(crate::icons::source("next"))
+        .tint(if hovered { t::TEXT } else { t::MUTED })
+        .paint_at(
+            ui,
+            egui::Rect::from_center_size(
+                pos2(
+                    r.right() - chip::PAD_RIGHT - chip::CHEVRON / 2.,
+                    r.center().y,
+                ),
+                vec2(chip::CHEVRON, chip::CHEVRON),
+            ),
+        );
+    response
 }
