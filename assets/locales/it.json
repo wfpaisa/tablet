@@ -277,5 +277,14 @@
   "Tilt Y": "Inclinazione Y",
   "Blur background": "Sfoca lo sfondo",
   "Make the window translucent and blur what is behind it.": "Rende la finestra traslucida e sfoca ciò che si trova dietro.",
-  "Not supported by this desktop": "Questo ambiente desktop non supporta la sfocatura"
+  "Not supported by this desktop": "Questo ambiente desktop non supporta la sfocatura",
+  "Check for updates at startup": "Cerca aggiornamenti all’avvio",
+  "Installed version": "Versione installata",
+  "Check now": "Cerca ora",
+  "Checking…": "Ricerca…",
+  "Download and install": "Scarica e installa",
+  "Installing…": "Installazione…",
+  "Version {version} is available": "È disponibile la versione {version}",
+  "Tablet Center is up to date": "Tablet Center è aggiornato",
+  "Update installed. Restart Tablet Center to use it.": "Aggiornamento installato. Riavvia Tablet Center per usarlo."
 }

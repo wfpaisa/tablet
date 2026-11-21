@@ -121,5 +121,14 @@
   "Press the centre button to switch modes. The lit LED shows the active mode.": "Press the centre button to switch modes. The lit LED shows the active mode.",
   "Blur background": "Blur background",
   "Make the window translucent and blur what is behind it.": "Make the window translucent and blur what is behind it.",
-  "Not supported by this desktop": "Not supported by this desktop"
+  "Not supported by this desktop": "Not supported by this desktop",
+  "Check for updates at startup": "Check for updates at startup",
+  "Installed version": "Installed version",
+  "Check now": "Check now",
+  "Checking…": "Checking…",
+  "Download and install": "Download and install",
+  "Installing…": "Installing…",
+  "Version {version} is available": "Version {version} is available",
+  "Tablet Center is up to date": "Tablet Center is up to date",
+  "Update installed. Restart Tablet Center to use it.": "Update installed. Restart Tablet Center to use it."
 }

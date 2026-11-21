@@ -617,3 +617,23 @@ Implementación del 25 de octubre de 2026 (GLM-5.3; correcciones finales del sup
   acento y chevron. La captura `classic-dark-devices` usa el margen de 0.15.
 - Iconos de los modos del aviso: `mode-pen`, `mode-mouse`, `mode-relative`,
   `mode-arrow` en `assets/icons/app`.
+
+## Buscar actualizaciones (2026-11-21)
+
+Hecho:
+
+- Ajustes generales: interruptor «Check for updates at startup», activo por
+  defecto (se guarda como el archivo `no-update-check` junto a la configuración
+  cuando se apaga).
+- Al abrir la app consulta en segundo plano la última release de GitHub
+  (`update.rs`, con `curl`). Si hay una versión más nueva: aviso, punto azul en
+  el botón Ajustes de la barra lateral y botón «Download and install».
+- Instalar descarga el `.tar.gz` de la arquitectura, verifica el `.sha256`,
+  descomprime en un temporal y ejecuta su `install.sh`. Si el instalador falla
+  (p. ej. necesita `sudo` la primera vez), el error indica la ruta del
+  `install.sh` para terminar en una terminal.
+- Botón «Check now» para buscar a mano; sin conexión la búsqueda de inicio no
+  avisa nada.
+- Captura `classic-dark-settings-update.png` con la versión simulada 9.9.9.
+
+Pendiente: después de instalar hay que reiniciar la app a mano.

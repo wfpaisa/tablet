@@ -277,5 +277,14 @@
   "Tilt Y": "Inclinaison Y",
   "Blur background": "Flouter l’arrière-plan",
   "Make the window translucent and blur what is behind it.": "Rend la fenêtre translucide et floute ce qui se trouve derrière.",
-  "Not supported by this desktop": "Ce bureau ne prend pas en charge le flou"
+  "Not supported by this desktop": "Ce bureau ne prend pas en charge le flou",
+  "Check for updates at startup": "Rechercher les mises à jour au démarrage",
+  "Installed version": "Version installée",
+  "Check now": "Rechercher",
+  "Checking…": "Recherche…",
+  "Download and install": "Télécharger et installer",
+  "Installing…": "Installation…",
+  "Version {version} is available": "La version {version} est disponible",
+  "Tablet Center is up to date": "Tablet Center est à jour",
+  "Update installed. Restart Tablet Center to use it.": "Mise à jour installée. Redémarrez Tablet Center pour l’utiliser."
 }

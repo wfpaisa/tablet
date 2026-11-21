@@ -277,5 +277,14 @@
   "Tilt Y": "傾き Y",
   "Blur background": "背景をぼかす",
   "Make the window translucent and blur what is behind it.": "ウィンドウを半透明にし、背後をぼかします。",
-  "Not supported by this desktop": "このデスクトップ環境は背景のぼかしに対応していません"
+  "Not supported by this desktop": "このデスクトップ環境は背景のぼかしに対応していません",
+  "Check for updates at startup": "起動時にアップデートを確認",
+  "Installed version": "インストール済みのバージョン",
+  "Check now": "今すぐ確認",
+  "Checking…": "確認中…",
+  "Download and install": "ダウンロードしてインストール",
+  "Installing…": "インストール中…",
+  "Version {version} is available": "バージョン {version} を利用できます",
+  "Tablet Center is up to date": "Tablet Center は最新です",
+  "Update installed. Restart Tablet Center to use it.": "アップデートをインストールしました。Tablet Center を再起動してください。"
 }

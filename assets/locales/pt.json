@@ -277,5 +277,14 @@
   "Tilt Y": "Inclinação Y",
   "Blur background": "Desfocar o fundo",
   "Make the window translucent and blur what is behind it.": "Torna a janela translúcida e desfoca o que está por trás.",
-  "Not supported by this desktop": "Este ambiente de trabalho não oferece suporte ao desfoque"
+  "Not supported by this desktop": "Este ambiente de trabalho não oferece suporte ao desfoque",
+  "Check for updates at startup": "Procurar atualizações ao iniciar",
+  "Installed version": "Versão instalada",
+  "Check now": "Procurar agora",
+  "Checking…": "Procurando…",
+  "Download and install": "Baixar e instalar",
+  "Installing…": "Instalando…",
+  "Version {version} is available": "A versão {version} está disponível",
+  "Tablet Center is up to date": "O Tablet Center está atualizado",
+  "Update installed. Restart Tablet Center to use it.": "Atualização instalada. Reinicie o Tablet Center para usá-la."
 }

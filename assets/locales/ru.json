@@ -277,5 +277,14 @@
   "Tilt Y": "Наклон Y",
   "Blur background": "Размытие фона",
   "Make the window translucent and blur what is behind it.": "Делает окно полупрозрачным и размывает изображение за ним.",
-  "Not supported by this desktop": "Эта среда рабочего стола не поддерживает размытие фона"
+  "Not supported by this desktop": "Эта среда рабочего стола не поддерживает размытие фона",
+  "Check for updates at startup": "Проверять обновления при запуске",
+  "Installed version": "Установленная версия",
+  "Check now": "Проверить",
+  "Checking…": "Проверка…",
+  "Download and install": "Скачать и установить",
+  "Installing…": "Установка…",
+  "Version {version} is available": "Доступна версия {version}",
+  "Tablet Center is up to date": "Tablet Center обновлён",
+  "Update installed. Restart Tablet Center to use it.": "Обновление установлено. Перезапустите Tablet Center."
 }

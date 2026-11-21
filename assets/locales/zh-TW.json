@@ -277,5 +277,14 @@
   "Tilt Y": "傾斜 Y",
   "Blur background": "模糊背景",
   "Make the window translucent and blur what is behind it.": "讓視窗半透明，並模糊視窗後方的內容。",
-  "Not supported by this desktop": "此桌面環境不支援背景模糊"
+  "Not supported by this desktop": "此桌面環境不支援背景模糊",
+  "Check for updates at startup": "啟動時檢查更新",
+  "Installed version": "已安裝版本",
+  "Check now": "立即檢查",
+  "Checking…": "正在檢查…",
+  "Download and install": "下載並安裝",
+  "Installing…": "正在安裝…",
+  "Version {version} is available": "版本 {version} 可用",
+  "Tablet Center is up to date": "Tablet Center 已是最新版本",
+  "Update installed. Restart Tablet Center to use it.": "更新已安裝。請重新啟動 Tablet Center。"
 }

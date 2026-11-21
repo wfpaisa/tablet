@@ -434,6 +434,19 @@ fn settings_screenshots() {
         .unwrap()
         .save(out.join("classic-dark-settings-blur-on.png"))
         .unwrap();
+    // A newer release found at startup: sidebar dot and install button.
+    let mut app = tablet_center::App::simulated();
+    app.tab = 2;
+    app.settings.update = Some(tablet_center::update::Release::simulated("9.9.9"));
+    let mut h = Harness::builder()
+        .with_size(egui::vec2(1100., 1600.))
+        .wgpu()
+        .build_ui_state(|ui, app: &mut tablet_center::App| app.show(ui), app);
+    h.run_steps(8);
+    h.render()
+        .unwrap()
+        .save(out.join("classic-dark-settings-update.png"))
+        .unwrap();
     for suffix in [
         "language-open",
         "toast",

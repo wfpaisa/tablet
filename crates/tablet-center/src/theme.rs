@@ -188,6 +188,9 @@ pub mod sidebar_layout {
     pub const ITEM_TOP: f32 = 178.0;
     pub const ITEM_STEP: f32 = 42.4;
     pub const ITEM_HEIGHT: f32 = 41.0;
+    /// Update-available dot at the right of the Settings item.
+    pub const BADGE_RADIUS: f32 = 4.5;
+    pub const BADGE_RIGHT: f32 = 18.0;
     pub const ICON_LEFT: f32 = 25.0;
     pub const ICON_SIZE: f32 = 22.0;
     pub const LABEL_LEFT: f32 = 59.0;
@@ -822,6 +825,12 @@ pub mod settings_layout {
     pub const BLUR_Y: f32 = 206.;
     pub const BLUR_HINT_Y: f32 = 244.;
     pub const BLUR_UNSUPPORTED_Y: f32 = 272.;
+    /// Update row below the blur row, same rhythm.
+    pub const UPDATE_HEIGHT: f32 = BLUR_HEIGHT;
+    pub const UPDATE_Y: f32 = BLUR_Y;
+    pub const UPDATE_HINT_Y: f32 = BLUR_HINT_Y;
+    pub const UPDATE_BUTTON_Y: f32 = 270.;
+    pub const UPDATE_RULE: f32 = BLUR_RULE;
     pub const DISABLED_THUMB: Color32 = super::MUTED;
     pub const CJK_OFFSET: f32 = -2.;
     pub const INPUT_BORDER: Color32 = Color32::from_gray(118);
@@ -1176,6 +1185,8 @@ pub mod interaction {
     /// Text and border of accent-tinted buttons.
     pub const ACCENT_SOFT: C = super::accent_over(super::TEXT, 141);
     pub const ACCENT_TINT_LINE: C = super::accent_alpha(89);
+    /// Solid accent buttons on hover.
+    pub const ACCENT_HOVER: C = super::accent_over(super::TEXT, 220);
     pub const RING_HOVER: C = C::from_rgba_premultiplied(179, 179, 179, 179);
     pub const FRAME_HOVER: C = C::from_rgba_premultiplied(31, 31, 31, 31);
     pub const CLOSE: C = C::from_rgb(224, 27, 36);

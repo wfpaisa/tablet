@@ -3,7 +3,7 @@ use super::devices::button;
 use crate::theme::settings_layout as s;
 use crate::{
     i18n::Locale,
-    system, theme as t,
+    system, theme as t, update,
     widgets::{click, rect, text},
 };
 use egui::{pos2, vec2, Align2, Stroke, StrokeKind, Ui};
@@ -42,12 +42,22 @@ enum Update {
         language: String,
         backups: Result<Vec<system::BackupInfo>, String>,
         blur: bool,
+        update_check: bool,
     },
     Done(String),
     Backups(Vec<system::BackupInfo>),
     Autostart(bool),
     Blur(bool),
+    CheckUpdates(bool),
     Config(Box<Config>, bool),
+}
+/// Outcome of a background update check or install.
+enum UpdateEvent {
+    Checked {
+        result: Result<Option<update::Release>, String>,
+        manual: bool,
+    },
+    Installed(Result<(), String>),
 }
 #[derive(Default)]
 pub struct State {
@@ -60,6 +70,12 @@ pub struct State {
     pub autostart: bool,
     pub blur: bool,
     pub blur_supported: Option<bool>,
+    pub update_check: bool,
+    /// Newer release found on GitHub.
+    pub update: Option<update::Release>,
+    /// A check or install is running.
+    pub updating: bool,
+    updater: Option<mpsc::Receiver<UpdateEvent>>,
     pub native: bool,
     pub busy: bool,
     active_option: usize,
@@ -116,6 +132,72 @@ impl State {
             }
         });
     }
+    fn run_update(
+        &mut self,
+        ctx: &egui::Context,
+        job: impl FnOnce() -> UpdateEvent + Send + 'static,
+    ) {
+        if !self.native || self.updating {
+            return;
+        }
+        let (tx, rx) = mpsc::channel();
+        self.updater = Some(rx);
+        self.updating = true;
+        let ctx = ctx.clone();
+        std::thread::spawn(move || {
+            let _ = tx.send(job());
+            ctx.request_repaint();
+        });
+    }
+    fn check_update(&mut self, ctx: &egui::Context, manual: bool) {
+        self.run_update(ctx, move || UpdateEvent::Checked {
+            result: if manual || system::update_check_enabled() {
+                update::check()
+            } else {
+                Ok(None)
+            },
+            manual,
+        });
+    }
+    fn install_update(&mut self, ctx: &egui::Context) {
+        let Some(release) = self.update.clone() else {
+            return;
+        };
+        self.run_update(ctx, move || {
+            UpdateEvent::Installed(update::install(&release))
+        });
+    }
+    fn poll_update(&mut self, l: &Locale) {
+        let Some(event) = self.updater.as_ref().and_then(|rx| rx.try_recv().ok()) else {
+            return;
+        };
+        self.updater = None;
+        self.updating = false;
+        match event {
+            UpdateEvent::Checked {
+                result: Ok(Some(release)),
+                ..
+            } => {
+                self.notify(available(l, &release.version));
+                self.update = Some(release);
+            }
+            UpdateEvent::Checked {
+                result: Ok(None),
+                manual: true,
+            } => self.notify(l.t("Tablet Center is up to date")),
+            // A failed startup check (offline) stays quiet.
+            UpdateEvent::Checked {
+                result: Err(error),
+                manual: true,
+            } => self.notify(error),
+            UpdateEvent::Checked { .. } => {}
+            UpdateEvent::Installed(Ok(())) => {
+                self.update = None;
+                self.notify(l.t("Update installed. Restart Tablet Center to use it."));
+            }
+            UpdateEvent::Installed(Err(error)) => self.notify(error),
+        }
+    }
     pub fn notify(&mut self, message: String) {
         self.toast = Some((message, Instant::now()));
     }
@@ -136,10 +218,13 @@ impl State {
                 .unwrap_or_else(|_| "en".into()),
                 backups: system::list_backups(),
                 blur: system::blur_enabled(),
+                update_check: system::update_check_enabled(),
             })
         });
+        self.check_update(ctx, false);
     }
     pub fn poll(&mut self, c: &mut Config, l: &mut Locale) {
+        self.poll_update(l);
         let update = self.receiver.as_ref().and_then(|rx| rx.try_recv().ok());
         if let Some(result) = update {
             self.receiver = None;
@@ -151,7 +236,9 @@ impl State {
                     language,
                     backups,
                     blur,
+                    update_check,
                 }) => {
+                    self.update_check = update_check;
                     self.language = language.trim().into();
                     *l = Locale::new(&self.language);
                     self.blur = blur;
@@ -172,6 +259,7 @@ impl State {
                 Ok(Update::Backups(b)) => self.backups = b,
                 Ok(Update::Autostart(value)) => self.autostart = value,
                 Ok(Update::Blur(value)) => self.blur = value,
+                Ok(Update::CheckUpdates(value)) => self.update_check = value,
                 Ok(Update::Config(config, applied)) => {
                     *c = *config;
                     if !applied {
@@ -335,7 +423,7 @@ pub fn show(ui: &mut Ui, l: &mut Locale, c: &mut Config, status: &Response, stat
         .iter()
         .map(|b| backup_row_height(ui, &b.title))
         .sum::<f32>();
-    let general_height = s::GENERAL_HEIGHT + s::BLUR_HEIGHT;
+    let general_height = s::GENERAL_HEIGHT + s::BLUR_HEIGHT + s::UPDATE_HEIGHT;
     let total = s::SECTION_TOP
         + s::PX_3 * (s::SECTION_CARD + s::SECTION_GAP)
         + general_height
@@ -413,7 +501,8 @@ pub fn show(ui: &mut Ui, l: &mut Locale, c: &mut Config, status: &Response, stat
 fn general(ui: &mut Ui, l: &Locale, c: &mut Config, status: &Response, state: &mut State, o: f32) {
     let bounds = crate::widgets::view(ui);
     blur_row(ui, l, state, o, state.blur_supported == Some(true));
-    let o = o - s::BLUR_HEIGHT;
+    update_row(ui, l, state, o - s::BLUR_HEIGHT);
+    let o = o - s::BLUR_HEIGHT - s::UPDATE_HEIGHT;
     label(ui, l, s::PX_48, s::PX_206 - o, "Driver service", s::PX_18);
     ui.painter().circle_filled(
         pos2(s::PX_52_5, s::PX_254_5 - o),
@@ -531,6 +620,72 @@ fn blur_row(ui: &mut Ui, l: &Locale, state: &mut State, o: f32, supported: bool)
         );
     }
     rule(ui, s::BLUR_RULE - o);
+}
+fn available(l: &Locale, version: &str) -> String {
+    l.t("Version {version} is available")
+        .replace("{version}", version)
+}
+fn update_row(ui: &mut Ui, l: &Locale, state: &mut State, o: f32) {
+    let mut enabled = state.update_check;
+    if toggle(
+        ui,
+        l,
+        s::UPDATE_Y - o,
+        "Check for updates at startup",
+        &mut enabled,
+        !state.busy,
+    ) {
+        if state.native {
+            state.launch(ui.ctx(), move || {
+                system::set_update_check_enabled(enabled).map_err(|error| error.to_string())?;
+                Ok(Update::CheckUpdates(enabled))
+            });
+        } else {
+            state.update_check = enabled;
+        }
+    }
+    let (hint, color) = match &state.update {
+        Some(release) => (available(l, &release.version), t::interaction::ACCENT_SOFT),
+        None => (
+            format!("{} {}", l.t("Installed version"), update::CURRENT),
+            t::MUTED,
+        ),
+    };
+    text(ui, s::PX_48, s::UPDATE_HINT_Y - o, &hint, s::PX_13, color);
+    let caption = match (&state.update, state.updating) {
+        (Some(_), true) => l.t("Installing…"),
+        (None, true) => l.t("Checking…"),
+        (Some(_), false) => l.t("Download and install"),
+        (None, false) => l.t("Check now"),
+    };
+    let w = width(ui, &caption, s::PX_15) + s::PX_36;
+    let r = rect(s::PX_48, s::UPDATE_BUTTON_Y - o, w, s::PX_33);
+    if state.update.is_some() && !state.updating {
+        // The install action stands out in the accent colour.
+        let response = click(ui, r, "update-install", &caption);
+        ui.painter().rect_filled(
+            r,
+            t::RADIUS,
+            if response.hovered() {
+                t::interaction::ACCENT_HOVER
+            } else {
+                t::ACCENT
+            },
+        );
+        ui.painter().text(
+            r.center(),
+            Align2::CENTER_CENTER,
+            &caption,
+            t::font(s::PX_15),
+            t::TEXT,
+        );
+        if response.clicked() {
+            state.install_update(ui.ctx());
+        }
+    } else if button(ui, r, &caption) && !state.updating {
+        state.check_update(ui.ctx(), true);
+    }
+    rule(ui, s::UPDATE_RULE - o);
 }
 fn backups(ui: &mut Ui, l: &Locale, state: &mut State, bounds: egui::Rect, o: f32) {
     // Row actions end at the card's inner edge, whatever the window width.

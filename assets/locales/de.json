@@ -277,5 +277,14 @@
   "Tilt Y": "Neigung Y",
   "Blur background": "Hintergrund weichzeichnen",
   "Make the window translucent and blur what is behind it.": "Macht das Fenster durchscheinend und zeichnet den Hintergrund weich.",
-  "Not supported by this desktop": "Diese Desktop-Umgebung unterstützt keine Hintergrundunschärfe"
+  "Not supported by this desktop": "Diese Desktop-Umgebung unterstützt keine Hintergrundunschärfe",
+  "Check for updates at startup": "Beim Start nach Updates suchen",
+  "Installed version": "Installierte Version",
+  "Check now": "Jetzt suchen",
+  "Checking…": "Suche läuft…",
+  "Download and install": "Herunterladen und installieren",
+  "Installing…": "Wird installiert…",
+  "Version {version} is available": "Version {version} ist verfügbar",
+  "Tablet Center is up to date": "Tablet Center ist aktuell",
+  "Update installed. Restart Tablet Center to use it.": "Update installiert. Starte Tablet Center neu, um es zu verwenden."
 }

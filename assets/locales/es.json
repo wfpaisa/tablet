@@ -286,5 +286,14 @@
   "Press the centre button to switch modes. The lit LED shows the active mode.": "Pulsa el botón central para cambiar de modo. El LED encendido indica el modo activo.",
   "Blur background": "Desenfocar el fondo",
   "Make the window translucent and blur what is behind it.": "Hace que la ventana sea translúcida y desenfoca lo que hay detrás.",
-  "Not supported by this desktop": "Este escritorio no admite el desenfoque"
+  "Not supported by this desktop": "Este escritorio no admite el desenfoque",
+  "Check for updates at startup": "Buscar actualizaciones al iniciar",
+  "Installed version": "Versión instalada",
+  "Check now": "Buscar ahora",
+  "Checking…": "Buscando…",
+  "Download and install": "Descargar e instalar",
+  "Installing…": "Instalando…",
+  "Version {version} is available": "La versión {version} está disponible",
+  "Tablet Center is up to date": "Tablet Center está actualizado",
+  "Update installed. Restart Tablet Center to use it.": "Actualización instalada. Reinicia Tablet Center para usarla."
 }

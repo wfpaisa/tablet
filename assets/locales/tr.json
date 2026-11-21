@@ -277,5 +277,14 @@
   "Tilt Y": "Eğim Y",
   "Blur background": "Arka planı bulanıklaştır",
   "Make the window translucent and blur what is behind it.": "Pencereyi yarı saydam yapar ve arkasındaki görüntüyü bulanıklaştırır.",
-  "Not supported by this desktop": "Bu masaüstü ortamı bulanıklaştırmayı desteklemiyor"
+  "Not supported by this desktop": "Bu masaüstü ortamı bulanıklaştırmayı desteklemiyor",
+  "Check for updates at startup": "Açılışta güncellemeleri denetle",
+  "Installed version": "Yüklü sürüm",
+  "Check now": "Şimdi denetle",
+  "Checking…": "Denetleniyor…",
+  "Download and install": "İndir ve yükle",
+  "Installing…": "Yükleniyor…",
+  "Version {version} is available": "{version} sürümü mevcut",
+  "Tablet Center is up to date": "Tablet Center güncel",
+  "Update installed. Restart Tablet Center to use it.": "Güncelleme yüklendi. Kullanmak için Tablet Center’ı yeniden başlatın."
 }

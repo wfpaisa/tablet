@@ -277,5 +277,14 @@
   "Tilt Y": "Kanteling Y",
   "Blur background": "Achtergrond vervagen",
   "Make the window translucent and blur what is behind it.": "Maakt het venster doorschijnend en vervaagt wat erachter staat.",
-  "Not supported by this desktop": "Deze bureaubladomgeving ondersteunt geen vervaging"
+  "Not supported by this desktop": "Deze bureaubladomgeving ondersteunt geen vervaging",
+  "Check for updates at startup": "Bij het starten naar updates zoeken",
+  "Installed version": "Geïnstalleerde versie",
+  "Check now": "Nu zoeken",
+  "Checking…": "Zoeken…",
+  "Download and install": "Downloaden en installeren",
+  "Installing…": "Installeren…",
+  "Version {version} is available": "Versie {version} is beschikbaar",
+  "Tablet Center is up to date": "Tablet Center is up-to-date",
+  "Update installed. Restart Tablet Center to use it.": "Update geïnstalleerd. Start Tablet Center opnieuw om hem te gebruiken."
 }

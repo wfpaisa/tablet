@@ -296,15 +296,30 @@ pub fn autostart_enabled() -> Result<bool, String> {
 }
 
 pub fn blur_enabled() -> bool {
-    tablet_config::config_path()
-        .with_file_name("blur")
-        .is_file()
+    flag("blur")
 }
 
 pub fn set_blur_enabled(enabled: bool) -> std::io::Result<()> {
+    set_flag("blur", enabled)
+}
+
+/// Startup update check; on unless the user turned it off.
+pub fn update_check_enabled() -> bool {
+    !flag("no-update-check")
+}
+
+pub fn set_update_check_enabled(enabled: bool) -> std::io::Result<()> {
+    set_flag("no-update-check", !enabled)
+}
+
+fn flag(name: &str) -> bool {
+    tablet_config::config_path().with_file_name(name).is_file()
+}
+
+fn set_flag(name: &str, on: bool) -> std::io::Result<()> {
     // Presence of this file stores the preference without a partial write.
-    let path = tablet_config::config_path().with_file_name("blur");
-    if enabled {
+    let path = tablet_config::config_path().with_file_name(name);
+    if on {
         if let Some(dir) = path.parent() {
             fs::create_dir_all(dir)?;
         }

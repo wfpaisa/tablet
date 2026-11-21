@@ -11,6 +11,7 @@ pub mod shared;
 pub mod system;
 pub mod tablet_input;
 pub mod theme;
+pub mod update;
 pub mod widgets;
 use tablet_config::{Config, DeviceInfo, Display, PenState, Response};
 pub struct App {
@@ -33,7 +34,7 @@ pub struct App {
 }
 impl App {
     pub fn simulated() -> Self {
-        Self {
+        let mut app = Self {
             blur: None,
             tablet: None,
             config: Config::default(),
@@ -79,7 +80,9 @@ impl App {
             installed: false,
             fitted: false,
             shell_language: String::new(),
-        }
+        };
+        app.settings.update_check = true;
+        app
     }
     pub fn native(ctx: &egui::Context) -> Self {
         let mut app = Self::simulated();
@@ -291,7 +294,13 @@ impl App {
             });
             frame::show(ui, r);
             let connected = self.status.device.is_some();
-            classic::navigation(ui, r.height(), &self.locale, &mut self.tab);
+            classic::navigation(
+                ui,
+                r.height(),
+                &self.locale,
+                &mut self.tab,
+                self.settings.update.is_some(),
+            );
             if self.tab == 0 && connected {
                 classic::sidebar(
                     ui,

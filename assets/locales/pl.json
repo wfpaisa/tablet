@@ -277,5 +277,14 @@
   "Tilt Y": "Nachylenie Y",
   "Blur background": "Rozmyj tło",
   "Make the window translucent and blur what is behind it.": "Sprawia, że okno staje się półprzezroczyste, i rozmywa jego tło.",
-  "Not supported by this desktop": "To środowisko graficzne nie obsługuje rozmycia tła"
+  "Not supported by this desktop": "To środowisko graficzne nie obsługuje rozmycia tła",
+  "Check for updates at startup": "Sprawdzaj aktualizacje przy uruchomieniu",
+  "Installed version": "Zainstalowana wersja",
+  "Check now": "Sprawdź teraz",
+  "Checking…": "Sprawdzanie…",
+  "Download and install": "Pobierz i zainstaluj",
+  "Installing…": "Instalowanie…",
+  "Version {version} is available": "Dostępna jest wersja {version}",
+  "Tablet Center is up to date": "Tablet Center jest aktualny",
+  "Update installed. Restart Tablet Center to use it.": "Aktualizacja zainstalowana. Uruchom ponownie Tablet Center, aby jej użyć."
 }

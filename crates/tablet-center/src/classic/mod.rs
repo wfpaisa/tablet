@@ -14,7 +14,13 @@ use egui::{pos2, Align2, Stroke, StrokeKind, Ui};
 /// Left column shared by every tab: the Devices | Shortcuts switch on top,
 /// Settings pinned to the bottom. Tabs draw their own
 /// navigation between both.
-pub fn navigation(ui: &mut Ui, h: f32, locale: &crate::i18n::Locale, tab: &mut usize) {
+pub fn navigation(
+    ui: &mut Ui,
+    h: f32,
+    locale: &crate::i18n::Locale,
+    tab: &mut usize,
+    update: bool,
+) {
     ui.painter().rect_filled(
         rect(1., 1., t::SIDEBAR - 1., h - 2.),
         t::SQUARE,
@@ -125,6 +131,13 @@ pub fn navigation(ui: &mut Ui, h: f32, locale: &crate::i18n::Locale, tab: &mut u
         layout::FONT,
         t::TEXT,
     );
+    if update {
+        ui.painter().circle_filled(
+            pos2(r.right() - layout::BADGE_RIGHT, r.center().y),
+            layout::BADGE_RADIUS,
+            if *tab == 2 { t::TEXT } else { t::ACCENT },
+        );
+    }
     if response.clicked() {
         *tab = 2;
     }
